@@ -494,12 +494,45 @@ async function addReservation(){
 function checkAlarms(){
   const now=new Date();
   const soon=allReservations.filter(r=>{ if(r.done)return false; const mins=(new Date(r.scheduled_at)-now)/60000; return mins>0&&mins<=5&&!alertedIds.has(r.id); });
-  if(soon.length===0){bannerEl.style.display='none';return;}
-  soon.forEach(r=>alertedIds.add(r.id));
-  bannerEl.style.display='block';
-  bannerEl.textContent='⏰ 5분 이내 예약: '+soon.map(r=>`${r.manager_name} - ${r.memo||'예약'} (${new Date(r.scheduled_at).toLocaleTimeString('ko-KR')})`).join(' / ');
-  if('Notification' in window && Notification.permission==='granted') soon.forEach(r=>new Notification('예약 5분 전',{body:`${r.manager_name} - ${r.memo||'예약'}`}));
-  try{ const audio=new AudioContext(); const o=audio.createOscillator(); o.connect(audio.destination); o.frequency.value=880; o.start(); setTimeout(()=>o.stop(),300);}catch(e){}
+  if(soon.length===0){
+    bannerEl.style.display='none';
+  } else {
+    soon.forEach(r=>alertedIds.add(r.id));
+    bannerEl.style.display='block';
+    bannerEl.textContent='⏰ 5분 이내 예약: '+soon.map(r=>`${r.manager_name} - ${r.memo||'예약'} (${new Date(r.scheduled_at).toLocaleTimeString('ko-KR')})`).join(' / ');
+    if('Notification' in window && Notification.permission==='granted') soon.forEach(r=>new Notification('예약 5분 전',{body:`${r.manager_name} - ${r.memo||'예약'}`}));
+  }
+  checkContractAlarms();
+}
+const contractAlertedKeys = new Set();
+function checkContractAlarms(){
+  if (typeof allContracts === 'undefined') return;
+  const today=new Date(); today.setHours(0,0,0,0);
+  const todayKey = today.toISOString().slice(0,10);
+  const newItems = [];
+
+  allContracts.forEach(c=>{
+    [[1,'checked_1m'],[2,'checked_2m'],[4,'checked_4m'],[6,'checked_6m']].forEach(([n,field])=>{
+      if(c[field]) return;
+      const target=addMonths(c.contract_date,n); target.setHours(0,0,0,0);
+      if(target<=today){
+        const key = `${c.id}_${field}`;
+        if (!contractAlertedKeys.has(key)) { contractAlertedKeys.add(key); newItems.push(`${c.customer_name}(${c.manager_name}) - ${n}개월 확인`); }
+      }
+    });
+    if(c.customer_birthday){
+      const b=new Date(c.customer_birthday);
+      if(b.getMonth()===today.getMonth() && b.getDate()===today.getDate()){
+        const key = `${c.id}_bday_${todayKey}`;
+        if (!contractAlertedKeys.has(key)) { contractAlertedKeys.add(key); newItems.push(`🎂 ${c.customer_name}(${c.manager_name}) 생일`); }
+      }
+    }
+  });
+
+  if (newItems.length === 0) return;
+  if('Notification' in window && Notification.permission==='granted'){
+    new Notification('계약관리 확인 알림', { body: newItems.slice(0,5).join('\n') + (newItems.length>5?` 외 ${newItems.length-5}건`:'') });
+  }
 }
 
 /* ============================================================
