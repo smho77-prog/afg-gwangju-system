@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AFG 광주센터 통합전산</title>
+<style>
+  :root {
+    --navy:#16233F; --navy2:#1E2F52; --paper:#F3F1EC; --line:#D9D5CA;
+    --ink:#1B1B1B; --muted:#6B6558; --green:#3C6E52; --green-bg:#E7EFE9;
+    --amber:#B8863B; --amber-bg:#F5EBDA; --red:#A23B32; --red-bg:#F4E4E1;
+    --pink:#B0507A; --pink-bg:#F6E7EF; --card:#fff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: var(--paper); color: var(--ink);
+  }
+  header {
+    background: var(--navy); color: #fff; padding: 16px 20px 0;
+  }
+  header h1 { margin: 0 0 10px 0; font-size: 18px; }
+  nav { display: flex; gap: 4px; }
+  nav button {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+    color: #E7EAF0; padding: 9px 16px; border-radius: 8px 8px 0 0;
+    font-size: 13.5px; cursor: pointer;
+  }
+  nav button.active { background: var(--paper); color: var(--navy); font-weight: 700; }
+  main { max-width: 920px; margin: 0 auto; padding: 20px 16px 60px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
+  .sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+
+  #connStatus { font-size: 12px; padding: 7px 10px; border-radius: 6px; margin: 12px 16px 0; }
+  .st-checking { background: rgba(255,255,255,.1); color: #C7CEDF; }
+  .st-ok { background: rgba(255,255,255,.1); color: #9FCBAE; }
+  .st-error { background: rgba(255,255,255,.1); color: #E3AFA6; }
+
+  .alarm-banner, .due-box {
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; font-size: 13px;
+  }
+  .alarm-banner { display:none; background: var(--red-bg); color: var(--red); font-weight: 600; }
+  .due-box { background: var(--amber-bg); color: var(--amber); }
+  .due-box.birthday { background: var(--pink-bg); color: var(--pink); }
+  .due-box ul { margin: 6px 0 0; padding-left: 18px; }
+  .due-box.empty { background: var(--green-bg); color: var(--green); }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .row > div { flex: 1; min-width: 130px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, select { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 13.5px; }
+  button.act { background: var(--navy); color: #fff; border: none; border-radius: 8px; padding: 9px 16px; font-size: 13.5px; cursor: pointer; }
+  button.act:hover { background: var(--navy2); }
+  button.secondary { background: #EFEDE6; color: var(--ink); border: none; border-radius: 6px; cursor: pointer; }
+  button.secondary:hover { background: #E3E0D6; }
+  button.danger { background: var(--red-bg); color: var(--red); border: none; border-radius: 6px; cursor: pointer; }
+  button.danger:hover { background: #EDD2CB; }
+  button.small { padding: 5px 10px; font-size: 12px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; table-layout: fixed; }
+  th, td { text-align: left; padding: 9px 6px; border-bottom: 1px solid #EFEDE6; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; }
+  td input, td select { width: 100%; box-sizing: border-box; font-size: 12.5px; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  tr.done td { color: var(--muted); text-decoration: line-through; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+  .badge-soon { background: var(--amber-bg); color: var(--amber); }
+  .badge-done { background: var(--green-bg); color: var(--green); }
+  .badge-bday { background: var(--pink-bg); color: var(--pink); }
+  .actions { display: flex; gap: 6px; white-space: nowrap; }
+  .filter-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .filter-row select, .filter-row input { width: auto; }
+
+  .time-picker { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .time-picker input[type="date"] { flex: 1; min-width: 120px; }
+  .stepper { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+  td .stepper input[type="number"], .stepper input[type="number"] {
+    width: 40px !important; text-align: center; border: none; border-radius: 0;
+    -moz-appearance: textfield; padding: 8px 2px;
+  }
+  .stepper input[type="number"]::-webkit-inner-spin-button,
+  .stepper input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper-arrows { display: flex; flex-direction: column; border-left: 1px solid var(--line); }
+  .stepper-arrows button {
+    border: none; background: #EFEDE6; width: 22px; height: 15px; line-height: 1;
+    font-size: 9px; cursor: pointer; padding: 0; color: var(--ink);
+  }
+  .stepper-arrows button:hover { background: #E3E0D6; }
+  .stepper-arrows button:first-child { border-bottom: 1px solid var(--line); }
+  .time-colon { font-weight: 700; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="loginGate" class="card" style="max-width:340px;margin:80px auto;">
+  <div style="font-size:16px;font-weight:700;margin-bottom:4px;">🔒 AFG 광주센터 통합전산</div>
+  <div class="sub">사원번호를 입력해주세요.</div>
+  <label>사원번호</label>
+  <input type="text" id="loginEmployeeNo" placeholder="사원번호 입력" onkeydown="if(event.key==='Enter') doLogin()">
+  <button class="act" style="width:100%;margin-top:12px;" onclick="doLogin()">입장</button>
+  <div id="loginError" style="color:var(--red);font-size:12px;margin-top:8px;display:none;"></div>
+</div>
+
+<header id="mainHeader" style="display:none;">
+  <h1>🏢 AFG 광주센터 통합전산</h1>
+  <nav>
+    <button class="tabbtn active" data-tab="reserve" onclick="switchTab('reserve')">📅 예약관리</button>
+    <button class="tabbtn" data-tab="contract" onclick="switchTab('contract')">📄 계약관리</button>
+    <button class="tabbtn" data-tab="insurer" onclick="switchTab('insurer')">📞 보험사연락처</button>
+    <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
+  </nav>
+  <div id="connStatus" class="st-checking">연결 확인 중...</div>
+  <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
+  <button id="notifBtn" class="secondary" style="font-size:11px;padding:5px 10px;margin-bottom:10px;" onclick="enableNotifications()">🔔 브라우저 알림 켜기</button>
+</header>
+
+<main id="mainContent" style="display:none;">
+
+<!-- ===== 예약관리 ===== -->
+<div class="panel active" id="panel-reserve">
+  <div class="card">
+    <div class="sub">상담 후 예약을 등록하면, 예정 5분 전에 이 화면에서 알림이 울립니다. (화면을 열어두셔야 알람이 동작해요)</div>
+    <div id="alarmBanner" class="alarm-banner"></div>
+    <div class="row">
+      <div><label>담당 팀장</label><input type="text" id="r_manager" placeholder="예: 송명호"></div>
+      <div><label>고객명 / 메모</label><input type="text" id="r_memo" placeholder="예: 김철수 고객 후속상담"></div>
+      <div>
+        <label>예정 시각</label>
+        <div class="time-picker">
+          <input type="date" id="r_date">
+          <div class="stepper">
+            <input type="number" id="r_hour" value="09" min="0" max="23">
+            <div class="stepper-arrows">
+              <button type="button" onclick="stepTimeField('r_hour',1,0,23)">▲</button>
+              <button type="button" onclick="stepTimeField('r_hour',-1,0,23)">▼</button>
+            </div>
+          </div>
+          <span class="time-colon">:</span>
+          <div class="stepper">
+            <input type="number" id="r_minute" value="00" min="0" max="55" step="5">
+            <div class="stepper-arrows">
+              <button type="button" onclick="stepTimeField('r_minute',5,0,55)">▲</button>
+              <button type="button" onclick="stepTimeField('r_minute',-5,0,55)">▼</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="act" onclick="addReservation()">+ 예약 추가</button>
+  </div>
+  <div class="card">
+    <div class="filter-row">
+      <label style="margin:0;">보기:</label>
+      <select id="r_filterManager" onchange="renderReservations()"><option value="__all__">전체 팀장</option></select>
+      <label style="margin:0;"><input type="checkbox" id="r_hideDone" checked onchange="renderReservations()"> 완료 항목 숨기기</label>
+    </div>
+    <table>
+      <colgroup><col style="width:13%"><col style="width:23%"><col style="width:34%"><col style="width:10%"><col style="width:20%"></colgroup>
+      <thead><tr><th>담당</th><th>메모</th><th>예정시각</th><th>상태</th><th>관리</th></tr></thead>
+      <tbody id="r_body"><tr><td colspan="5" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 계약관리 ===== -->
+<div class="panel" id="panel-contract">
+  <div class="card">
+    <div class="sub">계약일 기준 1/2/4/6개월 후 확인 알람 + 고객 생일 알림</div>
+    <div id="c_dueBox" class="due-box empty">오늘 확인할 항목이 없습니다.</div>
+    <div class="row">
+      <div><label>담당 팀장</label><input type="text" id="c_manager" placeholder="예: 송명호"></div>
+      <div><label>고객명</label><input type="text" id="c_customer" placeholder="예: 김철수"></div>
+      <div><label>생일 (월/일)</label><input type="date" id="c_birthday"></div>
+    </div>
+    <div class="row">
+      <div><label>계약일</label><input type="date" id="c_date"></div>
+      <div>
+        <label>보험사</label>
+        <select id="c_insurer" style="margin-bottom:4px;"><option value="">선택 안 함</option></select>
+        <input type="text" id="c_insurer_manual" placeholder="목록에 없으면 직접 입력">
+      </div>
+      <div><label>상품명</label><input type="text" id="c_product" placeholder="예: OO암보험"></div>
+    </div>
+    <div class="row">
+      <div><label>보험료(월납, 원)</label><input type="number" id="c_premium" placeholder="예: 55000"></div>
+    </div>
+    <button class="act" onclick="addContract()">+ 계약 추가</button>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
+      <label>회사 전산 엑셀로 일괄 등록 (담당자명/계약자/계약일/보험사/상품명/보험료 컬럼 인식)</label>
+      <input type="file" id="c_excelFile" accept=".xlsx,.xls,.csv" onchange="handleContractExcelUpload(event)">
+      <div id="c_excelStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <div class="card" id="c_previewCard" style="display:none;">
+    <div class="sub">엑셀에는 생일 정보가 없어서, 필요한 분만 아래에서 직접 입력해주세요. 확인 후 일괄등록을 눌러주세요.</div>
+    <table>
+      <thead><tr><th>담당</th><th>고객명</th><th>생일(직접입력)</th><th>계약일</th><th>보험사</th><th>상품명</th><th>보험료</th></tr></thead>
+      <tbody id="c_previewBody"></tbody>
+    </table>
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <button class="act" onclick="commitContractImport()">일괄등록</button>
+      <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="cancelContractImport()">취소</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="filter-row">
+      <label style="margin:0;">보기:</label>
+      <select id="c_filterManager" onchange="renderContracts()"><option value="__all__">전체 팀장</option></select>
+      <input type="text" id="c_search" placeholder="고객명 검색" oninput="renderContracts()">
+    </div>
+    <table>
+      <colgroup>
+        <col style="width:9%"><col style="width:16%"><col style="width:10%"><col style="width:23%">
+        <col style="width:10%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:8%">
+      </colgroup>
+      <thead><tr><th>담당</th><th>고객명</th><th>계약일</th><th>상품/보험사</th><th>보험료</th><th>1m</th><th>2m</th><th>4m</th><th>6m</th><th>관리</th></tr></thead>
+      <tbody id="c_body"><tr><td colspan="10" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 보험사연락처 ===== -->
+<div class="panel" id="panel-insurer">
+  <div class="card">
+    <div class="sub">보험사별 담당자 연락처 — 수정하면 팀장님들 모두 최신 내용을 보게 됩니다.</div>
+    <div class="row">
+      <div><label>보험사명</label><input type="text" id="i_name" placeholder="예: 흥국화재"></div>
+      <div><label>담당업무</label><input type="text" id="i_role" placeholder="예: 청약/보전/보상"></div>
+      <div><label>담당자명</label><input type="text" id="i_person" placeholder="예: 홍길동 과장"></div>
+    </div>
+    <div class="row">
+      <div><label>연락처</label><input type="text" id="i_phone" placeholder="예: 010-0000-0000"></div>
+      <div><label>팩스</label><input type="text" id="i_fax" placeholder="선택"></div>
+      <div><label>비고</label><input type="text" id="i_memo" placeholder="선택"></div>
+    </div>
+    <button class="act" onclick="addInsurerContact()">+ 연락처 추가</button>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
+      <label>엑셀로 일괄 등록 (보험사명/담당업무/담당자명/연락처/팩스/비고 컬럼 인식)</label>
+      <input type="file" id="i_excelFile" accept=".xlsx,.xls,.csv" onchange="handleInsurerExcelUpload(event)">
+      <div id="i_excelStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <div class="card" id="i_previewCard" style="display:none;">
+    <div class="sub">아래 내용을 확인하고 "일괄등록"을 눌러주세요.</div>
+    <table>
+      <thead><tr><th>보험사</th><th>담당업무</th><th>담당자</th><th>연락처</th><th>팩스</th><th>비고</th></tr></thead>
+      <tbody id="i_previewBody"></tbody>
+    </table>
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <button class="act" onclick="commitInsurerImport()">일괄등록</button>
+      <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="cancelInsurerImport()">취소</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="filter-row">
+      <input type="text" id="i_search" placeholder="보험사명 / 담당자명 검색" oninput="renderInsurers()">
+    </div>
+    <table>
+      <colgroup><col style="width:16%"><col style="width:14%"><col style="width:16%"><col style="width:16%"><col style="width:14%"><col style="width:14%"><col style="width:10%"></colgroup>
+      <thead><tr><th>보험사</th><th>담당업무</th><th>담당자</th><th>연락처</th><th>팩스</th><th>비고</th><th>관리</th></tr></thead>
+      <tbody id="i_body"><tr><td colspan="7" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 실적현황표 ===== -->
+<div class="panel" id="panel-performance">
+  <div class="card">
+    <div class="sub">월별 목표 대비 실적, 보험사별 합산 실적을 확인합니다.</div>
+    <div class="filter-row">
+      <label style="margin:0;">월:</label>
+      <input type="month" id="p_month">
+      <label style="margin:0 0 0 12px;">팀장:</label>
+      <select id="p_manager" onchange="renderPerformance()"><option value="__all__">전체 팀장</option></select>
+    </div>
+  </div>
+
+  <div class="card" id="p_targetCard">
+    <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:12px;">
+      <div style="flex:1;">
+        <label>이달 목표금액(원)</label>
+        <input type="number" id="p_targetInput" placeholder="예: 3000000">
+      </div>
+      <button class="act" onclick="saveTarget()">목표 저장</button>
+    </div>
+    <div id="p_summaryBox"></div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px;">보험사별 합산 실적</div>
+    <table>
+      <colgroup><col style="width:40%"><col style="width:30%"><col style="width:30%"></colgroup>
+      <thead><tr><th>보험사</th><th>합산 보험료</th><th>건수</th></tr></thead>
+      <tbody id="p_insurerBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card" id="p_allManagersCard" style="display:none;">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px;">팀장별 목표 대비 실적</div>
+    <table>
+      <colgroup><col style="width:20%"><col style="width:25%"><col style="width:25%"><col style="width:15%"><col style="width:15%"></colgroup>
+      <thead><tr><th>팀장</th><th>목표</th><th>실적</th><th>달성률</th><th>건수</th></tr></thead>
+      <tbody id="p_managerBody"></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script>
+const SUPABASE_URL = "https://wxsscpjafyszvtdkzrgv.supabase.co";
+const SUPABASE_KEY = "sb_publishable_gkQJVz2h0mvwR50OpgobRA_-ufWbsOT";
+let sb = null;
+let currentUser = null; // { employee_no, manager_name, role }
+const statusEl = document.getElementById('connStatus');
+function setStatus(state, msg) { statusEl.className = 'st-' + state; statusEl.textContent = msg; }
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ---------- 로그인 (사원번호 기반, 보안 아님 - UI 수준 구분용) ---------- */
+async function doLogin() {
+  const no = document.getElementById('loginEmployeeNo').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if (!no) return;
+  try {
+    const sbTemp = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data, error } = await sbTemp.from('employees').select('*').eq('employee_no', no).maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      errEl.textContent = '등록되지 않은 사원번호입니다. 관리자(쏭님)에게 문의하세요.';
+      errEl.style.display = 'block';
+      return;
+    }
+    currentUser = { employee_no: data.employee_no, manager_name: data.manager_name, role: data.role || 'member' };
+    localStorage.setItem('afg_gwangju_user', JSON.stringify(currentUser));
+    startApp();
+  } catch (e) {
+    errEl.textContent = '로그인 확인 중 오류: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+function logout() {
+  localStorage.removeItem('afg_gwangju_user');
+  location.reload();
+}
+function tryAutoLogin() {
+  const saved = localStorage.getItem('afg_gwangju_user');
+  if (saved) {
+    try { currentUser = JSON.parse(saved); return true; } catch(e) { return false; }
+  }
+  return false;
+}
+
+/* ---------- 탭 전환 ---------- */
+function switchTab(name) {
+  document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  if (name === 'performance') renderPerformance();
+}
+
+/* ============================================================
+   예약관리
+============================================================ */
+let allReservations = [];
+let editingReservationId = null;
+const alertedIds = new Set();
+const bannerEl = document.getElementById('alarmBanner');
+
+async function loadReservations() {
+  const { data, error } = await sb.from('reservations').select('*').order('scheduled_at', { ascending: true });
+  if (error) throw error;
+  let rows = data || [];
+  if (currentUser.role !== 'master') rows = rows.filter(r => r.manager_name === currentUser.manager_name);
+  allReservations = rows;
+  updateManagerFilterOptions('r_filterManager', allReservations.map(r=>r.manager_name));
+  renderReservations();
+}
+function updateManagerFilterOptions(selectId, names) {
+  const sel = document.getElementById(selectId);
+  const current = sel.value;
+  const uniq = Array.from(new Set(names)).sort();
+  sel.innerHTML = '<option value="__all__">전체 팀장</option>' + uniq.map(n=>`<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('');
+  if (uniq.includes(current)) sel.value = current;
+}
+function renderReservations() {
+  const tbody = document.getElementById('r_body');
+  const filterManager = document.getElementById('r_filterManager').value;
+  const hideDone = document.getElementById('r_hideDone').checked;
+  let rows = allReservations;
+  if (filterManager !== '__all__') rows = rows.filter(r => r.manager_name === filterManager);
+  if (hideDone) rows = rows.filter(r => !r.done);
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);">해당 예약이 없습니다</td></tr>'; return; }
+  const now = new Date();
+  tbody.innerHTML = rows.map(r => {
+    if (editingReservationId === r.id) return renderReservationEditRow(r);
+    const dt = new Date(r.scheduled_at);
+    const minsLeft = (dt - now) / 60000;
+    let badge = '';
+    if (r.done) badge = '<span class="badge badge-done">완료</span>';
+    else if (minsLeft <= 5 && minsLeft > -60) badge = '<span class="badge badge-soon">곧 예정</span>';
+    return `<tr class="${r.done?'done':''}">
+      <td>${escapeHtml(r.manager_name)}</td><td>${escapeHtml(r.memo||'')}</td>
+      <td>${dt.toLocaleString('ko-KR')}</td><td>${badge}</td>
+      <td class="actions">
+        ${r.done ? `<button class="small secondary" onclick="toggleResDone(${r.id},false)">완료취소</button>`
+                 : `<button class="small secondary" onclick="toggleResDone(${r.id},true)">완료</button>`}
+        <button class="small secondary" onclick="startEditReservation(${r.id})">수정</button>
+        <button class="small danger" onclick="deleteReservation(${r.id})">삭제</button>
+      </td></tr>`;
+  }).join('');
+}
+function renderReservationEditRow(r) {
+  const d = new Date(r.scheduled_at);
+  const p = n => String(n).padStart(2,'0');
+  const dateVal = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  const hourVal = p(d.getHours());
+  const minuteVal = p(d.getMinutes());
+  return `<tr>
+    <td><input type="text" id="re_manager_${r.id}" value="${escAttr(r.manager_name)}"></td>
+    <td><input type="text" id="re_memo_${r.id}" value="${escAttr(r.memo||'')}"></td>
+    <td>
+      <div class="time-picker">
+        <input type="date" id="re_date_${r.id}" value="${dateVal}">
+        <div class="stepper">
+          <input type="number" id="re_hour_${r.id}" value="${hourVal}" min="0" max="23">
+          <div class="stepper-arrows">
+            <button type="button" onclick="stepTimeField('re_hour_${r.id}',1,0,23)">▲</button>
+            <button type="button" onclick="stepTimeField('re_hour_${r.id}',-1,0,23)">▼</button>
+          </div>
+        </div>
+        <span class="time-colon">:</span>
+        <div class="stepper">
+          <input type="number" id="re_minute_${r.id}" value="${minuteVal}" min="0" max="55" step="5">
+          <div class="stepper-arrows">
+            <button type="button" onclick="stepTimeField('re_minute_${r.id}',5,0,55)">▲</button>
+            <button type="button" onclick="stepTimeField('re_minute_${r.id}',-5,0,55)">▼</button>
+          </div>
+        </div>
+      </div>
+    </td><td></td>
+    <td class="actions">
+      <button class="small act" onclick="saveEditReservation(${r.id})">저장</button>
+      <button class="small secondary" onclick="editingReservationId=null; renderReservations();">취소</button>
+    </td></tr>`;
+}
+function startEditReservation(id){ editingReservationId=id; renderReservations(); }
+async function saveEditReservation(id){
+  const manager=document.getElementById('re_manager_'+id).value.trim();
+  const memo=document.getElementById('re_memo_'+id).value.trim();
+  const dt = combineDateTime('re_date_'+id, 're_hour_'+id, 're_minute_'+id);
+  if(!manager||!dt){alert('담당자와 시각은 필수입니다.');return;}
+  const {error}=await sb.from('reservations').update({manager_name:manager,memo:memo,scheduled_at:dt.toISOString()}).eq('id',id);
+  if(error){alert('수정 실패: '+error.message);return;}
+  editingReservationId=null; alertedIds.delete(id); await loadReservations();
+}
+async function toggleResDone(id,val){ const {error}=await sb.from('reservations').update({done:val}).eq('id',id); if(error){alert('처리 실패: '+error.message);return;} await loadReservations(); }
+async function deleteReservation(id){ if(!confirm('이 예약을 삭제할까요?'))return; const {error}=await sb.from('reservations').delete().eq('id',id); if(error){alert('삭제 실패: '+error.message);return;} alertedIds.delete(id); await loadReservations(); }
+function stepTimeField(id, delta, min, max){
+  const el = document.getElementById(id);
+  let v = parseInt(el.value, 10);
+  if (isNaN(v)) v = min;
+  v += delta;
+  if (v > max) v = min;
+  if (v < min) v = max;
+  el.value = String(v).padStart(2,'0');
+}
+function combineDateTime(dateId, hourId, minuteId){
+  const date = document.getElementById(dateId).value;
+  if (!date) return null;
+  const hour = String(document.getElementById(hourId).value||'0').padStart(2,'0');
+  const minute = String(document.getElementById(minuteId).value||'0').padStart(2,'0');
+  return new Date(`${date}T${hour}:${minute}:00`);
+}
+async function addReservation(){
+  const manager=document.getElementById('r_manager').value.trim();
+  const memo=document.getElementById('r_memo').value.trim();
+  const dt = combineDateTime('r_date','r_hour','r_minute');
+  if(!manager||!dt){alert('담당 팀장 이름과 예정 시각은 필수입니다.');return;}
+  const {error}=await sb.from('reservations').insert([{manager_name:manager,memo:memo,scheduled_at:dt.toISOString()}]);
+  if(error){alert('저장 실패: '+error.message);return;}
+  document.getElementById('r_memo').value=''; document.getElementById('r_date').value='';
+  document.getElementById('r_hour').value='09'; document.getElementById('r_minute').value='00';
+  await loadReservations();
+}
+function checkAlarms(){
+  const now=new Date();
+  const soon=allReservations.filter(r=>{ if(r.done)return false; const mins=(new Date(r.scheduled_at)-now)/60000; return mins>0&&mins<=5&&!alertedIds.has(r.id); });
+  if(soon.length===0){bannerEl.style.display='none';return;}
+  soon.forEach(r=>alertedIds.add(r.id));
+  bannerEl.style.display='block';
+  bannerEl.textContent='⏰ 5분 이내 예약: '+soon.map(r=>`${r.manager_name} - ${r.memo||'예약'} (${new Date(r.scheduled_at).toLocaleTimeString('ko-KR')})`).join(' / ');
+  if('Notification' in window && Notification.permission==='granted') soon.forEach(r=>new Notification('예약 5분 전',{body:`${r.manager_name} - ${r.memo||'예약'}`}));
+  try{ const audio=new AudioContext(); const o=audio.createOscillator(); o.connect(audio.destination); o.frequency.value=880; o.start(); setTimeout(()=>o.stop(),300);}catch(e){}
+}
+
+/* ============================================================
+   계약관리
+============================================================ */
+let allContracts = [];
+let editingContractId = null;
+function addMonths(dateStr, n){ const d=new Date(dateStr); d.setMonth(d.getMonth()+n); return d; }
+function fmtDate(d){ return d.toLocaleDateString('ko-KR'); }
+
+async function loadContracts(){
+  const {data,error}=await sb.from('contracts').select('*').order('contract_date',{ascending:false});
+  if(error) throw error;
+  let rows = data || [];
+  if (currentUser.role !== 'master') rows = rows.filter(c => c.manager_name === currentUser.manager_name);
+  allContracts = rows;
+  updateManagerFilterOptions('c_filterManager', allContracts.map(c=>c.manager_name));
+  updateContractInsurerOptions();
+  renderDueBox();
+  renderContracts();
+}
+function renderDueBox(){
+  const box=document.getElementById('c_dueBox');
+  const today=new Date(); today.setHours(0,0,0,0);
+  const dueItems=[];
+  allContracts.forEach(c=>{
+    [[1,'checked_1m'],[2,'checked_2m'],[4,'checked_4m'],[6,'checked_6m']].forEach(([n,field])=>{
+      if(c[field]) return;
+      const target=addMonths(c.contract_date,n); target.setHours(0,0,0,0);
+      if(target<=today) dueItems.push(`${c.customer_name} (${c.manager_name}) - ${n}개월 확인 (${fmtDate(target)})`);
+    });
+  });
+  const bdayItems=[];
+  allContracts.forEach(c=>{
+    if(!c.customer_birthday) return;
+    const b=new Date(c.customer_birthday);
+    if(b.getMonth()===today.getMonth() && b.getDate()===today.getDate()){
+      bdayItems.push(`🎂 ${c.customer_name} (${c.manager_name}) 고객 생일`);
+    }
+  });
+  if(dueItems.length===0 && bdayItems.length===0){
+    box.className='due-box empty'; box.innerHTML='오늘 확인할 항목이 없습니다.'; return;
+  }
+  let html='';
+  if(bdayItems.length){ html+=`<div><b>오늘 생일인 고객</b><ul>${bdayItems.map(t=>`<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`; }
+  if(dueItems.length){ html+=`<div style="margin-top:${bdayItems.length?'10px':'0'};"><b>확인 필요한 계약</b><ul>${dueItems.map(t=>`<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`; }
+  box.className = 'due-box' + (bdayItems.length && !dueItems.length ? ' birthday' : '');
+  box.innerHTML = html;
+}
+function renderContracts(){
+  const tbody=document.getElementById('c_body');
+  const filterManager=document.getElementById('c_filterManager').value;
+  const search=document.getElementById('c_search').value.trim().toLowerCase();
+  let rows=allContracts;
+  if(filterManager!=='__all__') rows=rows.filter(c=>c.manager_name===filterManager);
+  if(search) rows=rows.filter(c=>c.customer_name.toLowerCase().includes(search));
+  if(rows.length===0){ tbody.innerHTML='<tr><td colspan="10" style="color:var(--muted);">해당 계약이 없습니다</td></tr>'; return; }
+  const today=new Date(); today.setHours(0,0,0,0);
+  tbody.innerHTML=rows.map(c=>{
+    if (editingContractId === c.id) return renderContractEditRow(c);
+    const cellFor=(n,field)=>{
+      const target=addMonths(c.contract_date,n); target.setHours(0,0,0,0);
+      const overdue = !c[field] && target<=today;
+      return `<td style="${overdue?'background:var(--amber-bg);':''}">
+        <input type="checkbox" ${c[field]?'checked':''} onchange="toggleContractCheck(${c.id},'${field}',this.checked)">
+      </td>`;
+    };
+    return `<tr>
+      <td>${escapeHtml(c.manager_name)}</td>
+      <td>${escapeHtml(c.customer_name)}${c.customer_birthday?` <span style="color:var(--muted);font-size:11px;">(${new Date(c.customer_birthday).getMonth()+1}/${new Date(c.customer_birthday).getDate()})</span>`:''}</td>
+      <td>${new Date(c.contract_date).toLocaleDateString('ko-KR')}</td>
+      <td>${escapeHtml(c.product_name||'')}${c.insurer?' / '+escapeHtml(c.insurer):''}</td>
+      <td>${c.premium ? Number(c.premium).toLocaleString('ko-KR')+'원' : ''}</td>
+      ${cellFor(1,'checked_1m')}${cellFor(2,'checked_2m')}${cellFor(4,'checked_4m')}${cellFor(6,'checked_6m')}
+      <td class="actions">
+        <button class="small secondary" onclick="startEditContract(${c.id})">수정</button>
+        <button class="small danger" onclick="deleteContract(${c.id})">삭제</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function renderContractEditRow(c){
+  const usedInsurers = allContracts.map(x=>x.insurer).filter(Boolean);
+  const registeredInsurers = allInsurers.map(i=>i.insurer_name);
+  const insurerOptions = Array.from(new Set([...registeredInsurers, ...usedInsurers])).sort();
+  const optHtml = '<option value="">선택 안 함</option>' + insurerOptions.map(n =>
+    `<option value="${escAttr(n)}" ${c.insurer===n?'selected':''}>${escapeHtml(n)}</option>`).join('');
+  return `<tr>
+    <td>${escapeHtml(c.manager_name)}</td>
+    <td>
+      <input type="text" id="ce_customer_${c.id}" value="${escAttr(c.customer_name)}" style="margin-bottom:4px;">
+      <label style="font-size:10px;color:var(--muted);margin:0;">생일</label>
+      <input type="date" id="ce_birthday_${c.id}" value="${c.customer_birthday||''}">
+    </td>
+    <td><input type="date" id="ce_date_${c.id}" value="${c.contract_date}"></td>
+    <td>
+      <select id="ce_insurer_${c.id}" style="margin-bottom:4px;">${optHtml}</select>
+      <input type="text" id="ce_insurer_manual_${c.id}" placeholder="목록에 없으면 직접 입력" style="margin-bottom:4px;">
+      <input type="text" id="ce_product_${c.id}" value="${escAttr(c.product_name||'')}">
+    </td>
+    <td><input type="number" id="ce_premium_${c.id}" value="${c.premium||''}"></td>
+    <td colspan="4" style="color:var(--muted);font-size:11px;">저장 후 체크 가능</td>
+    <td class="actions">
+      <button class="small act" onclick="saveEditContract(${c.id})">저장</button>
+      <button class="small secondary" onclick="editingContractId=null; renderContracts();">취소</button>
+    </td>
+  </tr>`;
+}
+function startEditContract(id){ editingContractId = id; renderContracts(); }
+async function saveEditContract(id){
+  const customer = document.getElementById('ce_customer_'+id).value.trim();
+  const birthday = document.getElementById('ce_birthday_'+id).value;
+  const date = document.getElementById('ce_date_'+id).value;
+  const insurerManual = document.getElementById('ce_insurer_manual_'+id).value.trim();
+  const insurer = insurerManual || document.getElementById('ce_insurer_'+id).value;
+  const product = document.getElementById('ce_product_'+id).value.trim();
+  const premium = document.getElementById('ce_premium_'+id).value;
+  if(!customer||!date){ alert('고객명과 계약일은 필수입니다.'); return; }
+  const {error} = await sb.from('contracts').update({
+    customer_name: customer,
+    customer_birthday: birthday || null,
+    contract_date: date,
+    insurer: insurer || null,
+    product_name: product,
+    premium: premium ? Number(premium) : null
+  }).eq('id', id);
+  if(error){ alert('수정 실패: '+error.message); return; }
+  editingContractId = null;
+  await loadContracts();
+}
+async function toggleContractCheck(id,field,val){
+  const {error}=await sb.from('contracts').update({[field]:val}).eq('id',id);
+  if(error){alert('처리 실패: '+error.message);return;}
+  await loadContracts();
+}
+async function deleteContract(id){
+  if(!confirm('이 계약을 삭제할까요?'))return;
+  const {error}=await sb.from('contracts').delete().eq('id',id);
+  if(error){alert('삭제 실패: '+error.message);return;}
+  await loadContracts();
+}
+async function addContract(){
+  const manager=document.getElementById('c_manager').value.trim();
+  const customer=document.getElementById('c_customer').value.trim();
+  const birthday=document.getElementById('c_birthday').value;
+  const date=document.getElementById('c_date').value;
+  const product=document.getElementById('c_product').value.trim();
+  const insurerManual=document.getElementById('c_insurer_manual').value.trim();
+  const insurer=insurerManual || document.getElementById('c_insurer').value;
+  const premium=document.getElementById('c_premium').value;
+  if(!manager||!customer||!date){alert('담당 팀장, 고객명, 계약일은 필수입니다.');return;}
+  const {error}=await sb.from('contracts').insert([{manager_name:manager,customer_name:customer,customer_birthday:birthday||null,contract_date:date,product_name:product,insurer:insurer||null,premium:premium?Number(premium):null}]);
+  if(error){alert('저장 실패: '+error.message);return;}
+  ['c_customer','c_birthday','c_date','c_product','c_insurer','c_insurer_manual','c_premium'].forEach(id=>document.getElementById(id).value='');
+  await loadContracts();
+}
+
+/* ---------- 계약 엑셀 업로드 ---------- */
+let pendingContractImport = [];
+
+function findCol(row, candidates){
+  const keys = Object.keys(row);
+  for (const cand of candidates){
+    const hit = keys.find(k => k.trim() === cand);
+    if (hit !== undefined && row[hit] !== undefined && row[hit] !== '') return row[hit];
+  }
+  return '';
+}
+function excelDateToYMD(v){
+  if (v === '' || v === undefined || v === null) return '';
+  if (v instanceof Date) {
+    const p = n => String(n).padStart(2,'0');
+    return `${v.getFullYear()}-${p(v.getMonth()+1)}-${p(v.getDate())}`;
+  }
+  if (typeof v === 'number') {
+    const d = XLSX.SSF.parse_date_code(v);
+    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  const s = String(v).trim();
+  const m = s.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  return '';
+}
+function parsePremium(v){
+  if (v === '' || v === undefined || v === null) return null;
+  const n = Number(String(v).replace(/[,원\s]/g,''));
+  return isNaN(n) ? null : n;
+}
+
+function handleContractExcelUpload(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('c_excelStatus');
+  statusEl.textContent = '읽는 중...';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval:'' });
+      if (rows.length === 0) { statusEl.textContent = '❌ 데이터가 없는 파일입니다.'; return; }
+
+      pendingContractImport = rows.map(row => ({
+        manager: String(findCol(row, ['담당자명','담당자','담당팀장','담당 팀장'])).trim(),
+        customer: String(findCol(row, ['계약자','고객명','성명'])).trim(),
+        birthday: '',
+        date: excelDateToYMD(findCol(row, ['계약일','계약체결일'])),
+        insurer: String(findCol(row, ['보험사','원수사'])).trim(),
+        product: String(findCol(row, ['상품명','상품'])).trim(),
+        premium: parsePremium(findCol(row, ['보험료'])),
+        policy_no: String(findCol(row, ['증권번호'])).trim() || null
+      })).filter(r => r.manager && r.customer && r.date);
+
+      if (pendingContractImport.length === 0) {
+        statusEl.textContent = '❌ 담당자명/계약자/계약일 컬럼을 인식하지 못했습니다. 컬럼명을 확인해주세요.';
+        return;
+      }
+      statusEl.textContent = `✓ ${pendingContractImport.length}건 인식됨 (원본 ${rows.length}건 중). 아래 표에서 생일을 입력하실 분은 입력 후 "일괄등록"을 눌러주세요.`;
+      renderContractImportPreview();
+    }catch(err){
+      console.error(err);
+      statusEl.textContent = '❌ 파일을 읽는 중 오류: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderContractImportPreview(){
+  const card = document.getElementById('c_previewCard');
+  const tbody = document.getElementById('c_previewBody');
+  card.style.display = 'block';
+  tbody.innerHTML = pendingContractImport.map((r, idx) => `
+    <tr>
+      <td>${escapeHtml(r.manager)}</td>
+      <td>${escapeHtml(r.customer)}</td>
+      <td><input type="date" id="pi_birthday_${idx}" style="min-width:130px;"></td>
+      <td>${escapeHtml(r.date)}</td>
+      <td>${escapeHtml(r.insurer)}</td>
+      <td>${escapeHtml(r.product)}</td>
+      <td>${r.premium ? Number(r.premium).toLocaleString('ko-KR')+'원' : ''}</td>
+    </tr>
+  `).join('');
+}
+
+function cancelContractImport(){
+  pendingContractImport = [];
+  document.getElementById('c_previewCard').style.display = 'none';
+  document.getElementById('c_excelFile').value = '';
+  document.getElementById('c_excelStatus').textContent = '';
+}
+
+async function commitContractImport(){
+  pendingContractImport.forEach((r, idx) => {
+    const el = document.getElementById('pi_birthday_' + idx);
+    if (el && el.value) r.birthday = el.value;
+  });
+
+  const policyNos = pendingContractImport.map(r => r.policy_no).filter(Boolean);
+  let existing = new Set();
+  if (policyNos.length > 0) {
+    const { data } = await sb.from('contracts').select('policy_no').in('policy_no', policyNos);
+    existing = new Set((data||[]).map(d => d.policy_no));
+  }
+
+  const toInsert = pendingContractImport
+    .filter(r => !r.policy_no || !existing.has(r.policy_no))
+    .map(r => ({
+      manager_name: r.manager,
+      customer_name: r.customer,
+      customer_birthday: r.birthday || null,
+      contract_date: r.date,
+      insurer: r.insurer || null,
+      product_name: r.product,
+      premium: r.premium,
+      policy_no: r.policy_no
+    }));
+  const skipped = pendingContractImport.length - toInsert.length;
+
+  if (toInsert.length === 0) {
+    alert('모두 이미 등록된 증권번호라 새로 추가할 항목이 없습니다.');
+    cancelContractImport();
+    return;
+  }
+
+  const { error } = await sb.from('contracts').insert(toInsert);
+  if (error) { alert('일괄등록 실패: ' + error.message); return; }
+
+  alert(`${toInsert.length}건 등록 완료${skipped > 0 ? ` (중복 증권번호 ${skipped}건은 건너뜀)` : ''}`);
+  cancelContractImport();
+  await loadContracts();
+}
+
+/* ============================================================
+   보험사연락처
+============================================================ */
+let allInsurers = [];
+let editingInsurerId = null;
+async function loadInsurers(){
+  const {data,error}=await sb.from('insurer_contacts').select('*').order('insurer_name',{ascending:true});
+  if(error) throw error;
+  allInsurers = data || [];
+  renderInsurers();
+  updateContractInsurerOptions();
+}
+function updateContractInsurerOptions(){
+  const sel = document.getElementById('c_insurer');
+  if (!sel) return;
+  const current = sel.value;
+  const usedInsurers = (allContracts||[]).map(c=>c.insurer).filter(Boolean);
+  const names = Array.from(new Set([...allInsurers.map(i=>i.insurer_name), ...usedInsurers])).sort();
+  sel.innerHTML = '<option value="">선택 안 함</option>' + names.map(n=>`<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('');
+  if (names.includes(current)) sel.value = current;
+}
+function renderInsurers(){
+  const tbody=document.getElementById('i_body');
+  const search=document.getElementById('i_search').value.trim().toLowerCase();
+  let rows=allInsurers;
+  if(search) rows=rows.filter(i=>(i.insurer_name||'').toLowerCase().includes(search)||(i.contact_person||'').toLowerCase().includes(search));
+  if(rows.length===0){ tbody.innerHTML='<tr><td colspan="7" style="color:var(--muted);">등록된 연락처가 없습니다</td></tr>'; return; }
+  tbody.innerHTML=rows.map(i=>{
+    if(editingInsurerId===i.id) return renderInsurerEditRow(i);
+    return `<tr>
+      <td><b>${escapeHtml(i.insurer_name)}</b></td><td>${escapeHtml(i.role||'')}</td>
+      <td>${escapeHtml(i.contact_person||'')}</td><td>${escapeHtml(i.phone||'')}</td>
+      <td>${escapeHtml(i.fax||'')}</td><td>${escapeHtml(i.memo||'')}</td>
+      <td class="actions">
+        <button class="small secondary" onclick="startEditInsurer(${i.id})">수정</button>
+        <button class="small danger" onclick="deleteInsurer(${i.id})">삭제</button>
+      </td></tr>`;
+  }).join('');
+}
+function renderInsurerEditRow(i){
+  return `<tr>
+    <td><input type="text" id="ie_name_${i.id}" value="${escAttr(i.insurer_name)}"></td>
+    <td><input type="text" id="ie_role_${i.id}" value="${escAttr(i.role||'')}"></td>
+    <td><input type="text" id="ie_person_${i.id}" value="${escAttr(i.contact_person||'')}"></td>
+    <td><input type="text" id="ie_phone_${i.id}" value="${escAttr(i.phone||'')}"></td>
+    <td><input type="text" id="ie_fax_${i.id}" value="${escAttr(i.fax||'')}"></td>
+    <td><input type="text" id="ie_memo_${i.id}" value="${escAttr(i.memo||'')}"></td>
+    <td class="actions">
+      <button class="small act" onclick="saveEditInsurer(${i.id})">저장</button>
+      <button class="small secondary" onclick="editingInsurerId=null; renderInsurers();">취소</button>
+    </td></tr>`;
+}
+function startEditInsurer(id){ editingInsurerId=id; renderInsurers(); }
+async function saveEditInsurer(id){
+  const vals={
+    insurer_name: document.getElementById('ie_name_'+id).value.trim(),
+    role: document.getElementById('ie_role_'+id).value.trim(),
+    contact_person: document.getElementById('ie_person_'+id).value.trim(),
+    phone: document.getElementById('ie_phone_'+id).value.trim(),
+    fax: document.getElementById('ie_fax_'+id).value.trim(),
+    memo: document.getElementById('ie_memo_'+id).value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  if(!vals.insurer_name){alert('보험사명은 필수입니다.');return;}
+  const {error}=await sb.from('insurer_contacts').update(vals).eq('id',id);
+  if(error){alert('수정 실패: '+error.message);return;}
+  editingInsurerId=null; await loadInsurers();
+}
+async function deleteInsurer(id){
+  if(!confirm('이 연락처를 삭제할까요?'))return;
+  const {error}=await sb.from('insurer_contacts').delete().eq('id',id);
+  if(error){alert('삭제 실패: '+error.message);return;}
+  await loadInsurers();
+}
+async function addInsurerContact(){
+  const name=document.getElementById('i_name').value.trim();
+  const role=document.getElementById('i_role').value.trim();
+  const person=document.getElementById('i_person').value.trim();
+  const phone=document.getElementById('i_phone').value.trim();
+  const fax=document.getElementById('i_fax').value.trim();
+  const memo=document.getElementById('i_memo').value.trim();
+  if(!name){alert('보험사명은 필수입니다.');return;}
+  const {error}=await sb.from('insurer_contacts').insert([{insurer_name:name,role,contact_person:person,phone,fax,memo}]);
+  if(error){alert('저장 실패: '+error.message);return;}
+  ['i_name','i_role','i_person','i_phone','i_fax','i_memo'].forEach(id=>document.getElementById(id).value='');
+  await loadInsurers();
+}
+
+/* ---------- 보험사연락처 엑셀 업로드 ---------- */
+let pendingInsurerImport = [];
+
+function handleInsurerExcelUpload(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('i_excelStatus');
+  statusEl.textContent = '읽는 중...';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval:'' });
+      if (rows.length === 0) { statusEl.textContent = '❌ 데이터가 없는 파일입니다.'; return; }
+
+      pendingInsurerImport = rows.map(row => ({
+        insurer_name: String(findCol(row, ['보험사명','보험사','회사명'])).trim(),
+        role: String(findCol(row, ['담당업무','업무','구분'])).trim(),
+        contact_person: String(findCol(row, ['담당자명','담당자','이름','성명'])).trim(),
+        phone: String(findCol(row, ['연락처','전화번호','휴대전화','핸드폰'])).trim(),
+        fax: String(findCol(row, ['팩스','FAX','fax'])).trim(),
+        memo: String(findCol(row, ['비고','메모'])).trim()
+      })).filter(r => r.insurer_name);
+
+      if (pendingInsurerImport.length === 0) {
+        statusEl.textContent = '❌ 보험사명 컬럼을 인식하지 못했습니다. 컬럼명을 확인해주세요.';
+        return;
+      }
+      statusEl.textContent = `✓ ${pendingInsurerImport.length}건 인식됨 (원본 ${rows.length}건 중). 아래 표를 확인하고 "일괄등록"을 눌러주세요.`;
+      renderInsurerImportPreview();
+    }catch(err){
+      console.error(err);
+      statusEl.textContent = '❌ 파일을 읽는 중 오류: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderInsurerImportPreview(){
+  const card = document.getElementById('i_previewCard');
+  const tbody = document.getElementById('i_previewBody');
+  card.style.display = 'block';
+  tbody.innerHTML = pendingInsurerImport.map(r => `
+    <tr>
+      <td>${escapeHtml(r.insurer_name)}</td>
+      <td>${escapeHtml(r.role)}</td>
+      <td>${escapeHtml(r.contact_person)}</td>
+      <td>${escapeHtml(r.phone)}</td>
+      <td>${escapeHtml(r.fax)}</td>
+      <td>${escapeHtml(r.memo)}</td>
+    </tr>
+  `).join('');
+}
+
+function cancelInsurerImport(){
+  pendingInsurerImport = [];
+  document.getElementById('i_previewCard').style.display = 'none';
+  document.getElementById('i_excelFile').value = '';
+  document.getElementById('i_excelStatus').textContent = '';
+}
+
+async function commitInsurerImport(){
+  const { data: existingRows } = await sb.from('insurer_contacts').select('insurer_name,contact_person,phone');
+  const existingKeys = new Set((existingRows||[]).map(r => `${r.insurer_name}|${r.contact_person}|${r.phone}`));
+
+  const toInsert = pendingInsurerImport
+    .filter(r => !existingKeys.has(`${r.insurer_name}|${r.contact_person}|${r.phone}`))
+    .map(r => ({
+      insurer_name: r.insurer_name,
+      role: r.role,
+      contact_person: r.contact_person,
+      phone: r.phone,
+      fax: r.fax,
+      memo: r.memo
+    }));
+  const skipped = pendingInsurerImport.length - toInsert.length;
+
+  if (toInsert.length === 0) {
+    alert('모두 이미 등록된 동일한 내용이라 새로 추가할 항목이 없습니다.');
+    cancelInsurerImport();
+    return;
+  }
+
+  const { error } = await sb.from('insurer_contacts').insert(toInsert);
+  if (error) { alert('일괄등록 실패: ' + error.message); return; }
+
+  alert(`${toInsert.length}건 등록 완료${skipped > 0 ? ` (동일 내용 ${skipped}건은 건너뜀)` : ''}`);
+  cancelInsurerImport();
+  await loadInsurers();
+}
+
+/* ============================================================
+   실적현황표
+============================================================ */
+let allTargets = [];
+function currentYM(){
+  const el = document.getElementById('p_month');
+  return el.value || (new Date()).toISOString().slice(0,7);
+}
+async function loadTargets(){
+  const { data, error } = await sb.from('targets').select('*');
+  if (error) { console.error(error); return; }
+  allTargets = data || [];
+}
+function setupPerformanceTab(){
+  const monthEl = document.getElementById('p_month');
+  if (!monthEl.value) monthEl.value = (new Date()).toISOString().slice(0,7);
+  monthEl.onchange = renderPerformance;
+
+  const mgrSel = document.getElementById('p_manager');
+  if (currentUser.role === 'master') {
+    const names = Array.from(new Set(allContracts.map(c=>c.manager_name))).sort();
+    mgrSel.innerHTML = '<option value="__all__">전체 팀장</option>' + names.map(n=>`<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('');
+    mgrSel.disabled = false;
+  } else {
+    mgrSel.innerHTML = `<option value="${escAttr(currentUser.manager_name)}">${escapeHtml(currentUser.manager_name)}</option>`;
+    mgrSel.value = currentUser.manager_name;
+    mgrSel.disabled = true;
+  }
+  renderPerformance();
+}
+function contractsForMonth(ym, managerFilter){
+  return allContracts.filter(c => {
+    if (!c.contract_date || !c.contract_date.startsWith(ym)) return false;
+    if (managerFilter && managerFilter !== '__all__' && c.manager_name !== managerFilter) return false;
+    return true;
+  });
+}
+function renderPerformance(){
+  const ym = currentYM();
+  const managerSel = document.getElementById('p_manager').value;
+  const rows = contractsForMonth(ym, managerSel);
+  const total = rows.reduce((sum,c) => sum + (Number(c.premium)||0), 0);
+
+  // 보험사별 합산
+  const byInsurer = {};
+  rows.forEach(c => {
+    const key = c.insurer || '(미지정)';
+    if (!byInsurer[key]) byInsurer[key] = { sum:0, count:0 };
+    byInsurer[key].sum += Number(c.premium)||0;
+    byInsurer[key].count += 1;
+  });
+  const insurerTbody = document.getElementById('p_insurerBody');
+  const insurerKeys = Object.keys(byInsurer).sort((a,b)=>byInsurer[b].sum-byInsurer[a].sum);
+  let insurerHtml = insurerKeys.length ? insurerKeys.map(k => `
+    <tr><td>${escapeHtml(k)}</td><td>${byInsurer[k].sum.toLocaleString('ko-KR')}원</td><td>${byInsurer[k].count}건</td></tr>
+  `).join('') : '<tr><td colspan="3" style="color:var(--muted);">해당 월 실적이 없습니다</td></tr>';
+  if (insurerKeys.length) {
+    insurerHtml += `<tr style="font-weight:700;background:#FAFAF7;"><td>합계</td><td>${total.toLocaleString('ko-KR')}원</td><td>${rows.length}건</td></tr>`;
+  }
+  insurerTbody.innerHTML = insurerHtml;
+
+  const targetCard = document.getElementById('p_targetCard');
+  const allManagersCard = document.getElementById('p_allManagersCard');
+
+  if (managerSel === '__all__') {
+    targetCard.style.display = 'none';
+    allManagersCard.style.display = 'block';
+    const names = Array.from(new Set(allContracts.map(c=>c.manager_name))).sort();
+    const mBody = document.getElementById('p_managerBody');
+    let grandTarget = 0, grandActual = 0, grandCount = 0;
+    const rowsHtml = names.map(name => {
+      const mRows = contractsForMonth(ym, name);
+      const mSum = mRows.reduce((s,c)=>s+(Number(c.premium)||0),0);
+      const t = allTargets.find(x => x.manager_name===name && x.year_month===ym);
+      const targetAmt = t ? Number(t.target_amount)||0 : 0;
+      const pct = targetAmt > 0 ? Math.round(mSum/targetAmt*100) : null;
+      grandTarget += targetAmt; grandActual += mSum; grandCount += mRows.length;
+      return `<tr>
+        <td>${escapeHtml(name)}</td>
+        <td>${targetAmt ? targetAmt.toLocaleString('ko-KR')+'원' : '미설정'}</td>
+        <td>${mSum.toLocaleString('ko-KR')}원</td>
+        <td>${pct===null?'-':pct+'%'}</td>
+        <td>${mRows.length}건</td>
+      </tr>`;
+    }).join('');
+    const grandPct = grandTarget > 0 ? Math.round(grandActual/grandTarget*100) : null;
+    const totalHtml = `<tr style="font-weight:700;background:#FAFAF7;">
+      <td>전체합산실적</td>
+      <td>${grandTarget ? grandTarget.toLocaleString('ko-KR')+'원' : '-'}</td>
+      <td>${grandActual.toLocaleString('ko-KR')}원</td>
+      <td>${grandPct===null?'-':grandPct+'%'}</td>
+      <td>${grandCount}건</td>
+    </tr>`;
+    mBody.innerHTML = rowsHtml + totalHtml;
+  } else {
+    targetCard.style.display = 'block';
+    allManagersCard.style.display = 'none';
+    const t = allTargets.find(x => x.manager_name===managerSel && x.year_month===ym);
+    document.getElementById('p_targetInput').value = t ? t.target_amount : '';
+    const targetAmt = t ? Number(t.target_amount)||0 : 0;
+    const pct = targetAmt > 0 ? Math.min(100, Math.round(total/targetAmt*100)) : null;
+    document.getElementById('p_summaryBox').innerHTML = `
+      <div style="font-size:20px;font-weight:700;margin-bottom:6px;">${total.toLocaleString('ko-KR')}원 <span style="font-size:13px;font-weight:400;color:var(--muted);">(${rows.length}건, ${ym})</span></div>
+      ${targetAmt ? `
+        <div style="background:var(--line);border-radius:6px;height:10px;overflow:hidden;margin-bottom:4px;">
+          <div style="background:var(--green);height:100%;width:${pct}%;"></div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">목표 ${targetAmt.toLocaleString('ko-KR')}원 대비 ${pct}% 달성</div>
+      ` : `<div style="font-size:12px;color:var(--muted);">이달 목표금액을 설정하시면 달성률이 표시됩니다.</div>`}
+    `;
+  }
+}
+async function saveTarget(){
+  const ym = currentYM();
+  const managerSel = document.getElementById('p_manager').value;
+  const amount = document.getElementById('p_targetInput').value;
+  if (managerSel === '__all__') { alert('특정 팀장을 선택한 상태에서 목표를 설정해주세요.'); return; }
+  if (!amount) { alert('목표금액을 입력해주세요.'); return; }
+  const { error } = await sb.from('targets').upsert(
+    { manager_name: managerSel, year_month: ym, target_amount: Number(amount) },
+    { onConflict: 'manager_name,year_month' }
+  );
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  await loadTargets();
+  renderPerformance();
+}
+
+/* ============================================================
+   초기화 (로그인 성공 후 호출됨)
+============================================================ */
+async function startApp(){
+  document.getElementById('loginGate').style.display = 'none';
+  document.getElementById('mainHeader').style.display = 'block';
+  document.getElementById('mainContent').style.display = 'block';
+
+  const roleLabel = currentUser.role === 'master' ? '마스터' : '팀장';
+  document.getElementById('userBar').innerHTML =
+    `${escapeHtml(currentUser.manager_name)}님 (${roleLabel})으로 접속 중 · <a href="#" onclick="logout();return false;" style="color:#C7CEDF;">로그아웃</a>`;
+
+  // 마스터가 아니면 담당 팀장 입력란을 본인 이름으로 고정
+  if (currentUser.role !== 'master') {
+    ['r_manager','c_manager'].forEach(id=>{
+      const el = document.getElementById(id);
+      el.value = currentUser.manager_name;
+      el.readOnly = true;
+      el.style.background = '#EFEDE6';
+    });
+  }
+
+  try{
+    if(typeof window.supabase==='undefined') throw new Error('supabase-js 라이브러리 로드 실패');
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
+    updateNotifBtn();
+    await Promise.all([loadReservations(), loadContracts(), loadInsurers(), loadTargets()]);
+    setupPerformanceTab();
+    setStatus('ok','✓ Supabase 연결됨');
+    setInterval(checkAlarms, 20000);
+    checkAlarms();
+  }catch(e){
+    console.error(e);
+    setStatus('error','⚠ 연결 실패: '+e.message);
+  }
+}
+
+function updateNotifBtn(){
+  const btn = document.getElementById('notifBtn');
+  if (!('Notification' in window)) { btn.style.display = 'none'; return; }
+  if (Notification.permission === 'granted') {
+    btn.textContent = '🔔 알림 켜짐';
+    btn.disabled = true;
+  } else if (Notification.permission === 'denied') {
+    btn.textContent = '🔕 알림 차단됨 (브라우저 설정에서 허용해주세요)';
+  } else {
+    btn.textContent = '🔔 브라우저 알림 켜기';
+  }
+}
+async function enableNotifications(){
+  if (!('Notification' in window)) return;
+  await Notification.requestPermission();
+  updateNotifBtn();
+  if (Notification.permission === 'granted') {
+    new Notification('알림이 켜졌습니다', { body: '예약 5분 전에 이렇게 알려드릴게요.' });
+  }
+}
+
+if (tryAutoLogin()) {
+  startApp();
+}
+</script>
+</body>
+</html>
