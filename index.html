@@ -500,7 +500,7 @@ function checkAlarms(){
     soon.forEach(r=>alertedIds.add(r.id));
     bannerEl.style.display='block';
     bannerEl.textContent='⏰ 5분 이내 예약: '+soon.map(r=>`${r.manager_name} - ${r.memo||'예약'} (${new Date(r.scheduled_at).toLocaleTimeString('ko-KR')})`).join(' / ');
-    if('Notification' in window && Notification.permission==='granted') soon.forEach(r=>new Notification('예약 5분 전',{body:`${r.manager_name} - ${r.memo||'예약'}`}));
+    if('Notification' in window && Notification.permission==='granted') soon.forEach(r=>new Notification('예약 5분 전',{body:`${r.manager_name} - ${r.memo||'예약'}`, requireInteraction:true}));
   }
   checkContractAlarms();
 }
@@ -531,7 +531,7 @@ function checkContractAlarms(){
 
   if (newItems.length === 0) return;
   if('Notification' in window && Notification.permission==='granted'){
-    new Notification('계약관리 확인 알림', { body: newItems.slice(0,5).join('\n') + (newItems.length>5?` 외 ${newItems.length-5}건`:'') });
+    new Notification('계약관리 확인 알림', { body: newItems.slice(0,5).join('\n') + (newItems.length>5?` 외 ${newItems.length-5}건`:''), requireInteraction:true });
   }
 }
 
