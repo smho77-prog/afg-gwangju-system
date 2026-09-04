@@ -113,6 +113,7 @@
     <button class="tabbtn" data-tab="insurer" onclick="switchTab('insurer')">📞 보험사연락처</button>
     <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
     <button class="tabbtn" data-tab="duties" id="tabBtnDuties" onclick="switchTab('duties')">🗂️ 총무업무분장표</button>
+    <button class="tabbtn" data-tab="salary" id="tabBtnSalary" onclick="switchTab('salary')" style="display:none;">💰 급여계산기</button>
   </nav>
   <div id="connStatus" class="st-checking">연결 확인 중...</div>
   <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
@@ -340,6 +341,93 @@
   </div>
 </div>
 
+<!-- ===== 급여계산기 (마스터 전용) ===== -->
+<div class="panel" id="panel-salary">
+  <div class="card">
+    <div class="sub">계약관리 데이터를 기반으로 이번달 예상 급여를 자동 계산합니다. (마스터 전용)</div>
+    <div class="row">
+      <div><label>월</label><input type="month" id="ac_month"></div>
+      <div><label>팀장</label><select id="ac_manager"><option value="__all__">전체 팀장</option></select></div>
+    </div>
+    <button class="act" onclick="autoCalcSalary()">이번달 실적으로 자동계산</button>
+    <div id="ac_result" style="margin-top:16px;"></div>
+    <div id="ac_unmatched" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card">
+    <div class="sub">위 자동계산에서 매칭 안 된 계약을 여기서 수동으로 계산하거나, 계약관리에 없는 건을 임의로 계산해볼 때 사용하세요.</div>
+    <div class="row">
+      <div>
+        <label>보험사</label>
+        <select id="sc_insurer" onchange="onSalaryInsurerChange()"><option value="">선택</option></select>
+      </div>
+      <div>
+        <label>상품유형</label>
+        <select id="sc_product"><option value="">보험사 먼저 선택</option></select>
+      </div>
+      <div>
+        <label>월보험료(원)</label>
+        <input type="number" id="sc_premium" placeholder="예: 95000">
+      </div>
+    </div>
+    <div class="row" id="sc_dateRow" style="display:none;">
+      <div>
+        <label>계약일</label>
+        <input type="date" id="sc_date">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">이 보험사는 계약일(1~20일 / 21~말일)에 따라 시책이 달라져요.</div>
+      </div>
+    </div>
+    <button class="act" onclick="calcSalary()">계산하기</button>
+    <div id="sc_result" style="margin-top:16px;"></div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px;">요율표 관리 (직접 추가/수정/삭제 가능)</div>
+    <div class="row">
+      <div><label>구분</label><select id="cr_category"><option value="손보">손보</option><option value="생보">생보</option></select></div>
+      <div><label>보험사</label><input type="text" id="cr_insurer" placeholder="예: 메리츠"></div>
+      <div><label>상품유형</label><input type="text" id="cr_product" placeholder="예: 기본 (해당없으면 비워둠)"></div>
+    </div>
+    <div class="row">
+      <div><label>환산율(%)</label><input type="number" step="0.001" id="cr_conv" placeholder="예: 0.916"></div>
+      <div><label>지급율(%)</label><input type="number" id="cr_payout" value="450"></div>
+      <div><label>계산방식</label>
+        <select id="cr_mode" onchange="updateRateFormVisibility()">
+          <option value="percent_flat">생보형(플랫 %)</option>
+          <option value="percent_tiered">손보형(10만원 2단계 %)</option>
+          <option value="fixed_tier">구간별 정액(한화생명형)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" id="cr_tieredRow">
+      <div><label>기준금액</label><input type="number" id="cr_threshold" value="100000"></div>
+      <div><label>익월% (기준미만)</label><input type="number" id="cr_rn_under" value="100"></div>
+      <div><label>익월% (기준이상)</label><input type="number" id="cr_rn_over"></div>
+      <div><label>13회차% (기준이상)</label><input type="number" id="cr_r13_over"></div>
+    </div>
+    <div class="row" id="cr_flatRow" style="display:none;">
+      <div><label>익월%</label><input type="number" id="cr_rn_flat"></div>
+      <div><label>13회차%</label><input type="number" id="cr_r13_flat"></div>
+    </div>
+    <div class="row" id="cr_fixedRow" style="display:none;">
+      <div><label>구간표(1~20일): "10만:35만,20만:70만" 형식</label><input type="text" id="cr_tier_early" placeholder="100000:350000,200000:700000"></div>
+      <div><label>구간표(21~말일)</label><input type="text" id="cr_tier_late" placeholder="100000:250000,200000:500000"></div>
+    </div>
+    <div class="row">
+      <div><label>비고</label><input type="text" id="cr_note" placeholder="선택"></div>
+    </div>
+    <button class="act" onclick="addCommissionRate()">+ 요율 추가</button>
+  </div>
+
+  <div class="card">
+    <table>
+      <colgroup><col style="width:8%"><col style="width:13%"><col style="width:16%"><col style="width:10%"><col style="width:10%"><col style="width:12%"><col style="width:11%"><col style="width:11%"><col style="width:9%"></colgroup>
+      <thead><tr><th>구분</th><th>보험사</th><th>상품유형</th><th>환산율</th><th>방식</th><th>익월/13회차</th><th>기준금액</th><th>비고</th><th>관리</th></tr></thead>
+      <tbody id="cr_body"><tr><td colspan="9" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -396,6 +484,7 @@ function switchTab(name) {
   document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   if (name === 'performance') renderPerformance();
+  if (name === 'salary') setupSalaryAutoCalc();
 }
 
 /* ============================================================
@@ -1111,6 +1200,297 @@ async function addDuty(){
 }
 
 /* ============================================================
+   급여계산기 (마스터 전용)
+============================================================ */
+let allCommissionRates = [];
+
+async function loadCommissionRates(){
+  const { data, error } = await sb.from('commission_rates').select('*').order('category',{ascending:true}).order('insurer_name',{ascending:true});
+  if (error) { console.error(error); return; }
+  allCommissionRates = data || [];
+  renderCommissionRates();
+  populateSalaryInsurerOptions();
+  setupSalaryAutoCalc();
+}
+
+function setupSalaryAutoCalc(){
+  const monthEl = document.getElementById('ac_month');
+  if (!monthEl) return;
+  if (!monthEl.value) monthEl.value = (new Date()).toISOString().slice(0,7);
+  const mgrSel = document.getElementById('ac_manager');
+  const names = Array.from(new Set((allContracts||[]).map(c=>c.manager_name))).sort();
+  mgrSel.innerHTML = '<option value="__all__">전체 팀장</option>' + names.map(n=>`<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('');
+}
+
+function matchCommissionRate(contract){
+  const candidates = allCommissionRates.filter(r => r.insurer_name === contract.insurer);
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+  const pname = (contract.product_name || '').toLowerCase();
+  const keywords = ['비갱신','갱신','치아','치매','7년','20년'];
+  let best = null, bestScore = 0;
+  candidates.forEach(c => {
+    const ptype = (c.product_type || '').toLowerCase();
+    let score = 0;
+    keywords.forEach(k => { if (ptype.includes(k) && pname.includes(k)) score++; });
+    if (score > bestScore) { bestScore = score; best = c; }
+  });
+  return bestScore > 0 ? best : null;
+}
+
+function autoCalcSalary(){
+  const ym = document.getElementById('ac_month').value || (new Date()).toISOString().slice(0,7);
+  const managerFilter = document.getElementById('ac_manager').value;
+  let rows = allContracts.filter(c => c.contract_date && c.contract_date.startsWith(ym));
+  if (managerFilter !== '__all__') rows = rows.filter(c => c.manager_name === managerFilter);
+
+  let totalBase = 0, totalNext = 0, total13 = 0;
+  const unmatched = [];
+  const byInsurer = {};
+
+  rows.forEach(c => {
+    const premium = Number(c.premium) || 0;
+    if (!premium) return;
+    const rate = matchCommissionRate(c);
+    if (!rate) { unmatched.push(c); return; }
+
+    const base = premium * (Number(rate.conversion_rate)||0)/100 * (Number(rate.payout_rate)||0)/100;
+    let next = 0, inc13 = 0;
+    if (rate.calc_mode === 'percent_tiered') {
+      const isOver = premium >= Number(rate.tier_threshold);
+      next = premium * (Number(isOver?rate.rate_next_over:rate.rate_next_under)||0)/100;
+      inc13 = premium * (Number(isOver?rate.rate_13_over:rate.rate_13_under)||0)/100;
+    } else if (rate.calc_mode === 'percent_flat') {
+      next = premium * (Number(rate.rate_next_over)||0)/100;
+      inc13 = premium * (Number(rate.rate_13_over)||0)/100;
+    } else if (rate.calc_mode === 'fixed_tier') {
+      const day = new Date(c.contract_date).getDate();
+      const isEarly = day <= 20;
+      const tiers = parseTierTable(isEarly ? rate.tier_table_early : rate.tier_table_late);
+      let matchedTier = null;
+      tiers.forEach(t => { if (premium >= t.min) matchedTier = t; });
+      inc13 = matchedTier ? matchedTier.amount : 0;
+    }
+    totalBase += base; totalNext += next; total13 += inc13;
+    const key = c.insurer || '(미지정)';
+    if (!byInsurer[key]) byInsurer[key] = { base:0, next:0, i13:0, count:0 };
+    byInsurer[key].base += base; byInsurer[key].next += next; byInsurer[key].i13 += inc13; byInsurer[key].count++;
+  });
+
+  const resultEl = document.getElementById('ac_result');
+  const grandTotal = totalBase + totalNext;
+  let html = `<div style="background:var(--paper);border-radius:8px;padding:14px 16px;">
+    <div style="font-size:20px;font-weight:700;margin-bottom:8px;">${Math.round(grandTotal).toLocaleString('ko-KR')}원 <span style="font-size:12px;font-weight:400;color:var(--muted);">(익월 예상 합계, ${ym})</span></div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">기본수수료 ${Math.round(totalBase).toLocaleString('ko-KR')}원 + 익월시책 ${Math.round(totalNext).toLocaleString('ko-KR')}원</div>
+    <div style="font-size:13px;color:var(--green);">13회차(13개월후) 예상 합계: ${Math.round(total13).toLocaleString('ko-KR')}원</div>
+  </div>`;
+
+  const insurerKeys = Object.keys(byInsurer).sort((a,b)=>(byInsurer[b].base+byInsurer[b].next)-(byInsurer[a].base+byInsurer[a].next));
+  if (insurerKeys.length) {
+    html += `<table style="margin-top:12px;"><colgroup><col style="width:40%"><col style="width:25%"><col style="width:20%"><col style="width:15%"></colgroup><thead><tr><th>보험사</th><th>익월합계</th><th>13회차</th><th>건수</th></tr></thead><tbody>`;
+    insurerKeys.forEach(k => {
+      const d = byInsurer[k];
+      html += `<tr><td>${escapeHtml(k)}</td><td>${Math.round(d.base+d.next).toLocaleString('ko-KR')}원</td><td>${Math.round(d.i13).toLocaleString('ko-KR')}원</td><td>${d.count}건</td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  resultEl.innerHTML = html;
+
+  const unmatchedEl = document.getElementById('ac_unmatched');
+  if (unmatched.length === 0) {
+    unmatchedEl.innerHTML = '';
+  } else {
+    unmatchedEl.innerHTML = `<div style="background:var(--red-bg);color:var(--red);border-radius:8px;padding:10px 12px;font-size:12.5px;">
+      ⚠ ${unmatched.length}건은 요율을 자동으로 못 찾았어요 (보험사 요율 미등록 또는 상품유형 불명확). 요율표에 추가하거나, 아래 수동계산기로 개별 확인해주세요:
+      <ul style="margin:6px 0 0;padding-left:18px;">
+        ${unmatched.map(c=>`<li>${escapeHtml(c.manager_name)} - ${escapeHtml(c.customer_name)} (${escapeHtml(c.insurer||'보험사 미지정')} / ${escapeHtml(c.product_name||'')})</li>`).join('')}
+      </ul>
+    </div>`;
+  }
+}
+
+function populateSalaryInsurerOptions(){
+  const sel = document.getElementById('sc_insurer');
+  if (!sel) return;
+  const current = sel.value;
+  const names = Array.from(new Set(allCommissionRates.map(r=>r.insurer_name))).sort();
+  sel.innerHTML = '<option value="">선택</option>' + names.map(n=>`<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('');
+  if (names.includes(current)) sel.value = current;
+  onSalaryInsurerChange();
+}
+
+function onSalaryInsurerChange(){
+  const insurer = document.getElementById('sc_insurer').value;
+  const productSel = document.getElementById('sc_product');
+  const rows = allCommissionRates.filter(r => r.insurer_name === insurer);
+  if (rows.length === 0) {
+    productSel.innerHTML = '<option value="">보험사 먼저 선택</option>';
+    document.getElementById('sc_dateRow').style.display = 'none';
+    return;
+  }
+  productSel.innerHTML = rows.map(r => `<option value="${r.id}">${escapeHtml(r.product_type || '기본')}</option>`).join('');
+  updateDateRowVisibility();
+  productSel.onchange = updateDateRowVisibility;
+}
+function updateDateRowVisibility(){
+  const id = document.getElementById('sc_product').value;
+  const rate = allCommissionRates.find(r => String(r.id) === String(id));
+  document.getElementById('sc_dateRow').style.display = (rate && rate.calc_mode === 'fixed_tier') ? 'flex' : 'none';
+}
+
+function parseTierTable(str){
+  if (!str) return [];
+  return str.split(',').map(pair => {
+    const [min, amount] = pair.split(':').map(s => Number(s.trim()));
+    return { min, amount };
+  }).filter(t => !isNaN(t.min) && !isNaN(t.amount)).sort((a,b) => a.min - b.min);
+}
+
+function calcSalary(){
+  const rateId = document.getElementById('sc_product').value;
+  const premium = Number(document.getElementById('sc_premium').value);
+  const resultEl = document.getElementById('sc_result');
+  const rate = allCommissionRates.find(r => String(r.id) === String(rateId));
+  if (!rate || !premium) { resultEl.innerHTML = '<div style="color:var(--muted);">보험사·상품·월보험료를 모두 입력해주세요.</div>'; return; }
+
+  const baseCommission = premium * (Number(rate.conversion_rate)||0)/100 * (Number(rate.payout_rate)||0)/100;
+  let nextIncentive = 0, incentive13 = 0, tierNote = '', encourageNote = '';
+
+  if (rate.calc_mode === 'percent_tiered') {
+    const isOver = premium >= Number(rate.tier_threshold);
+    const nextRate = isOver ? rate.rate_next_over : rate.rate_next_under;
+    const r13Rate = isOver ? rate.rate_13_over : rate.rate_13_under;
+    nextIncentive = premium * (Number(nextRate)||0)/100;
+    incentive13 = premium * (Number(r13Rate)||0)/100;
+    tierNote = isOver ? `${Number(rate.tier_threshold).toLocaleString('ko-KR')}원 이상 구간 적용` : `${Number(rate.tier_threshold).toLocaleString('ko-KR')}원 미만 구간 적용`;
+    if (!isOver) {
+      const gap = Number(rate.tier_threshold) - premium;
+      const upNext = Number(rate.tier_threshold) * (Number(rate.rate_next_over)||0)/100;
+      const up13 = Number(rate.tier_threshold) * (Number(rate.rate_13_over)||0)/100;
+      const upTotal = upNext + up13;
+      const curTotal = nextIncentive + incentive13;
+      encourageNote = `💪 월보험료를 <b>${gap.toLocaleString('ko-KR')}원</b>만 더 올리면 (${Number(rate.tier_threshold).toLocaleString('ko-KR')}원 도달) 시책이 ${(nextIncentive+incentive13).toLocaleString('ko-KR')}원 → <b>${upTotal.toLocaleString('ko-KR')}원</b>으로 올라갑니다! (+${(upTotal-curTotal).toLocaleString('ko-KR')}원)`;
+    }
+  } else if (rate.calc_mode === 'percent_flat') {
+    nextIncentive = premium * (Number(rate.rate_next_over)||0)/100;
+    incentive13 = premium * (Number(rate.rate_13_over)||0)/100;
+  } else if (rate.calc_mode === 'fixed_tier') {
+    const dateVal = document.getElementById('sc_date').value;
+    const day = dateVal ? new Date(dateVal).getDate() : 1;
+    const isEarly = day <= 20;
+    const tierStr = isEarly ? rate.tier_table_early : rate.tier_table_late;
+    const tiers = parseTierTable(tierStr);
+    let matched = null;
+    tiers.forEach(t => { if (premium >= t.min) matched = t; });
+    incentive13 = matched ? matched.amount : 0;
+    nextIncentive = 0;
+    tierNote = `계약일 ${isEarly ? '1~20일' : '21일~말일'} 구간표 적용`;
+    if (tiers.length) {
+      const nextTier = tiers.find(t => t.min > premium);
+      if (matched && nextTier) {
+        const gap = nextTier.min - premium;
+        encourageNote = `💪 월보험료를 <b>${gap.toLocaleString('ko-KR')}원</b>만 더 올리면 13회차 지급액이 ${matched.amount.toLocaleString('ko-KR')}원 → <b>${nextTier.amount.toLocaleString('ko-KR')}원</b>으로 올라갑니다! (+${(nextTier.amount-matched.amount).toLocaleString('ko-KR')}원)`;
+      } else if (!matched && tiers.length) {
+        const gap = tiers[0].min - premium;
+        encourageNote = `💪 월보험료를 <b>${gap.toLocaleString('ko-KR')}원</b>만 더 올리면 13회차 지급액 <b>${tiers[0].amount.toLocaleString('ko-KR')}원</b>이 발생합니다!`;
+      }
+    }
+  }
+
+  const total = baseCommission + nextIncentive;
+  resultEl.innerHTML = `
+    <div style="background:var(--paper);border-radius:8px;padding:14px 16px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${escapeHtml(tierNote)}</div>
+      <table style="margin:0;">
+        <tr><td style="padding:4px 8px 4px 0;">기본수수료</td><td style="text-align:right;">${Math.round(baseCommission).toLocaleString('ko-KR')}원</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;">익월시책</td><td style="text-align:right;">${Math.round(nextIncentive).toLocaleString('ko-KR')}원</td></tr>
+        <tr style="font-weight:700;border-top:1px solid var(--line);"><td style="padding:6px 8px 4px 0;">익월 예상 합계</td><td style="text-align:right;padding-top:6px;">${Math.round(total).toLocaleString('ko-KR')}원</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;color:var(--muted);">13회차(13개월후) 예상</td><td style="text-align:right;color:var(--muted);">${Math.round(incentive13).toLocaleString('ko-KR')}원</td></tr>
+      </table>
+      ${encourageNote ? `<div style="margin-top:10px;padding:10px 12px;background:var(--amber-bg);color:var(--amber);border-radius:6px;font-size:13px;">${encourageNote}</div>` : ''}
+    </div>
+  `;
+}
+
+function updateRateFormVisibility(){
+  const mode = document.getElementById('cr_mode').value;
+  document.getElementById('cr_tieredRow').style.display = mode === 'percent_tiered' ? 'flex' : 'none';
+  document.getElementById('cr_flatRow').style.display = mode === 'percent_flat' ? 'flex' : 'none';
+  document.getElementById('cr_fixedRow').style.display = mode === 'fixed_tier' ? 'flex' : 'none';
+}
+
+function renderCommissionRates(){
+  const tbody = document.getElementById('cr_body');
+  if (!tbody) return;
+  if (allCommissionRates.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="color:var(--muted);">등록된 요율이 없습니다</td></tr>'; return; }
+  tbody.innerHTML = allCommissionRates.map(r => {
+    let rateDisplay = '';
+    if (r.calc_mode === 'percent_tiered') rateDisplay = `미만:${r.rate_next_under||0}%/이상:${r.rate_next_over||0}%+${r.rate_13_over||0}%`;
+    else if (r.calc_mode === 'percent_flat') rateDisplay = `익월${r.rate_next_over||0}%/13회${r.rate_13_over||0}%`;
+    else rateDisplay = '구간표(정액)';
+    const modeLabel = { percent_tiered:'손보형', percent_flat:'생보형', fixed_tier:'정액구간' }[r.calc_mode] || r.calc_mode;
+    return `<tr>
+      <td>${escapeHtml(r.category)}</td>
+      <td>${escapeHtml(r.insurer_name)}</td>
+      <td>${escapeHtml(r.product_type||'-')}</td>
+      <td>${r.conversion_rate||'-'}%</td>
+      <td>${modeLabel}</td>
+      <td style="font-size:11px;">${escapeHtml(rateDisplay)}</td>
+      <td>${r.tier_threshold ? Number(r.tier_threshold).toLocaleString('ko-KR') : '-'}</td>
+      <td style="font-size:11px;">${escapeHtml(r.note||'')}</td>
+      <td class="actions"><button class="small danger" onclick="deleteCommissionRate(${r.id})">삭제</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteCommissionRate(id){
+  if (!confirm('이 요율을 삭제할까요?')) return;
+  const { error } = await sb.from('commission_rates').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  await loadCommissionRates();
+}
+
+async function addCommissionRate(){
+  const category = document.getElementById('cr_category').value;
+  const insurer = document.getElementById('cr_insurer').value.trim();
+  const product = document.getElementById('cr_product').value.trim();
+  const conv = document.getElementById('cr_conv').value;
+  const payout = document.getElementById('cr_payout').value;
+  const mode = document.getElementById('cr_mode').value;
+  const note = document.getElementById('cr_note').value.trim();
+  if (!insurer || !conv) { alert('보험사명과 환산율은 필수입니다.'); return; }
+
+  const payload = {
+    category, insurer_name: insurer, product_type: product || null,
+    conversion_rate: Number(conv), payout_rate: Number(payout)||450,
+    calc_mode: mode, note
+  };
+  if (mode === 'percent_tiered') {
+    payload.tier_threshold = Number(document.getElementById('cr_threshold').value)||100000;
+    payload.rate_next_under = Number(document.getElementById('cr_rn_under').value)||0;
+    payload.rate_next_over = Number(document.getElementById('cr_rn_over').value)||0;
+    payload.rate_13_under = 0;
+    payload.rate_13_over = Number(document.getElementById('cr_r13_over').value)||0;
+  } else if (mode === 'percent_flat') {
+    payload.rate_next_over = Number(document.getElementById('cr_rn_flat').value)||0;
+    payload.rate_13_over = Number(document.getElementById('cr_r13_flat').value)||0;
+  } else if (mode === 'fixed_tier') {
+    payload.rate_next_over = 0;
+    payload.tier_table_early = document.getElementById('cr_tier_early').value.trim();
+    payload.tier_table_late = document.getElementById('cr_tier_late').value.trim();
+  }
+
+  const { error } = await sb.from('commission_rates').insert([payload]);
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  ['cr_insurer','cr_product','cr_conv','cr_threshold','cr_rn_over','cr_r13_over','cr_rn_flat','cr_r13_flat','cr_tier_early','cr_tier_late','cr_note'].forEach(id=>{
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('cr_rn_under').value = 100;
+  document.getElementById('cr_payout').value = 450;
+  await loadCommissionRates();
+}
+
+/* ============================================================
    실적현황표
 ============================================================ */
 let allTargets = [];
@@ -1257,6 +1637,8 @@ async function startApp(){
       el.readOnly = true;
       el.style.background = '#EFEDE6';
     });
+  } else {
+    document.getElementById('tabBtnSalary').style.display = 'inline-block';
   }
 
   try{
@@ -1265,6 +1647,7 @@ async function startApp(){
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
     const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties()];
+    if (currentUser.role === 'master') loaders.push(loadCommissionRates());
     await Promise.all(loaders);
     setupPerformanceTab();
     setStatus('ok','✓ Supabase 연결됨');
