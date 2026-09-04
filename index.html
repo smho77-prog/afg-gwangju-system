@@ -95,18 +95,21 @@
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
   .cal-dow { text-align: center; font-size: 11px; color: var(--muted); padding-bottom: 4px; }
   .cal-cell {
-    min-height: 56px; border: 1px solid var(--line); border-radius: 6px; padding: 4px;
-    font-size: 12px; cursor: pointer; background: #FAFAF7;
+    min-height: 78px; border: 1px solid var(--line); border-radius: 6px; padding: 4px;
+    font-size: 12px; cursor: pointer; background: #FAFAF7; overflow: hidden;
   }
   .cal-cell.empty { background: transparent; border: none; cursor: default; }
   .cal-cell.today { border-color: var(--navy); border-width: 2px; }
   .cal-cell:hover:not(.empty) { background: #F0EEE6; }
   .cal-daynum { font-weight: 600; margin-bottom: 3px; }
-  .cal-dots { display: flex; gap: 3px; flex-wrap: wrap; }
-  .cal-dot { width: 7px; height: 7px; border-radius: 50%; }
-  .dot-상 { background: var(--red); }
-  .dot-중 { background: var(--amber); }
-  .dot-하 { background: var(--green); }
+  .cal-title {
+    font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; margin-bottom: 2px; padding: 1px 3px; border-radius: 3px;
+  }
+  .text-상 { color: var(--red); background: var(--red-bg); }
+  .text-중 { color: var(--amber); background: var(--amber-bg); }
+  .text-하 { color: var(--green); background: var(--green-bg); }
+  .cal-more { font-size: 10px; color: var(--muted); }
   .issue-item { border-left: 3px solid var(--line); padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; background: #FAFAF7; }
   .issue-item.imp-상 { border-left-color: var(--red); }
   .issue-item.imp-중 { border-left-color: var(--amber); }
@@ -1348,11 +1351,11 @@ function autoCalcSalary(){
     }
     totalBase += base; totalNext += next; total13 += inc13; totalPremium += premium;
     const key = c.insurer || '(미지정)';
-    if (!byInsurer[key]) byInsurer[key] = { premium:0, base:0, next:0, i13:0, count:0, threshold:null };
+    if (!byInsurer[key]) byInsurer[key] = { premium:0, base:0, next:0, i13:0, count:0, threshold:null, rateRef:null };
     byInsurer[key].premium += premium; byInsurer[key].base += base; byInsurer[key].next += next; byInsurer[key].i13 += inc13; byInsurer[key].count++;
     if (rate.calc_mode === 'percent_tiered' || rate.calc_mode === 'fixed_tier') {
       const th = rate.calc_mode === 'fixed_tier' ? (parseTierTable(rate.tier_table_early)[0]||{}).min : Number(rate.tier_threshold);
-      if (th) byInsurer[key].threshold = th;
+      if (th) { byInsurer[key].threshold = th; byInsurer[key].rateRef = rate; }
     }
   });
 
@@ -1380,12 +1383,29 @@ function autoCalcSalary(){
     .map(k => {
       const d = byInsurer[k];
       const gap = d.threshold - d.premium;
-      return `<li>${escapeHtml(k)}: 현재실적 ${Math.round(d.premium).toLocaleString('ko-KR')}원 → <b>${Math.round(d.threshold).toLocaleString('ko-KR')}원</b>까지 <b>${Math.round(gap).toLocaleString('ko-KR')}원</b> 남음</li>`;
+      const currentIncentive = d.next + d.i13;
+      let projectedIncentive = null;
+      const rate = d.rateRef;
+      if (rate) {
+        if (rate.calc_mode === 'percent_tiered') {
+          projectedIncentive = d.threshold * ((Number(rate.rate_next_over)||0) + (Number(rate.rate_13_over)||0)) / 100;
+        } else if (rate.calc_mode === 'fixed_tier') {
+          const day = new Date().getDate();
+          const isEarly = day <= 20;
+          const tiers = parseTierTable(isEarly ? rate.tier_table_early : rate.tier_table_late);
+          projectedIncentive = tiers.length ? tiers[0].amount : null;
+        }
+      }
+      const upliftText = (projectedIncentive !== null)
+        ? ` → 예상 시책 합계 ${Math.round(currentIncentive).toLocaleString('ko-KR')}원 → <b>${Math.round(projectedIncentive).toLocaleString('ko-KR')}원</b> (+${Math.round(projectedIncentive-currentIncentive).toLocaleString('ko-KR')}원)`
+        : '';
+      return `<li>${escapeHtml(k)}: 현재실적 ${Math.round(d.premium).toLocaleString('ko-KR')}원 → <b>${Math.round(d.threshold).toLocaleString('ko-KR')}원</b>까지 <b>${Math.round(gap).toLocaleString('ko-KR')}원</b> 남음${upliftText}</li>`;
     });
 
   if (encourageLines.length) {
     html += `<div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);color:var(--amber);border-radius:6px;font-size:12.5px;">
       💪 <b>구간 기준 미달 보험사</b>
+      <div style="font-size:11px;color:var(--muted);margin:2px 0 6px;">(이 금액만큼 총 실적이 더 늘어난다고 가정했을 때의 참고 추정치예요 - 실제로는 개별 계약 보험료 기준으로 계산돼요)</div>
       <ul style="margin:6px 0 0;padding-left:18px;">${encourageLines.join('')}</ul>
     </div>`;
   }
@@ -1633,10 +1653,11 @@ function renderIssueCalendar(){
     const cellDate = new Date(year, month, day); cellDate.setHours(0,0,0,0);
     const isToday = cellDate.getTime() === today.getTime();
     const dayIssues = issuesByDay[day] || [];
-    const dots = dayIssues.map(is => `<span class="cal-dot dot-${is.importance}"></span>`).join('');
+    const titles = dayIssues.slice(0,3).map(is => `<div class="cal-title text-${is.importance}" title="${escAttr(is.title)}">${escapeHtml(is.title)}</div>`).join('');
+    const moreCount = dayIssues.length > 3 ? `<div class="cal-more">+${dayIssues.length-3}건</div>` : '';
     html += `<div class="cal-cell ${isToday?'today':''}" onclick="selectIssueDay(${day})">
       <div class="cal-daynum">${day}</div>
-      <div class="cal-dots">${dots}</div>
+      ${titles}${moreCount}
     </div>`;
   }
   document.getElementById('is_calendarGrid').innerHTML = `<div class="cal-grid">${html}</div>`;
