@@ -1322,7 +1322,6 @@ function autoCalcSalary(){
   let totalBase = 0, totalNext = 0, total13 = 0, totalPremium = 0;
   const unmatched = [];
   const byInsurer = {};
-  const encourageList = [];
 
   rows.forEach(c => {
     const premium = Number(c.premium) || 0;
@@ -1336,12 +1335,6 @@ function autoCalcSalary(){
       const isOver = premium >= Number(rate.tier_threshold);
       next = premium * (Number(isOver?rate.rate_next_over:rate.rate_next_under)||0)/100;
       inc13 = premium * (Number(isOver?rate.rate_13_over:rate.rate_13_under)||0)/100;
-      if (!isOver) {
-        const gap = Number(rate.tier_threshold) - premium;
-        const curTotal = next + inc13;
-        const upTotal = Number(rate.tier_threshold) * ((Number(rate.rate_next_over)||0) + (Number(rate.rate_13_over)||0))/100;
-        encourageList.push({ manager: c.manager_name, customer: c.customer_name, insurer: c.insurer, gap, curTotal, upTotal });
-      }
     } else if (rate.calc_mode === 'percent_flat') {
       next = premium * (Number(rate.rate_next_over)||0)/100;
       inc13 = premium * (Number(rate.rate_13_over)||0)/100;
@@ -1352,17 +1345,15 @@ function autoCalcSalary(){
       let matchedTier = null;
       tiers.forEach(t => { if (premium >= t.min) matchedTier = t; });
       inc13 = matchedTier ? matchedTier.amount : 0;
-      const nextTier = tiers.find(t => t.min > premium);
-      if (nextTier) {
-        const gap = nextTier.min - premium;
-        const curAmt = matchedTier ? matchedTier.amount : 0;
-        encourageList.push({ manager: c.manager_name, customer: c.customer_name, insurer: c.insurer, gap, curTotal: curAmt, upTotal: nextTier.amount });
-      }
     }
     totalBase += base; totalNext += next; total13 += inc13; totalPremium += premium;
     const key = c.insurer || '(미지정)';
-    if (!byInsurer[key]) byInsurer[key] = { premium:0, base:0, next:0, i13:0, count:0 };
+    if (!byInsurer[key]) byInsurer[key] = { premium:0, base:0, next:0, i13:0, count:0, threshold:null };
     byInsurer[key].premium += premium; byInsurer[key].base += base; byInsurer[key].next += next; byInsurer[key].i13 += inc13; byInsurer[key].count++;
+    if (rate.calc_mode === 'percent_tiered' || rate.calc_mode === 'fixed_tier') {
+      const th = rate.calc_mode === 'fixed_tier' ? (parseTierTable(rate.tier_table_early)[0]||{}).min : Number(rate.tier_threshold);
+      if (th) byInsurer[key].threshold = th;
+    }
   });
 
   const resultEl = document.getElementById('ac_result');
@@ -1384,12 +1375,18 @@ function autoCalcSalary(){
     html += `</tbody></table>`;
   }
 
-  if (encourageList.length) {
+  const encourageLines = insurerKeys
+    .filter(k => byInsurer[k].threshold && byInsurer[k].premium < byInsurer[k].threshold)
+    .map(k => {
+      const d = byInsurer[k];
+      const gap = d.threshold - d.premium;
+      return `<li>${escapeHtml(k)}: 현재실적 ${Math.round(d.premium).toLocaleString('ko-KR')}원 → <b>${Math.round(d.threshold).toLocaleString('ko-KR')}원</b>까지 <b>${Math.round(gap).toLocaleString('ko-KR')}원</b> 남음</li>`;
+    });
+
+  if (encourageLines.length) {
     html += `<div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);color:var(--amber);border-radius:6px;font-size:12.5px;">
-      💪 <b>구간 미달 계약 (조금만 더 올리면 시책 상승)</b>
-      <ul style="margin:6px 0 0;padding-left:18px;">
-        ${encourageList.map(e => `<li>${escapeHtml(e.manager)} - ${escapeHtml(e.customer)} (${escapeHtml(e.insurer||'')}): <b>${Math.round(e.gap).toLocaleString('ko-KR')}원</b>만 더 넣으면 ${Math.round(e.curTotal).toLocaleString('ko-KR')}원 → <b>${Math.round(e.upTotal).toLocaleString('ko-KR')}원</b> (+${Math.round(e.upTotal-e.curTotal).toLocaleString('ko-KR')}원)</li>`).join('')}
-      </ul>
+      💪 <b>구간 기준 미달 보험사</b>
+      <ul style="margin:6px 0 0;padding-left:18px;">${encourageLines.join('')}</ul>
     </div>`;
   }
 
