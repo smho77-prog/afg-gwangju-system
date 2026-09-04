@@ -96,9 +96,11 @@
 <body>
 <div id="loginGate" class="card" style="max-width:340px;margin:80px auto;">
   <div style="font-size:16px;font-weight:700;margin-bottom:4px;">🔒 AFG 광주센터 통합전산</div>
-  <div class="sub">사원번호를 입력해주세요.</div>
+  <div class="sub">사원번호를 입력해주세요. (마스터 계정은 비밀번호도 입력)</div>
   <label>사원번호</label>
   <input type="text" id="loginEmployeeNo" placeholder="사원번호 입력" onkeydown="if(event.key==='Enter') doLogin()">
+  <label style="margin-top:10px;">비밀번호 (마스터만 해당, 팀장님은 비워두세요)</label>
+  <input type="password" id="loginPassword" placeholder="마스터만 입력" onkeydown="if(event.key==='Enter') doLogin()">
   <button class="act" style="width:100%;margin-top:12px;" onclick="doLogin()">입장</button>
   <div id="loginError" style="color:var(--red);font-size:12px;margin-top:8px;display:none;"></div>
 </div>
@@ -352,22 +354,24 @@ function setStatus(state, msg) { statusEl.className = 'st-' + state; statusEl.te
 function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-/* ---------- 로그인 (사원번호 기반, 보안 아님 - UI 수준 구분용) ---------- */
+/* ---------- 로그인 (사원번호 + 마스터 비밀번호, verify_login RPC로 안전하게 확인) ---------- */
 async function doLogin() {
   const no = document.getElementById('loginEmployeeNo').value.trim();
+  const pw = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
   if (!no) return;
   try {
     const sbTemp = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const { data, error } = await sbTemp.from('employees').select('*').eq('employee_no', no).maybeSingle();
+    const { data, error } = await sbTemp.rpc('verify_login', { p_employee_no: no, p_password: pw || null });
     if (error) throw error;
-    if (!data) {
-      errEl.textContent = '등록되지 않은 사원번호입니다. 관리자(쏭님)에게 문의하세요.';
+    if (!data || data.length === 0) {
+      errEl.textContent = '사원번호 또는 비밀번호가 올바르지 않습니다. 관리자(쏭님)에게 문의하세요.';
       errEl.style.display = 'block';
       return;
     }
-    currentUser = { employee_no: data.employee_no, manager_name: data.manager_name, role: data.role || 'member' };
+    const row = data[0];
+    currentUser = { employee_no: row.employee_no, manager_name: row.manager_name, role: row.role || 'member' };
     localStorage.setItem('afg_gwangju_user', JSON.stringify(currentUser));
     startApp();
   } catch (e) {
