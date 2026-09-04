@@ -110,7 +110,7 @@
     <button class="tabbtn" data-tab="contract" onclick="switchTab('contract')">📄 계약관리</button>
     <button class="tabbtn" data-tab="insurer" onclick="switchTab('insurer')">📞 보험사연락처</button>
     <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
-    <button class="tabbtn" data-tab="duties" id="tabBtnDuties" onclick="switchTab('duties')" style="display:none;">🗂️ 총무업무분장표</button>
+    <button class="tabbtn" data-tab="duties" id="tabBtnDuties" onclick="switchTab('duties')">🗂️ 총무업무분장표</button>
   </nav>
   <div id="connStatus" class="st-checking">연결 확인 중...</div>
   <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
@@ -1253,8 +1253,6 @@ async function startApp(){
       el.readOnly = true;
       el.style.background = '#EFEDE6';
     });
-  } else {
-    document.getElementById('tabBtnDuties').style.display = 'inline-block';
   }
 
   try{
@@ -1262,8 +1260,7 @@ async function startApp(){
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
-    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets()];
-    if (currentUser.role === 'master') loaders.push(loadDuties());
+    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties()];
     await Promise.all(loaders);
     setupPerformanceTab();
     setStatus('ok','✓ Supabase 연결됨');
