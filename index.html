@@ -110,6 +110,7 @@
     <button class="tabbtn" data-tab="contract" onclick="switchTab('contract')">📄 계약관리</button>
     <button class="tabbtn" data-tab="insurer" onclick="switchTab('insurer')">📞 보험사연락처</button>
     <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
+    <button class="tabbtn" data-tab="duties" id="tabBtnDuties" onclick="switchTab('duties')" style="display:none;">🗂️ 총무업무분장표</button>
   </nav>
   <div id="connStatus" class="st-checking">연결 확인 중...</div>
   <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
@@ -307,6 +308,32 @@
       <colgroup><col style="width:20%"><col style="width:25%"><col style="width:25%"><col style="width:15%"><col style="width:15%"></colgroup>
       <thead><tr><th>팀장</th><th>목표</th><th>실적</th><th>달성률</th><th>건수</th></tr></thead>
       <tbody id="p_managerBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 총무업무분장표 (마스터 전용) ===== -->
+<div class="panel" id="panel-duties">
+  <div class="card">
+    <div class="sub">보험사별 담당총무/서브총무 분장 현황 (마스터 전용)</div>
+    <div class="row">
+      <div><label>보험사</label><input type="text" id="du_insurer" placeholder="예: 흥국화재"></div>
+      <div><label>담당총무</label><input type="text" id="du_main" placeholder="예: 홍길동"></div>
+      <div><label>서브총무</label><input type="text" id="du_sub" placeholder="예: 김철수"></div>
+    </div>
+    <div class="row">
+      <div><label>비고</label><input type="text" id="du_memo" placeholder="선택"></div>
+    </div>
+    <button class="act" onclick="addDuty()">+ 추가</button>
+  </div>
+  <div class="card">
+    <div class="filter-row">
+      <input type="text" id="du_search" placeholder="보험사명 검색" oninput="renderDuties()">
+    </div>
+    <table>
+      <colgroup><col style="width:25%"><col style="width:22%"><col style="width:22%"><col style="width:21%"><col style="width:10%"></colgroup>
+      <thead><tr><th>보험사</th><th>담당총무</th><th>서브총무</th><th>비고</th><th>관리</th></tr></thead>
+      <tbody id="du_body"><tr><td colspan="5" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -1006,6 +1033,80 @@ async function commitInsurerImport(){
 }
 
 /* ============================================================
+   총무업무분장표 (마스터 전용)
+============================================================ */
+let allDuties = [];
+let editingDutyId = null;
+async function loadDuties(){
+  const { data, error } = await sb.from('office_duties').select('*').order('insurer_name', { ascending: true });
+  if (error) { console.error(error); return; }
+  allDuties = data || [];
+  renderDuties();
+}
+function renderDuties(){
+  const tbody = document.getElementById('du_body');
+  if (!tbody) return;
+  const search = document.getElementById('du_search').value.trim().toLowerCase();
+  let rows = allDuties;
+  if (search) rows = rows.filter(d => (d.insurer_name||'').toLowerCase().includes(search));
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);">등록된 항목이 없습니다</td></tr>'; return; }
+  tbody.innerHTML = rows.map(d => {
+    if (editingDutyId === d.id) return renderDutyEditRow(d);
+    return `<tr>
+      <td><b>${escapeHtml(d.insurer_name)}</b></td>
+      <td>${escapeHtml(d.main_staff||'')}</td>
+      <td>${escapeHtml(d.sub_staff||'')}</td>
+      <td>${escapeHtml(d.memo||'')}</td>
+      <td class="actions">
+        <button class="small secondary" onclick="startEditDuty(${d.id})">수정</button>
+        <button class="small danger" onclick="deleteDuty(${d.id})">삭제</button>
+      </td></tr>`;
+  }).join('');
+}
+function renderDutyEditRow(d){
+  return `<tr>
+    <td><input type="text" id="due_insurer_${d.id}" value="${escAttr(d.insurer_name)}"></td>
+    <td><input type="text" id="due_main_${d.id}" value="${escAttr(d.main_staff||'')}"></td>
+    <td><input type="text" id="due_sub_${d.id}" value="${escAttr(d.sub_staff||'')}"></td>
+    <td><input type="text" id="due_memo_${d.id}" value="${escAttr(d.memo||'')}"></td>
+    <td class="actions">
+      <button class="small act" onclick="saveEditDuty(${d.id})">저장</button>
+      <button class="small secondary" onclick="editingDutyId=null; renderDuties();">취소</button>
+    </td></tr>`;
+}
+function startEditDuty(id){ editingDutyId = id; renderDuties(); }
+async function saveEditDuty(id){
+  const vals = {
+    insurer_name: document.getElementById('due_insurer_'+id).value.trim(),
+    main_staff: document.getElementById('due_main_'+id).value.trim(),
+    sub_staff: document.getElementById('due_sub_'+id).value.trim(),
+    memo: document.getElementById('due_memo_'+id).value.trim(),
+  };
+  if (!vals.insurer_name) { alert('보험사명은 필수입니다.'); return; }
+  const { error } = await sb.from('office_duties').update(vals).eq('id', id);
+  if (error) { alert('수정 실패: ' + error.message); return; }
+  editingDutyId = null;
+  await loadDuties();
+}
+async function deleteDuty(id){
+  if (!confirm('이 항목을 삭제할까요?')) return;
+  const { error } = await sb.from('office_duties').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  await loadDuties();
+}
+async function addDuty(){
+  const insurer = document.getElementById('du_insurer').value.trim();
+  const main = document.getElementById('du_main').value.trim();
+  const sub = document.getElementById('du_sub').value.trim();
+  const memo = document.getElementById('du_memo').value.trim();
+  if (!insurer) { alert('보험사명은 필수입니다.'); return; }
+  const { error } = await sb.from('office_duties').insert([{ insurer_name: insurer, main_staff: main, sub_staff: sub, memo }]);
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  ['du_insurer','du_main','du_sub','du_memo'].forEach(id => document.getElementById(id).value = '');
+  await loadDuties();
+}
+
+/* ============================================================
    실적현황표
 ============================================================ */
 let allTargets = [];
@@ -1152,6 +1253,8 @@ async function startApp(){
       el.readOnly = true;
       el.style.background = '#EFEDE6';
     });
+  } else {
+    document.getElementById('tabBtnDuties').style.display = 'inline-block';
   }
 
   try{
@@ -1159,7 +1262,9 @@ async function startApp(){
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
-    await Promise.all([loadReservations(), loadContracts(), loadInsurers(), loadTargets()]);
+    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets()];
+    if (currentUser.role === 'master') loaders.push(loadDuties());
+    await Promise.all(loaders);
     setupPerformanceTab();
     setStatus('ok','✓ Supabase 연결됨');
     setInterval(checkAlarms, 20000);
