@@ -1319,9 +1319,10 @@ function autoCalcSalary(){
   let rows = allContracts.filter(c => c.contract_date && c.contract_date.startsWith(ym));
   if (managerFilter !== '__all__') rows = rows.filter(c => c.manager_name === managerFilter);
 
-  let totalBase = 0, totalNext = 0, total13 = 0;
+  let totalBase = 0, totalNext = 0, total13 = 0, totalPremium = 0;
   const unmatched = [];
   const byInsurer = {};
+  const encourageList = [];
 
   rows.forEach(c => {
     const premium = Number(c.premium) || 0;
@@ -1335,6 +1336,12 @@ function autoCalcSalary(){
       const isOver = premium >= Number(rate.tier_threshold);
       next = premium * (Number(isOver?rate.rate_next_over:rate.rate_next_under)||0)/100;
       inc13 = premium * (Number(isOver?rate.rate_13_over:rate.rate_13_under)||0)/100;
+      if (!isOver) {
+        const gap = Number(rate.tier_threshold) - premium;
+        const curTotal = next + inc13;
+        const upTotal = Number(rate.tier_threshold) * ((Number(rate.rate_next_over)||0) + (Number(rate.rate_13_over)||0))/100;
+        encourageList.push({ manager: c.manager_name, customer: c.customer_name, insurer: c.insurer, gap, curTotal, upTotal });
+      }
     } else if (rate.calc_mode === 'percent_flat') {
       next = premium * (Number(rate.rate_next_over)||0)/100;
       inc13 = premium * (Number(rate.rate_13_over)||0)/100;
@@ -1345,30 +1352,47 @@ function autoCalcSalary(){
       let matchedTier = null;
       tiers.forEach(t => { if (premium >= t.min) matchedTier = t; });
       inc13 = matchedTier ? matchedTier.amount : 0;
+      const nextTier = tiers.find(t => t.min > premium);
+      if (nextTier) {
+        const gap = nextTier.min - premium;
+        const curAmt = matchedTier ? matchedTier.amount : 0;
+        encourageList.push({ manager: c.manager_name, customer: c.customer_name, insurer: c.insurer, gap, curTotal: curAmt, upTotal: nextTier.amount });
+      }
     }
-    totalBase += base; totalNext += next; total13 += inc13;
+    totalBase += base; totalNext += next; total13 += inc13; totalPremium += premium;
     const key = c.insurer || '(미지정)';
-    if (!byInsurer[key]) byInsurer[key] = { base:0, next:0, i13:0, count:0 };
-    byInsurer[key].base += base; byInsurer[key].next += next; byInsurer[key].i13 += inc13; byInsurer[key].count++;
+    if (!byInsurer[key]) byInsurer[key] = { premium:0, base:0, next:0, i13:0, count:0 };
+    byInsurer[key].premium += premium; byInsurer[key].base += base; byInsurer[key].next += next; byInsurer[key].i13 += inc13; byInsurer[key].count++;
   });
 
   const resultEl = document.getElementById('ac_result');
   const grandTotal = totalBase + totalNext;
   let html = `<div style="background:var(--paper);border-radius:8px;padding:14px 16px;">
     <div style="font-size:20px;font-weight:700;margin-bottom:8px;">${Math.round(grandTotal).toLocaleString('ko-KR')}원 <span style="font-size:12px;font-weight:400;color:var(--muted);">(익월 예상 합계, ${ym})</span></div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:4px;">현재실적(보험료 합계): ${Math.round(totalPremium).toLocaleString('ko-KR')}원</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">기본수수료 ${Math.round(totalBase).toLocaleString('ko-KR')}원 + 익월시책 ${Math.round(totalNext).toLocaleString('ko-KR')}원</div>
     <div style="font-size:13px;color:var(--green);">13회차(13개월후) 예상 합계: ${Math.round(total13).toLocaleString('ko-KR')}원</div>
   </div>`;
 
   const insurerKeys = Object.keys(byInsurer).sort((a,b)=>(byInsurer[b].base+byInsurer[b].next)-(byInsurer[a].base+byInsurer[a].next));
   if (insurerKeys.length) {
-    html += `<table style="margin-top:12px;"><colgroup><col style="width:40%"><col style="width:25%"><col style="width:20%"><col style="width:15%"></colgroup><thead><tr><th>보험사</th><th>익월합계</th><th>13회차</th><th>건수</th></tr></thead><tbody>`;
+    html += `<table style="margin-top:12px;"><colgroup><col style="width:30%"><col style="width:23%"><col style="width:23%"><col style="width:14%"><col style="width:10%"></colgroup><thead><tr><th>보험사</th><th>현재실적</th><th>익월합계</th><th>13회차</th><th>건수</th></tr></thead><tbody>`;
     insurerKeys.forEach(k => {
       const d = byInsurer[k];
-      html += `<tr><td>${escapeHtml(k)}</td><td>${Math.round(d.base+d.next).toLocaleString('ko-KR')}원</td><td>${Math.round(d.i13).toLocaleString('ko-KR')}원</td><td>${d.count}건</td></tr>`;
+      html += `<tr><td>${escapeHtml(k)}</td><td>${Math.round(d.premium).toLocaleString('ko-KR')}원</td><td>${Math.round(d.base+d.next).toLocaleString('ko-KR')}원</td><td>${Math.round(d.i13).toLocaleString('ko-KR')}원</td><td>${d.count}건</td></tr>`;
     });
     html += `</tbody></table>`;
   }
+
+  if (encourageList.length) {
+    html += `<div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);color:var(--amber);border-radius:6px;font-size:12.5px;">
+      💪 <b>구간 미달 계약 (조금만 더 올리면 시책 상승)</b>
+      <ul style="margin:6px 0 0;padding-left:18px;">
+        ${encourageList.map(e => `<li>${escapeHtml(e.manager)} - ${escapeHtml(e.customer)} (${escapeHtml(e.insurer||'')}): <b>${Math.round(e.gap).toLocaleString('ko-KR')}원</b>만 더 넣으면 ${Math.round(e.curTotal).toLocaleString('ko-KR')}원 → <b>${Math.round(e.upTotal).toLocaleString('ko-KR')}원</b> (+${Math.round(e.upTotal-e.curTotal).toLocaleString('ko-KR')}원)</li>`).join('')}
+      </ul>
+    </div>`;
+  }
+
   resultEl.innerHTML = html;
 
   const unmatchedEl = document.getElementById('ac_unmatched');
