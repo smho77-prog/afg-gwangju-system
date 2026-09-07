@@ -1311,7 +1311,7 @@ function matchCommissionRate(contract){
   if (candidates.length === 0) return null;
   if (candidates.length === 1) return candidates[0];
   const pname = (contract.product_name || '').toLowerCase();
-  const keywords = ['비갱신','갱신','치아','치매','7년','20년'];
+  const keywords = ['비갱신','갱신','치아','치매','7년','20년','건강','간편','종신','통합','정기','달러','보장'];
   let best = null, bestScore = 0;
   candidates.forEach(c => {
     const ptype = (c.product_type || '').toLowerCase();
@@ -1319,7 +1319,14 @@ function matchCommissionRate(contract){
     keywords.forEach(k => { if (ptype.includes(k) && pname.includes(k)) score++; });
     if (score > bestScore) { bestScore = score; best = c; }
   });
-  return bestScore > 0 ? best : null;
+  if (bestScore > 0) return best;
+
+  // 키워드로 특정 상품을 못 골랐을 때: '기본'으로 등록된 요율이 있으면 기본값으로 사용
+  const fallback = candidates.find(c => {
+    const t = (c.product_type || '').trim();
+    return t === '' || t === '기본';
+  });
+  return fallback || null;
 }
 
 function autoCalcSalary(){
