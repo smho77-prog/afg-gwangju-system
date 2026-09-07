@@ -522,6 +522,10 @@
     <div id="uw_stats" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
     <div id="uw_results"><div style="color:var(--muted);">질환명을 입력하고 검색해보세요.</div></div>
   </div>
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:6px;">💊 간편형 상품 고지기간 체크 (3.1~3.10.10 티어, 계속 추가 예정)</div>
+    <div id="uw_tier_results" style="font-size:12.5px;color:var(--muted);">질환명과 경과월을 입력하고 검색하면 여기도 같이 표시됩니다.</div>
+  </div>
 </div>
 
 </main>
@@ -2094,7 +2098,13 @@ async function searchUnderwriting(){
     .limit(300);
   if (myToken !== uwSearchToken) return;
   if (error) { resultsEl.innerHTML = `<div style="color:var(--red);">검색 오류: ${escapeHtml(error.message)}</div>`; return; }
-  if (!data || !data.length) { resultsEl.innerHTML = '<div style="color:var(--muted);">일치하는 예외질환 데이터가 없습니다. (등록된 12개사 기준 조회이며, 없는 경우 원칙상 인수 어려울 가능성이 높습니다)</div>'; statsEl.textContent=''; return; }
+  if (!data || !data.length) {
+    resultsEl.innerHTML = '<div style="color:var(--muted);">일치하는 예외질환 데이터가 없습니다. (등록된 12개사 기준 조회이며, 없는 경우 원칙상 인수 어려울 가능성이 높습니다)</div>';
+    statsEl.textContent = '';
+    const monthsInputEarly = document.getElementById('uw_months').value;
+    checkDisclosureTiers(q, monthsInputEarly ? Number(monthsInputEarly) : null);
+    return;
+  }
 
   const daysInput = document.getElementById('uw_days').value;
   const monthsInput = document.getElementById('uw_months').value;
@@ -2153,6 +2163,56 @@ async function searchUnderwriting(){
     return `<div class="card" style="margin-bottom:12px;">
       <div style="font-size:14px;font-weight:700;margin-bottom:8px;">${escapeHtml(company)} <span style="font-weight:400;color:var(--muted);font-size:12px;">(${rows.length}건)</span></div>
       ${rowsHtml}
+    </div>`;
+  }).join('');
+  checkDisclosureTiers(q, elapsedDays !== null ? Math.round(elapsedDays/30) : null);
+}
+
+async function checkDisclosureTiers(query, elapsedMonths) {
+  const el = document.getElementById('uw_tier_results');
+  if (!query) { el.innerHTML = '질환명과 경과월을 입력하고 검색하면 여기도 같이 표시됩니다.'; return; }
+  const { data, error } = await sb.from('product_disclosure_tiers').select('*');
+  if (error) { el.innerHTML = `<span style="color:var(--red);">조회 오류: ${escapeHtml(error.message)}</span>`; return; }
+  if (!data || !data.length) { el.innerHTML = '등록된 상품 고지기간 데이터가 없습니다.'; return; }
+
+  const rows = data.filter(r => r.no_disease_question || (r.disease_keywords || []).some(k => query.includes(k) || k.includes(query)));
+  if (!rows.length) {
+    el.innerHTML = `"${escapeHtml(query)}"을(를) 중대질환으로 물어보는 등록된 상품이 없습니다. (해당 없음 = 오히려 고지 대상이 아닐 수 있으니 예외질환 결과를 참고하세요)`;
+    return;
+  }
+
+  el.innerHTML = rows.map(r => {
+    let ok = true, reasons = [];
+    if (!r.no_disease_question) {
+      if (elapsedMonths === null) {
+        reasons.push('경과월을 입력하면 고지 대상 여부를 판정합니다');
+        ok = null;
+      } else if (elapsedMonths >= r.disease_months) {
+        reasons.push(`✅ 중대질환 고지기간(${r.disease_months}개월) 경과 → 고지 불필요`);
+      } else {
+        reasons.push(`⏳ 중대질환 고지기간(${r.disease_months}개월) 미경과 → 고지 필요(불리할 수 있음)`);
+        ok = false;
+      }
+    } else {
+      reasons.push('중대질환 자체를 고지하지 않는 상품');
+    }
+    if (elapsedMonths !== null) {
+      if (r.surgery_months === null || r.surgery_months === undefined) {
+        reasons.push('입원/수술 고지기간은 상품별로 다르므로(N년) 가입 시 별도 확인 필요');
+      } else if (elapsedMonths >= r.surgery_months) {
+        reasons.push(`✅ 입원/수술 고지기간(${r.surgery_months}개월)도 경과`);
+      } else {
+        reasons.push(`⏳ 입원/수술 고지기간(${r.surgery_months}개월) 미경과 시 별도 확인 필요`);
+        ok = false;
+      }
+    }
+    const badge = ok === true ? {c:'#1a7f37',b:'#e9f7ee',t:'가입 가능 가능성 높음'} : ok === false ? {c:'#c0392b',b:'#fdecea',t:'고지 필요'} : {c:'#666',b:'#f2f2f2',t:'경과월 입력 필요'};
+    return `<div style="padding:10px 12px;background:#fafafa;border-radius:8px;margin-bottom:8px;">
+      <div style="font-size:13px;"><b>${escapeHtml(r.company)}</b> · ${escapeHtml(r.product_name)} <span style="color:var(--muted);">(${escapeHtml(r.tier_code)})</span>
+        <span style="margin-left:8px;padding:1px 8px;border-radius:10px;background:${badge.b};color:${badge.c};font-weight:700;font-size:11.5px;">${badge.t}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px;">${reasons.join(' / ')}</div>
+      <div style="font-size:11.5px;color:#999;margin-top:2px;">${escapeHtml(r.note || '')}</div>
     </div>`;
   }).join('');
 }
