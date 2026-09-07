@@ -1291,6 +1291,11 @@ function setupSalaryAutoCalc(){
   mgrSel.innerHTML = '<option value="__all__">전체 팀장</option>' + names.map(n=>`<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('');
 }
 
+function formatKoreanUnit(n){
+  n = Math.round(Number(n)||0);
+  if (n > 0 && n % 10000 === 0) return (n/10000).toLocaleString('ko-KR') + '만원';
+  return n.toLocaleString('ko-KR') + '원';
+}
 function normalizeInsurerName(s){
   return String(s||'')
     .replace(/\s+/g,'')
@@ -1410,9 +1415,9 @@ function autoCalcSalary(){
         }
       }
       const upliftText = (projectedIncentive !== null)
-        ? ` → 예상 시책 합계 ${Math.round(currentIncentive).toLocaleString('ko-KR')}원 → <b>${Math.round(projectedIncentive).toLocaleString('ko-KR')}원</b> (+${Math.round(projectedIncentive-currentIncentive).toLocaleString('ko-KR')}원)`
+        ? ` → 추가시책 <b>${Math.round(projectedIncentive-currentIncentive).toLocaleString('ko-KR')}원</b> 발생`
         : '';
-      return `<li>${escapeHtml(k)}: 현재실적 ${Math.round(d.premium).toLocaleString('ko-KR')}원 → <b>${Math.round(d.threshold).toLocaleString('ko-KR')}원</b>까지 <b>${Math.round(gap).toLocaleString('ko-KR')}원</b> 남음${upliftText}</li>`;
+      return `<li>${escapeHtml(k)}: 현재실적 ${Math.round(d.premium).toLocaleString('ko-KR')}원 : <b>${Math.round(gap).toLocaleString('ko-KR')}원</b> 추가시 ${formatKoreanUnit(d.threshold)} 달성${upliftText}</li>`;
     });
 
   if (encourageLines.length) {
