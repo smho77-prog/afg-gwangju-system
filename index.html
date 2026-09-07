@@ -1291,7 +1291,13 @@ function setupSalaryAutoCalc(){
   mgrSel.innerHTML = '<option value="__all__">전체 팀장</option>' + names.map(n=>`<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('');
 }
 
-function normalizeInsurerName(s){ return String(s||'').replace(/\s+/g,''); }
+function normalizeInsurerName(s){
+  return String(s||'')
+    .replace(/\s+/g,'')
+    .replace(/손해보험/g,'손보')
+    .replace(/화재해상보험/g,'화재')
+    .replace(/생명보험/g,'생명');
+}
 function matchCommissionRate(contract){
   const cName = normalizeInsurerName(contract.insurer);
   if (!cName) return null;
