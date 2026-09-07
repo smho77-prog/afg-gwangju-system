@@ -138,6 +138,7 @@
     <button class="tabbtn" data-tab="duties" id="tabBtnDuties" onclick="switchTab('duties')">🗂️ 총무업무분장표</button>
     <button class="tabbtn" data-tab="salary" id="tabBtnSalary" onclick="switchTab('salary')" style="display:none;">💰 급여계산기</button>
     <button class="tabbtn" data-tab="issues" onclick="switchTab('issues')">📌 이슈/마감일정</button>
+    <button class="tabbtn" data-tab="underwriting" onclick="switchTab('underwriting')">🔍 인수기준 검색</button>
   </nav>
   <div id="connStatus" class="st-checking">연결 확인 중...</div>
   <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
@@ -494,6 +495,32 @@
   <div class="card">
     <div style="font-weight:700;font-size:14px;margin-bottom:8px;" id="is_listTitle">이번달 전체 목록</div>
     <div id="is_list"></div>
+  </div>
+</div>
+
+<!-- ===== 인수기준 검색 ===== -->
+<div class="panel" id="panel-underwriting">
+  <div class="card">
+    <div class="sub">질환명을 입력하면 보험사별 예외인수 기준을 보여줘요. 입원일수/수술여부/경과월을 같이 입력하면 조건에 맞는지 자동으로 표시합니다. (참고용 자료이며, 최종 인수여부는 보험사 심사 결과에 따릅니다)</div>
+    <div class="row">
+      <div style="flex:2;"><label>질환명</label><input type="text" id="uw_q" placeholder="예: 협심증, 발목골절, 고혈압" onkeydown="if(event.key==='Enter') searchUnderwriting()"></div>
+      <div><label>수술 여부</label>
+        <select id="uw_surgery">
+          <option value="unknown" selected>모름/상관없음</option>
+          <option value="yes">수술함</option>
+          <option value="no">수술 안함(보존적 치료)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div><label>입원일수(일)</label><input type="number" id="uw_days" placeholder="예: 7"></div>
+      <div><label>진단/치료 후 경과(개월)</label><input type="number" id="uw_months" placeholder="예: 12"></div>
+      <div style="align-self:flex-end;"><button class="act" onclick="searchUnderwriting()">검색</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div id="uw_stats" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
+    <div id="uw_results"><div style="color:var(--muted);">질환명을 입력하고 검색해보세요.</div></div>
   </div>
 </div>
 
@@ -2017,6 +2044,117 @@ async function enableNotifications(){
   if (Notification.permission === 'granted') {
     new Notification('알림이 켜졌습니다', { body: '예약 5분 전에 이렇게 알려드릴게요.' });
   }
+}
+
+/* ============================================================
+   인수기준 검색
+============================================================ */
+function uwParseDaysFromLabel(label){
+  let m = label.match(/^(\d+)\s*개월$/); if(m) return +m[1]*30;
+  m = label.match(/^(\d+)\s*일$/); if(m) return +m[1];
+  m = label.match(/^(\d+)\s*년$/); if(m) return +m[1]*365;
+  return null;
+}
+function uwParseDaysFromText(text){
+  let m = text.match(/경과기간\s*[:·]?\s*(\d+)\s*일/); if(m) return +m[1];
+  m = text.match(/(\d+)\s*개월\s*(?:후|이상|경과)/); if(m) return +m[1]*30;
+  m = text.match(/(\d+)\s*년\s*(?:후|이상|경과)/); if(m) return +m[1]*365;
+  return null;
+}
+function uwFmtDays(d){
+  if (d>=365 && d%365===0) return (d/365)+'년';
+  if (d%30===0) return (d/30)+'개월';
+  return d+'일';
+}
+function uwJudge(text){
+  if (/거절대상|SI\s*인수불가|인수불가|불가\s*\(X\)|^X$/.test(text)) return 'no';
+  if (/심사대상|심사요청|심사조건|검토/.test(text)) return 'review';
+  if (/즉시인수|가능\s*\(O\)|^○$|인수\s*가능|가입가능|가능$/.test(text)) return 'ok';
+  if (/^●$/.test(text)) return 'partial';
+  return 'unknown';
+}
+const UW_STYLE = {
+  ok:      {color:'#1a7f37', bg:'#e9f7ee', label:'가능'},
+  no:      {color:'#c0392b', bg:'#fdecea', label:'불가'},
+  review:  {color:'#8a6d00', bg:'#fff8e1', label:'심사'},
+  partial: {color:'#a15c00', bg:'#fff3e0', label:'조건부'},
+  unknown: {color:'#666',    bg:'#f2f2f2', label:'확인필요'}
+};
+let uwSearchToken = 0;
+async function searchUnderwriting(){
+  const q = document.getElementById('uw_q').value.trim();
+  const resultsEl = document.getElementById('uw_results');
+  const statsEl = document.getElementById('uw_stats');
+  if (!q) { resultsEl.innerHTML = '<div style="color:var(--muted);">질환명을 입력해주세요.</div>'; statsEl.textContent=''; return; }
+  const myToken = ++uwSearchToken;
+  resultsEl.innerHTML = '<div style="color:var(--muted);">검색 중...</div>';
+  const { data, error } = await sb.from('underwriting_exceptions')
+    .select('*')
+    .ilike('disease', `%${q}%`)
+    .limit(300);
+  if (myToken !== uwSearchToken) return;
+  if (error) { resultsEl.innerHTML = `<div style="color:var(--red);">검색 오류: ${escapeHtml(error.message)}</div>`; return; }
+  if (!data || !data.length) { resultsEl.innerHTML = '<div style="color:var(--muted);">일치하는 예외질환 데이터가 없습니다. (등록된 12개사 기준 조회이며, 없는 경우 원칙상 인수 어려울 가능성이 높습니다)</div>'; statsEl.textContent=''; return; }
+
+  const daysInput = document.getElementById('uw_days').value;
+  const monthsInput = document.getElementById('uw_months').value;
+  const surgery = document.getElementById('uw_surgery').value;
+  const userDays = daysInput ? Number(daysInput) : null;
+  const elapsedDays = monthsInput ? Number(monthsInput)*30 : null;
+
+  statsEl.textContent = `"${q}" 검색 결과 ${data.length}건 (보험사 ${new Set(data.map(d=>d.company)).size}곳) — 자동 표시는 참고용이며 실제 인수여부는 보험사 심사 결과에 따릅니다`;
+
+  const byCompany = {};
+  data.forEach(r => { (byCompany[r.company] = byCompany[r.company] || []).push(r); });
+
+  resultsEl.innerHTML = Object.keys(byCompany).sort().map(company => {
+    const rows = byCompany[company];
+    const rowsHtml = rows.map(r => {
+      const condHtml = (r.conditions || []).map(c => {
+        const label = String(c.label || ''); const value = String(c.value || '');
+        const labelDays = uwParseDaysFromLabel(label);
+        const textDays = uwParseDaysFromText(value);
+        const days = labelDays !== null ? labelDays : textDays;
+        const j = uwJudge(value);
+        const style = UW_STYLE[j];
+        let dayNote = '';
+        if (days !== null) {
+          if (days >= 99999) dayNote = ' <span style="color:#999;">(기간 무관)</span>';
+          else if (elapsedDays !== null) {
+            dayNote = elapsedDays >= days
+              ? ` <span style="color:#1a7f37;">✅ 경과기준(${uwFmtDays(days)}) 충족</span>`
+              : ` <span style="color:#a15c00;">⏳ ${uwFmtDays(days - elapsedDays)} 더 필요 (기준 ${uwFmtDays(days)})</span>`;
+          } else {
+            dayNote = ` <span style="color:#999;">(기준: 경과 ${uwFmtDays(days)})</span>`;
+          }
+        }
+        let cautionNote = '';
+        if (userDays && /입원\s*\(?일\)?|입원일수/.test(label)) {
+          const limMatch = value.match(/(\d+)/);
+          if (limMatch && userDays > Number(limMatch[1])) {
+            cautionNote += ` <span style="color:#c0392b;">⚠ 입력 입원일수(${userDays}일)가 기준(${limMatch[1]}일) 초과</span>`;
+          }
+        }
+        if (surgery !== 'unknown') {
+          const combined = label + value;
+          if (surgery === 'no' && /수술\s*필수/.test(combined)) cautionNote += ' <span style="color:#c0392b;">⚠ 이 항목은 수술 필수 조건</span>';
+          if (surgery === 'yes' && /수술\s*안\s*함|수술\s*무\b/.test(combined)) cautionNote += ' <span style="color:#c0392b;">⚠ 이 항목은 수술 안 한 경우만 해당</span>';
+        }
+        return `<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;border-bottom:1px dashed #eee;font-size:12.5px;">
+          <span style="flex:0 0 auto;padding:1px 8px;border-radius:10px;background:${style.bg};color:${style.color};font-weight:700;white-space:nowrap;">${style.label}</span>
+          <span><b>${escapeHtml(label)}</b> : ${escapeHtml(value)}${dayNote}${cautionNote}</span>
+        </div>`;
+      }).join('');
+      return `<div style="margin-bottom:10px;padding:10px 12px;background:#fafafa;border-radius:8px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">${escapeHtml(r.disease)} ${r.category ? `<span style="font-weight:400;color:var(--muted);font-size:11.5px;">· ${escapeHtml(r.category)}</span>` : ''}</div>
+        ${condHtml}
+      </div>`;
+    }).join('');
+    return `<div class="card" style="margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">${escapeHtml(company)} <span style="font-weight:400;color:var(--muted);font-size:12px;">(${rows.length}건)</span></div>
+      ${rowsHtml}
+    </div>`;
+  }).join('');
 }
 
 if (tryAutoLogin()) {
