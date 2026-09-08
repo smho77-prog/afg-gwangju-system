@@ -1898,6 +1898,14 @@ function contractsForMonth(ym, managerFilter){
   });
 }
 function renderPerformance(){
+  // 팀장 드롭다운을 매번 최신 계약 데이터 기준으로 갱신 (탭 전환/데이터 갱신 시 새 팀장 누락 방지)
+  if (currentUser.role === 'master') {
+    const mgrSel = document.getElementById('p_manager');
+    const current = mgrSel.value;
+    const names0 = Array.from(new Set(allContracts.map(c=>c.manager_name))).sort();
+    mgrSel.innerHTML = '<option value="__all__">전체 팀장</option>' + names0.map(n=>`<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('');
+    if (names0.includes(current) || current === '__all__') mgrSel.value = current;
+  }
   const ym = currentYM();
   const managerSel = document.getElementById('p_manager').value;
   const rows = contractsForMonth(ym, managerSel);
