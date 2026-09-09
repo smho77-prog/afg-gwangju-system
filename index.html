@@ -134,6 +134,7 @@
     <button class="tabbtn active" data-tab="reserve" onclick="switchTab('reserve')">📅 예약관리</button>
     <button class="tabbtn" data-tab="contract" onclick="switchTab('contract')">📄 계약관리</button>
     <button class="tabbtn" data-tab="insurer" onclick="switchTab('insurer')">📞 보험사연락처</button>
+    <button class="tabbtn" data-tab="callcenter" onclick="switchTab('callcenter')">☎️ 콜센터</button>
     <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
     <button class="tabbtn" data-tab="duties" id="tabBtnDuties" onclick="switchTab('duties')">🗂️ 총무업무분장표</button>
     <button class="tabbtn" data-tab="salary" id="tabBtnSalary" onclick="switchTab('salary')" style="display:none;">💰 급여계산기</button>
@@ -294,6 +295,61 @@
       <colgroup><col style="width:16%"><col style="width:14%"><col style="width:16%"><col style="width:16%"><col style="width:14%"><col style="width:14%"><col style="width:10%"></colgroup>
       <thead><tr><th>보험사</th><th>담당업무</th><th>담당자</th><th>연락처</th><th>팩스</th><th>비고</th><th>관리</th></tr></thead>
       <tbody id="i_body"><tr><td colspan="7" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 콜센터 ===== -->
+<div class="panel" id="panel-callcenter">
+  <div class="card">
+    <div class="sub">보험사별 콜센터(고객센터) 번호 — 직접 입력하거나 엑셀로 일괄 등록할 수 있어요.</div>
+    <div class="row">
+      <div><label>보험사명</label><input type="text" id="cc_name" placeholder="예: 메리츠화재"></div>
+      <div><label>구분</label><input type="text" id="cc_category" placeholder="예: 콜센터 (기본값)" value="콜센터"></div>
+      <div><label>전화번호</label><input type="text" id="cc_phone" placeholder="예: 1566-7711"></div>
+    </div>
+    <div class="row">
+      <div><label>비고</label><input type="text" id="cc_memo" placeholder="선택 (예: 30만원 이하)"></div>
+    </div>
+    <button class="act" onclick="addCallCenter()">+ 추가</button>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
+      <label>엑셀로 일괄 등록 (보험사명/구분/전화번호/비고 컬럼 인식)</label>
+      <input type="file" id="cc_excelFile" accept=".xlsx,.xls,.csv" onchange="handleCallCenterExcelUpload(event)">
+      <div id="cc_excelStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <div class="card" id="cc_previewCard" style="display:none;">
+    <div class="sub">아래 내용을 확인하고 "일괄등록"을 눌러주세요.</div>
+    <table>
+      <thead><tr><th>보험사</th><th>구분</th><th>전화번호</th><th>비고</th></tr></thead>
+      <tbody id="cc_previewBody"></tbody>
+    </table>
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <button class="act" onclick="commitCallCenterImport()">일괄등록</button>
+      <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="cancelCallCenterImport()">취소</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sub">사진 / PDF 자료 첨부 — 자동으로 번호가 등록되지는 않고, 참고자료로 열람·다운로드할 수 있게 저장됩니다.</div>
+    <div class="row">
+      <div><label>자료명</label><input type="text" id="cc_fileMemo" placeholder="예: 보험사별 콜센터 안내문 26.09"></div>
+      <div><label>파일 (이미지 또는 PDF)</label><input type="file" id="cc_fileInput" accept="image/*,.pdf,application/pdf"></div>
+      <div style="align-self:flex-end;"><button class="act" onclick="addCallCenterFile()">첨부 저장</button></div>
+    </div>
+    <div id="cc_fileList" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card">
+    <div class="filter-row">
+      <input type="text" id="cc_search" placeholder="보험사명 검색" oninput="renderCallCenters()">
+    </div>
+    <table>
+      <colgroup><col style="width:26%"><col style="width:20%"><col style="width:24%"><col style="width:18%"><col style="width:12%"></colgroup>
+      <thead><tr><th>보험사</th><th>구분</th><th>전화번호</th><th>비고</th><th>관리</th></tr></thead>
+      <tbody id="cc_body"><tr><td colspan="5" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -500,31 +556,115 @@
 
 <!-- ===== 인수기준 검색 ===== -->
 <div class="panel" id="panel-underwriting">
-  <div class="card">
-    <div class="sub">질환명을 입력하면 보험사별 예외인수 기준을 보여줘요. 입원일수/수술여부/경과월을 같이 입력하면 조건에 맞는지 자동으로 표시합니다. (참고용 자료이며, 최종 인수여부는 보험사 심사 결과에 따릅니다)</div>
-    <div class="row">
-      <div style="flex:2;"><label>질환명</label><input type="text" id="uw_q" placeholder="예: 협심증, 발목골절, 고혈압" onkeydown="if(event.key==='Enter') searchUnderwriting()"></div>
-      <div><label>수술 여부</label>
-        <select id="uw_surgery">
-          <option value="unknown" selected>모름/상관없음</option>
-          <option value="yes">수술함</option>
-          <option value="no">수술 안함(보존적 치료)</option>
-        </select>
+  <div class="card" style="padding:10px 14px;">
+    <div class="row" style="margin:0;gap:6px;">
+      <button class="act uwmode-btn" id="uwmode-btn-disease" onclick="switchUwMode('disease')" style="flex:none;">🦠 예외질환/사고이력 검색</button>
+      <button class="secondary uwmode-btn" id="uwmode-btn-limit" onclick="switchUwMode('limit')" style="flex:none;padding:9px 16px;border-radius:8px;">📊 담보별 업계누적 확인</button>
+      <button class="secondary uwmode-btn" id="uwmode-btn-foreign" onclick="switchUwMode('foreign')" style="flex:none;padding:9px 16px;border-radius:8px;">🌏 외국인 인수기준</button>
+    </div>
+  </div>
+
+  <!-- 1) 예외질환/사고이력 검색 -->
+  <div id="uwmode-disease">
+    <div class="card">
+      <div class="sub">질환명(또는 사고 이력)을 입력하면 보험사별 예외인수 기준을 보여줘요. 입원일수/수술여부/경과월을 같이 입력하면 조건에 맞는지 자동으로 표시합니다. (참고용 자료이며, 최종 인수여부는 보험사 심사 결과에 따릅니다)</div>
+      <div class="row">
+        <div style="flex:2;"><label>질환명 / 사고이력</label><input type="text" id="uw_q" placeholder="예: 협심증, 발목골절, 고혈압, 교통사고" onkeydown="if(event.key==='Enter') searchUnderwriting()"></div>
+        <div><label>수술 여부</label>
+          <select id="uw_surgery">
+            <option value="unknown" selected>모름/상관없음</option>
+            <option value="yes">수술함</option>
+            <option value="no">수술 안함(보존적 치료)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div><label>입원일수(일)</label><input type="number" id="uw_days" placeholder="예: 7"></div>
+        <div><label>진단/치료 후 경과(개월)</label><input type="number" id="uw_months" placeholder="예: 12"></div>
+        <div style="align-self:flex-end;"><button class="act" onclick="searchUnderwriting()">검색</button></div>
       </div>
     </div>
-    <div class="row">
-      <div><label>입원일수(일)</label><input type="number" id="uw_days" placeholder="예: 7"></div>
-      <div><label>진단/치료 후 경과(개월)</label><input type="number" id="uw_months" placeholder="예: 12"></div>
-      <div style="align-self:flex-end;"><button class="act" onclick="searchUnderwriting()">검색</button></div>
+    <div class="card">
+      <div id="uw_stats" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
+      <div id="uw_results"><div style="color:var(--muted);">질환명(또는 사고이력)을 입력하고 검색해보세요.</div></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">💊 간편형 상품 고지기간 체크 (3.1~3.10.10 티어, 계속 추가 예정)</div>
+      <div id="uw_tier_results" style="font-size:12.5px;color:var(--muted);">질환명과 경과월을 입력하고 검색하면 여기도 같이 표시됩니다.</div>
     </div>
   </div>
-  <div class="card">
-    <div id="uw_stats" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
-    <div id="uw_results"><div style="color:var(--muted);">질환명을 입력하고 검색해보세요.</div></div>
+
+  <!-- 2) 담보별 업계누적 확인 -->
+  <div id="uwmode-limit" style="display:none;">
+    <div class="card">
+      <div class="sub">담보종류를 선택하면 보험사별 업계누적 한도 내용을 보여줘요. 여러 회사 합산 가입 시에는 각 사의 "타사합산" 조건 문구를 함께 확인하세요. (AFG 언더라이팅가이드 26.09 기준, 참고용)</div>
+      <div class="row">
+        <div><label>구분</label><select id="il_category" onchange="updateLimitCoverageOptions()"><option value="__all__">생보+손보 전체</option><option value="생보">생명보험</option><option value="손보">손해보험</option></select></div>
+        <div style="flex:2;"><label>담보종류</label><select id="il_coverage" onchange="searchIndustryLimit()"></select></div>
+        <div><label>나이(선택, 참고용)</label><input type="number" id="il_age" placeholder="예: 60" oninput="searchIndustryLimit()"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div id="il_results"><div style="color:var(--muted);">담보종류를 선택해보세요.</div></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;">업계누적 자료 추가 (엑셀/PDF/사진)</div>
+      <div class="sub">엑셀은 구분/보험사명/담보종류/한도내용 컬럼으로 자동 등록되고, PDF·사진은 참고자료로 첨부됩니다.</div>
+      <div class="row">
+        <div><label>엑셀 업로드</label><input type="file" id="il_excelFile" accept=".xlsx,.xls,.csv" onchange="handleLimitExcelUpload(event)"></div>
+        <div><label>PDF/사진 첨부</label><input type="file" id="il_fileInput" accept="image/*,.pdf,application/pdf"></div>
+        <div style="align-self:flex-end;"><button class="act" onclick="addUwFile('industry_limit','il_fileInput')">첨부 저장</button></div>
+      </div>
+      <div id="il_excelStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
+      <div id="il_fileList" style="margin-top:10px;"></div>
+    </div>
+    <div class="card" id="il_previewCard" style="display:none;">
+      <div class="sub">아래 내용을 확인하고 "일괄등록"을 눌러주세요.</div>
+      <table>
+        <thead><tr><th>구분</th><th>보험사</th><th>담보종류</th><th>한도내용</th></tr></thead>
+        <tbody id="il_previewBody"></tbody>
+      </table>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="act" onclick="commitLimitImport()">일괄등록</button>
+        <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="cancelLimitImport()">취소</button>
+      </div>
+    </div>
   </div>
-  <div class="card">
-    <div style="font-weight:700;font-size:14px;margin-bottom:6px;">💊 간편형 상품 고지기간 체크 (3.1~3.10.10 티어, 계속 추가 예정)</div>
-    <div id="uw_tier_results" style="font-size:12.5px;color:var(--muted);">질환명과 경과월을 입력하고 검색하면 여기도 같이 표시됩니다.</div>
+
+  <!-- 3) 외국인 인수기준 -->
+  <div id="uwmode-foreign" style="display:none;">
+    <div class="card">
+      <div class="sub">체류자격(비자) 코드를 선택하면 보험사별 가입 가능 여부를 보여줘요. (AFG 언더라이팅가이드 26.09 기준, 참고용이며 최종 인수여부는 보험사 심사 결과에 따릅니다)</div>
+      <div class="row">
+        <div><label>구분</label><select id="fu_category" onchange="searchForeignUw()"><option value="__all__">생보+손보 전체</option><option value="생보">생명보험</option><option value="손보">손해보험</option></select></div>
+        <div style="flex:2;"><label>체류자격(비자) 코드</label><select id="fu_visa" onchange="searchForeignUw()"></select></div>
+      </div>
+    </div>
+    <div class="card">
+      <div id="fu_results"><div style="color:var(--muted);">체류자격 코드를 선택해보세요.</div></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;">외국인 인수기준 자료 추가 (엑셀/PDF/사진)</div>
+      <div class="sub">엑셀은 구분/보험사명/체류자격코드/체류자격명/가능여부 컬럼으로 자동 등록되고, PDF·사진은 참고자료로 첨부됩니다.</div>
+      <div class="row">
+        <div><label>엑셀 업로드</label><input type="file" id="fu_excelFile" accept=".xlsx,.xls,.csv" onchange="handleForeignExcelUpload(event)"></div>
+        <div><label>PDF/사진 첨부</label><input type="file" id="fu_fileInput" accept="image/*,.pdf,application/pdf"></div>
+        <div style="align-self:flex-end;"><button class="act" onclick="addUwFile('foreign','fu_fileInput')">첨부 저장</button></div>
+      </div>
+      <div id="fu_excelStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></div>
+      <div id="fu_fileList" style="margin-top:10px;"></div>
+    </div>
+    <div class="card" id="fu_previewCard" style="display:none;">
+      <div class="sub">아래 내용을 확인하고 "일괄등록"을 눌러주세요.</div>
+      <table>
+        <thead><tr><th>구분</th><th>보험사</th><th>체류자격코드</th><th>체류자격명</th><th>가능여부</th></tr></thead>
+        <tbody id="fu_previewBody"></tbody>
+      </table>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="act" onclick="commitForeignImport()">일괄등록</button>
+        <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="cancelForeignImport()">취소</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2024,7 +2164,7 @@ async function startApp(){
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
-    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties(), loadIssues()];
+    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties(), loadIssues(), loadCallCenters(), loadCallCenterFiles(), loadIndustryLimits(), loadForeignUw(), loadUwFiles('industry_limit'), loadUwFiles('foreign')];
     if (currentUser.role === 'master') loaders.push(loadCommissionRates());
     await Promise.all(loaders);
     setupPerformanceTab();
@@ -2223,6 +2363,432 @@ async function checkDisclosureTiers(query, elapsedMonths) {
       <div style="font-size:11.5px;color:#999;margin-top:2px;">${escapeHtml(r.note || '')}</div>
     </div>`;
   }).join('');
+}
+
+/* ============================================================
+   콜센터
+============================================================ */
+let allCallCenters = [];
+let editingCallCenterId = null;
+async function loadCallCenters(){
+  const { data, error } = await sb.from('call_centers').select('*').order('insurer_name', { ascending: true });
+  if (error) { console.error(error); return; }
+  allCallCenters = data || [];
+  renderCallCenters();
+}
+function renderCallCenters(){
+  const tbody = document.getElementById('cc_body');
+  if (!tbody) return;
+  const search = document.getElementById('cc_search').value.trim().toLowerCase();
+  let rows = allCallCenters;
+  if (search) rows = rows.filter(r => (r.insurer_name||'').toLowerCase().includes(search));
+  if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);">등록된 콜센터 정보가 없습니다</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => {
+    if (editingCallCenterId === r.id) return renderCallCenterEditRow(r);
+    return `<tr>
+      <td><b>${escapeHtml(r.insurer_name)}</b></td><td>${escapeHtml(r.category||'')}</td>
+      <td>${escapeHtml(r.phone||'')}</td><td>${escapeHtml(r.memo||'')}</td>
+      <td class="actions">
+        <button class="small secondary" onclick="startEditCallCenter(${r.id})">수정</button>
+        <button class="small danger" onclick="deleteCallCenter(${r.id})">삭제</button>
+      </td></tr>`;
+  }).join('');
+}
+function renderCallCenterEditRow(r){
+  return `<tr>
+    <td><input type="text" id="cce_name_${r.id}" value="${escAttr(r.insurer_name)}"></td>
+    <td><input type="text" id="cce_category_${r.id}" value="${escAttr(r.category||'')}"></td>
+    <td><input type="text" id="cce_phone_${r.id}" value="${escAttr(r.phone||'')}"></td>
+    <td><input type="text" id="cce_memo_${r.id}" value="${escAttr(r.memo||'')}"></td>
+    <td class="actions">
+      <button class="small act" onclick="saveEditCallCenter(${r.id})">저장</button>
+      <button class="small secondary" onclick="editingCallCenterId=null; renderCallCenters();">취소</button>
+    </td></tr>`;
+}
+function startEditCallCenter(id){ editingCallCenterId = id; renderCallCenters(); }
+async function saveEditCallCenter(id){
+  const vals = {
+    insurer_name: document.getElementById('cce_name_'+id).value.trim(),
+    category: document.getElementById('cce_category_'+id).value.trim(),
+    phone: document.getElementById('cce_phone_'+id).value.trim(),
+    memo: document.getElementById('cce_memo_'+id).value.trim()
+  };
+  if (!vals.insurer_name) { alert('보험사명은 필수입니다.'); return; }
+  const { error } = await sb.from('call_centers').update(vals).eq('id', id);
+  if (error) { alert('수정 실패: ' + error.message); return; }
+  editingCallCenterId = null;
+  await loadCallCenters();
+}
+async function deleteCallCenter(id){
+  if (!confirm('이 콜센터 정보를 삭제할까요?')) return;
+  const { error } = await sb.from('call_centers').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  await loadCallCenters();
+}
+async function addCallCenter(){
+  const insurer_name = document.getElementById('cc_name').value.trim();
+  const category = document.getElementById('cc_category').value.trim() || '콜센터';
+  const phone = document.getElementById('cc_phone').value.trim();
+  const memo = document.getElementById('cc_memo').value.trim();
+  if (!insurer_name) { alert('보험사명은 필수입니다.'); return; }
+  const { error } = await sb.from('call_centers').insert([{ insurer_name, category, phone, memo }]);
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  ['cc_name','cc_phone','cc_memo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cc_category').value = '콜센터';
+  await loadCallCenters();
+}
+
+/* ---------- 콜센터 엑셀 업로드 ---------- */
+let pendingCallCenterImport = [];
+function handleCallCenterExcelUpload(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('cc_excelStatus');
+  statusEl.textContent = '읽는 중...';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval:'' });
+      if (rows.length === 0) { statusEl.textContent = '❌ 데이터가 없는 파일입니다.'; return; }
+      pendingCallCenterImport = rows.map(row => ({
+        insurer_name: String(findCol(row, ['보험사명','보험사','회사명'])).trim(),
+        category: String(findCol(row, ['구분','항목','카테고리']) || '콜센터').trim() || '콜센터',
+        phone: String(findCol(row, ['전화번호','연락처','콜센터번호','번호'])).trim(),
+        memo: String(findCol(row, ['비고','메모'])).trim()
+      })).filter(r => r.insurer_name);
+      if (pendingCallCenterImport.length === 0) {
+        statusEl.textContent = '❌ 보험사명 컬럼을 인식하지 못했습니다. 컬럼명을 확인해주세요.';
+        return;
+      }
+      statusEl.textContent = `✓ ${pendingCallCenterImport.length}건 인식됨 (원본 ${rows.length}건 중). 아래 표를 확인하고 "일괄등록"을 눌러주세요.`;
+      renderCallCenterImportPreview();
+    }catch(err){
+      console.error(err);
+      statusEl.textContent = '❌ 파일을 읽는 중 오류: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function renderCallCenterImportPreview(){
+  const card = document.getElementById('cc_previewCard');
+  const tbody = document.getElementById('cc_previewBody');
+  card.style.display = 'block';
+  tbody.innerHTML = pendingCallCenterImport.map(r => `
+    <tr><td>${escapeHtml(r.insurer_name)}</td><td>${escapeHtml(r.category)}</td><td>${escapeHtml(r.phone)}</td><td>${escapeHtml(r.memo)}</td></tr>
+  `).join('');
+}
+function cancelCallCenterImport(){
+  pendingCallCenterImport = [];
+  document.getElementById('cc_previewCard').style.display = 'none';
+  document.getElementById('cc_excelFile').value = '';
+  document.getElementById('cc_excelStatus').textContent = '';
+}
+async function commitCallCenterImport(){
+  const { data: existingRows } = await sb.from('call_centers').select('insurer_name,category,phone');
+  const existingKeys = new Set((existingRows||[]).map(r => `${r.insurer_name}|${r.category}|${r.phone}`));
+  const toInsert = pendingCallCenterImport.filter(r => !existingKeys.has(`${r.insurer_name}|${r.category}|${r.phone}`));
+  const skipped = pendingCallCenterImport.length - toInsert.length;
+  if (toInsert.length === 0) { alert('모두 이미 등록된 항목이라 새로 추가할 항목이 없습니다.'); cancelCallCenterImport(); return; }
+  const { error } = await sb.from('call_centers').insert(toInsert);
+  if (error) { alert('일괄등록 실패: ' + error.message); return; }
+  alert(`${toInsert.length}건 등록 완료${skipped > 0 ? ` (중복 ${skipped}건은 건너뜀)` : ''}`);
+  cancelCallCenterImport();
+  await loadCallCenters();
+}
+
+/* ---------- 콜센터 사진/PDF 참고자료 첨부 ---------- */
+let allCallCenterFiles = [];
+async function loadCallCenterFiles(){
+  const { data, error } = await sb.from('call_center_files').select('*').order('uploaded_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  allCallCenterFiles = data || [];
+  renderCallCenterFiles();
+}
+function renderCallCenterFiles(){
+  const el = document.getElementById('cc_fileList');
+  if (!el) return;
+  if (!allCallCenterFiles.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12.5px;">첨부된 자료가 없습니다.</div>'; return; }
+  el.innerHTML = allCallCenterFiles.map(f => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #eee;font-size:12.5px;">
+      <span style="flex:1;">📎 <a href="${f.file_data}" download="${escAttr(f.file_name)}">${escapeHtml(f.memo || f.file_name)}</a></span>
+      <button class="small danger" onclick="deleteCallCenterFile(${f.id})">삭제</button>
+    </div>`).join('');
+}
+async function addCallCenterFile(){
+  const memo = document.getElementById('cc_fileMemo').value.trim();
+  const fileInput = document.getElementById('cc_fileInput');
+  const file = fileInput.files[0];
+  if (!file) { alert('파일을 선택해주세요.'); return; }
+  if (file.size > 5 * 1024 * 1024) { alert('파일 용량이 너무 큽니다 (5MB 이하로 올려주세요).'); return; }
+  const fileData = await readImageAsBase64(file);
+  const { error } = await sb.from('call_center_files').insert([{ file_name: file.name, file_type: file.type, file_data: fileData, memo }]);
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  document.getElementById('cc_fileMemo').value = '';
+  fileInput.value = '';
+  await loadCallCenterFiles();
+}
+async function deleteCallCenterFile(id){
+  if (!confirm('이 자료를 삭제할까요?')) return;
+  const { error } = await sb.from('call_center_files').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  await loadCallCenterFiles();
+}
+
+/* ============================================================
+   인수기준 검색 - 모드 전환
+============================================================ */
+function switchUwMode(mode){
+  ['disease','limit','foreign'].forEach(m => {
+    document.getElementById('uwmode-'+m).style.display = (m===mode) ? 'block' : 'none';
+    const btn = document.getElementById('uwmode-btn-'+m);
+    btn.className = (m===mode) ? 'act uwmode-btn' : 'secondary uwmode-btn';
+    if (m!==mode) btn.style.cssText = 'flex:none;padding:9px 16px;border-radius:8px;';
+    else btn.style.cssText = 'flex:none;';
+  });
+  if (mode === 'limit') updateLimitCoverageOptions();
+  if (mode === 'foreign') updateForeignVisaOptions();
+}
+
+/* ============================================================
+   담보별 업계누적 확인
+============================================================ */
+let allIndustryLimits = [];
+async function loadIndustryLimits(){
+  const { data, error } = await sb.from('industry_cumulative_limits').select('*').order('coverage_type', { ascending: true });
+  if (error) { console.error(error); return; }
+  allIndustryLimits = data || [];
+}
+function updateLimitCoverageOptions(){
+  const cat = document.getElementById('il_category').value;
+  let rows = allIndustryLimits;
+  if (cat !== '__all__') rows = rows.filter(r => r.category === cat);
+  const types = Array.from(new Set(rows.map(r => r.coverage_type))).sort();
+  const sel = document.getElementById('il_coverage');
+  const current = sel.value;
+  sel.innerHTML = types.map(t => `<option value="${escAttr(t)}">${escapeHtml(t)}</option>`).join('');
+  if (types.includes(current)) sel.value = current;
+  searchIndustryLimit();
+}
+function searchIndustryLimit(){
+  const cat = document.getElementById('il_category').value;
+  const coverage = document.getElementById('il_coverage').value;
+  const age = document.getElementById('il_age').value.trim();
+  const el = document.getElementById('il_results');
+  if (!coverage) { el.innerHTML = '<div style="color:var(--muted);">담보종류를 선택해보세요.</div>'; return; }
+  let rows = allIndustryLimits.filter(r => r.coverage_type === coverage);
+  if (cat !== '__all__') rows = rows.filter(r => r.category === cat);
+  if (!rows.length) { el.innerHTML = '<div style="color:var(--muted);">등록된 자료가 없습니다.</div>'; return; }
+  el.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">"${escapeHtml(coverage)}" 기준 ${rows.length}개사 (참고용 — 여러 회사 합산가입 시 각 사의 타사합산 조건 문구를 함께 확인하세요${age ? `, 입력하신 나이 ${escapeHtml(age)}세와 관련된 조건은 굵게 표시됩니다` : ''})</div>` +
+    rows.map(r => {
+      let text = escapeHtml(r.limit_text || '');
+      if (age) {
+        text = text.replace(new RegExp(`(${age}\\s*세)`, 'g'), '<b style="color:var(--red);">$1</b>');
+      }
+      return `<div style="padding:10px 12px;background:#fafafa;border-radius:8px;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:700;">${escapeHtml(r.insurer_name)} <span style="font-weight:400;color:var(--muted);font-size:11.5px;">(${escapeHtml(r.category)})</span></div>
+        <div style="font-size:12.5px;margin-top:3px;white-space:pre-line;">${text}</div>
+      </div>`;
+    }).join('');
+}
+
+/* ---------- 업계누적 엑셀 업로드 ---------- */
+let pendingLimitImport = [];
+function handleLimitExcelUpload(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('il_excelStatus');
+  statusEl.textContent = '읽는 중...';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval:'' });
+      if (rows.length === 0) { statusEl.textContent = '❌ 데이터가 없는 파일입니다.'; return; }
+      pendingLimitImport = rows.map(row => ({
+        category: String(findCol(row, ['구분','생손보','생보손보'])).trim(),
+        insurer_name: String(findCol(row, ['보험사명','보험사','회사명'])).trim(),
+        coverage_type: String(findCol(row, ['담보종류','담보','구분2','항목'])).trim(),
+        limit_text: String(findCol(row, ['한도내용','내용','한도'])).trim()
+      })).filter(r => r.insurer_name && r.coverage_type);
+      if (pendingLimitImport.length === 0) {
+        statusEl.textContent = '❌ 보험사명/담보종류 컬럼을 인식하지 못했습니다. 컬럼명을 확인해주세요.';
+        return;
+      }
+      statusEl.textContent = `✓ ${pendingLimitImport.length}건 인식됨 (원본 ${rows.length}건 중). 아래 표를 확인하고 "일괄등록"을 눌러주세요.`;
+      renderLimitImportPreview();
+    }catch(err){
+      console.error(err);
+      statusEl.textContent = '❌ 파일을 읽는 중 오류: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function renderLimitImportPreview(){
+  const card = document.getElementById('il_previewCard');
+  const tbody = document.getElementById('il_previewBody');
+  card.style.display = 'block';
+  tbody.innerHTML = pendingLimitImport.map(r => `
+    <tr><td>${escapeHtml(r.category)}</td><td>${escapeHtml(r.insurer_name)}</td><td>${escapeHtml(r.coverage_type)}</td><td>${escapeHtml(r.limit_text)}</td></tr>
+  `).join('');
+}
+function cancelLimitImport(){
+  pendingLimitImport = [];
+  document.getElementById('il_previewCard').style.display = 'none';
+  document.getElementById('il_excelFile').value = '';
+  document.getElementById('il_excelStatus').textContent = '';
+}
+async function commitLimitImport(){
+  const { error } = await sb.from('industry_cumulative_limits').insert(pendingLimitImport);
+  if (error) { alert('일괄등록 실패: ' + error.message); return; }
+  alert(`${pendingLimitImport.length}건 등록 완료`);
+  cancelLimitImport();
+  await loadIndustryLimits();
+  updateLimitCoverageOptions();
+}
+
+/* ============================================================
+   외국인 인수기준
+============================================================ */
+let allForeignUw = [];
+async function loadForeignUw(){
+  const { data, error } = await sb.from('foreign_underwriting').select('*').order('visa_code', { ascending: true });
+  if (error) { console.error(error); return; }
+  allForeignUw = data || [];
+}
+function updateForeignVisaOptions(){
+  const cat = document.getElementById('fu_category').value;
+  let rows = allForeignUw;
+  if (cat !== '__all__') rows = rows.filter(r => r.category === cat);
+  const seen = new Map();
+  rows.forEach(r => { if (!seen.has(r.visa_code)) seen.set(r.visa_code, r.visa_name); });
+  const codes = Array.from(seen.keys()).sort();
+  const sel = document.getElementById('fu_visa');
+  const current = sel.value;
+  sel.innerHTML = codes.map(c => `<option value="${escAttr(c)}">${escapeHtml(c)} (${escapeHtml(seen.get(c)||'')})</option>`).join('');
+  if (codes.includes(current)) sel.value = current;
+  searchForeignUw();
+}
+function searchForeignUw(){
+  const cat = document.getElementById('fu_category').value;
+  const visa = document.getElementById('fu_visa').value;
+  const el = document.getElementById('fu_results');
+  if (!visa) { el.innerHTML = '<div style="color:var(--muted);">체류자격 코드를 선택해보세요.</div>'; return; }
+  let rows = allForeignUw.filter(r => r.visa_code === visa);
+  if (cat !== '__all__') rows = rows.filter(r => r.category === cat);
+  if (!rows.length) { el.innerHTML = '<div style="color:var(--muted);">등록된 자료가 없습니다.</div>'; return; }
+  const ok = rows.filter(r => /^[○OoY]/.test((r.status||'').trim()));
+  const cond = rows.filter(r => !/^[○OoY]/.test((r.status||'').trim()) && !/^[XxNn-]$/.test((r.status||'').trim()));
+  const no = rows.filter(r => /^[XxNn-]$/.test((r.status||'').trim()));
+  const section = (title, list, color) => !list.length ? '' : `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;color:${color};margin-bottom:6px;">${title} (${list.length}개사)</div>
+      ${list.map(r => `<div style="display:flex;justify-content:space-between;padding:6px 10px;background:#fafafa;border-radius:6px;margin-bottom:4px;font-size:12.5px;">
+        <span><b>${escapeHtml(r.insurer_name)}</b> <span style="color:var(--muted);font-size:11px;">(${escapeHtml(r.category)})</span></span>
+        <span>${escapeHtml(r.status||'')}</span>
+      </div>`).join('')}
+    </div>`;
+  el.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">"${escapeHtml(visa)}" 기준 ${rows.length}개사 조회 (참고용 — 최종 인수여부는 보험사 심사 결과에 따릅니다)</div>` +
+    section('✅ 가입 가능', ok, 'var(--green)') +
+    section('⚠ 조건부 (약관/기간 등 제한)', cond, 'var(--amber)') +
+    section('❌ 가입 불가', no, 'var(--red)');
+}
+
+/* ---------- 외국인 인수기준 엑셀 업로드 ---------- */
+let pendingForeignImport = [];
+function handleForeignExcelUpload(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('fu_excelStatus');
+  statusEl.textContent = '읽는 중...';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval:'' });
+      if (rows.length === 0) { statusEl.textContent = '❌ 데이터가 없는 파일입니다.'; return; }
+      pendingForeignImport = rows.map(row => ({
+        category: String(findCol(row, ['구분','생손보','생보손보'])).trim(),
+        insurer_name: String(findCol(row, ['보험사명','보험사','회사명'])).trim(),
+        visa_code: String(findCol(row, ['체류자격코드','비자코드','코드'])).trim(),
+        visa_name: String(findCol(row, ['체류자격명','비자명','자격명'])).trim(),
+        status: String(findCol(row, ['가능여부','상태','가입가능여부'])).trim()
+      })).filter(r => r.insurer_name && r.visa_code);
+      if (pendingForeignImport.length === 0) {
+        statusEl.textContent = '❌ 보험사명/체류자격코드 컬럼을 인식하지 못했습니다. 컬럼명을 확인해주세요.';
+        return;
+      }
+      statusEl.textContent = `✓ ${pendingForeignImport.length}건 인식됨 (원본 ${rows.length}건 중). 아래 표를 확인하고 "일괄등록"을 눌러주세요.`;
+      renderForeignImportPreview();
+    }catch(err){
+      console.error(err);
+      statusEl.textContent = '❌ 파일을 읽는 중 오류: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function renderForeignImportPreview(){
+  const card = document.getElementById('fu_previewCard');
+  const tbody = document.getElementById('fu_previewBody');
+  card.style.display = 'block';
+  tbody.innerHTML = pendingForeignImport.map(r => `
+    <tr><td>${escapeHtml(r.category)}</td><td>${escapeHtml(r.insurer_name)}</td><td>${escapeHtml(r.visa_code)}</td><td>${escapeHtml(r.visa_name)}</td><td>${escapeHtml(r.status)}</td></tr>
+  `).join('');
+}
+function cancelForeignImport(){
+  pendingForeignImport = [];
+  document.getElementById('fu_previewCard').style.display = 'none';
+  document.getElementById('fu_excelFile').value = '';
+  document.getElementById('fu_excelStatus').textContent = '';
+}
+async function commitForeignImport(){
+  const { error } = await sb.from('foreign_underwriting').insert(pendingForeignImport);
+  if (error) { alert('일괄등록 실패: ' + error.message); return; }
+  alert(`${pendingForeignImport.length}건 등록 완료`);
+  cancelForeignImport();
+  await loadForeignUw();
+  updateForeignVisaOptions();
+}
+
+/* ---------- 인수기준 공용 참고자료 첨부 (업계누적 / 외국인) ---------- */
+let allUwFiles = { industry_limit: [], foreign: [] };
+async function loadUwFiles(topic){
+  const { data, error } = await sb.from('underwriting_files').select('*').eq('topic', topic).order('uploaded_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  allUwFiles[topic] = data || [];
+  renderUwFiles(topic);
+}
+function renderUwFiles(topic){
+  const elId = topic === 'industry_limit' ? 'il_fileList' : 'fu_fileList';
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const list = allUwFiles[topic] || [];
+  if (!list.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12.5px;">첨부된 자료가 없습니다.</div>'; return; }
+  el.innerHTML = list.map(f => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #eee;font-size:12.5px;">
+      <span style="flex:1;">📎 <a href="${f.file_data}" download="${escAttr(f.file_name)}">${escapeHtml(f.memo || f.file_name)}</a></span>
+      <button class="small danger" onclick="deleteUwFile(${f.id},'${topic}')">삭제</button>
+    </div>`).join('');
+}
+async function addUwFile(topic, inputId){
+  const fileInput = document.getElementById(inputId);
+  const file = fileInput.files[0];
+  if (!file) { alert('파일을 선택해주세요.'); return; }
+  if (file.size > 5 * 1024 * 1024) { alert('파일 용량이 너무 큽니다 (5MB 이하로 올려주세요).'); return; }
+  const fileData = await readImageAsBase64(file);
+  const { error } = await sb.from('underwriting_files').insert([{ topic, file_name: file.name, file_type: file.type, file_data: fileData }]);
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  fileInput.value = '';
+  await loadUwFiles(topic);
+}
+async function deleteUwFile(id, topic){
+  if (!confirm('이 자료를 삭제할까요?')) return;
+  const { error } = await sb.from('underwriting_files').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  await loadUwFiles(topic);
 }
 
 if (tryAutoLogin()) {
