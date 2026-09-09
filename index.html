@@ -1529,6 +1529,9 @@ function autoCalcSalary(){
   const unmatched = [];
   const byInsurer = {};
 
+  // 1단계: 계약별로 요율만 매칭하고, 보험사별로 보험료를 먼저 합산합니다.
+  // (10만원 이상/미만 구간 판단은 건별이 아니라 "보험사별 합산보험료" 기준이어야 하므로,
+  //  기본수수료만 먼저 건별로 누적하고 시책(익월/13회차)은 합산 후 2단계에서 계산합니다.)
   rows.forEach(c => {
     const premium = Number(c.premium) || 0;
     if (!premium) return;
@@ -1536,30 +1539,42 @@ function autoCalcSalary(){
     if (!rate) { unmatched.push(c); return; }
 
     const base = premium * (Number(rate.conversion_rate)||0) * (Number(rate.payout_rate)||0)/100;
-    let next = 0, inc13 = 0;
-    if (rate.calc_mode === 'percent_tiered') {
-      const isOver = premium >= Number(rate.tier_threshold);
-      next = premium * (Number(isOver?rate.rate_next_over:rate.rate_next_under)||0)/100;
-      inc13 = premium * (Number(isOver?rate.rate_13_over:rate.rate_13_under)||0)/100;
-    } else if (rate.calc_mode === 'percent_flat') {
-      next = premium * (Number(rate.rate_next_over)||0)/100;
-      inc13 = premium * (Number(rate.rate_13_over)||0)/100;
-    } else if (rate.calc_mode === 'fixed_tier') {
-      const day = new Date(c.contract_date).getDate();
-      const isEarly = day <= 20;
-      const tiers = parseTierTable(isEarly ? rate.tier_table_early : rate.tier_table_late);
-      let matchedTier = null;
-      tiers.forEach(t => { if (premium >= t.min) matchedTier = t; });
-      inc13 = matchedTier ? matchedTier.amount : 0;
-    }
-    totalBase += base; totalNext += next; total13 += inc13; totalPremium += premium;
+    totalBase += base; totalPremium += premium;
     const key = c.insurer || '(미지정)';
-    if (!byInsurer[key]) byInsurer[key] = { premium:0, base:0, next:0, i13:0, count:0, threshold:null, rateRef:null };
-    byInsurer[key].premium += premium; byInsurer[key].base += base; byInsurer[key].next += next; byInsurer[key].i13 += inc13; byInsurer[key].count++;
-    if (rate.calc_mode === 'percent_tiered' || rate.calc_mode === 'fixed_tier') {
-      const th = rate.calc_mode === 'fixed_tier' ? (parseTierTable(rate.tier_table_early)[0]||{}).min : Number(rate.tier_threshold);
-      if (th) { byInsurer[key].threshold = th; byInsurer[key].rateRef = rate; }
+    if (!byInsurer[key]) byInsurer[key] = { premium:0, base:0, next:0, i13:0, count:0, threshold:null, rateRef:null, items:[] };
+    byInsurer[key].premium += premium; byInsurer[key].base += base; byInsurer[key].count++;
+    byInsurer[key].items.push({ c, rate, premium });
+  });
+
+  // 2단계: 보험사별 합산보험료를 기준으로 구간(10만원 이상/미만 등)을 판정하고 시책을 계산합니다.
+  Object.keys(byInsurer).forEach(key => {
+    const g = byInsurer[key];
+    const rate = g.items[0].rate; // 같은 보험사는 보통 동일한 요율표 사용
+    if (rate.calc_mode === 'percent_tiered') {
+      const isOver = g.premium >= Number(rate.tier_threshold);
+      g.next = g.premium * (Number(isOver?rate.rate_next_over:rate.rate_next_under)||0)/100;
+      g.i13 = g.premium * (Number(isOver?rate.rate_13_over:rate.rate_13_under)||0)/100;
+      g.threshold = Number(rate.tier_threshold);
+      g.rateRef = rate;
+    } else if (rate.calc_mode === 'percent_flat') {
+      g.next = g.premium * (Number(rate.rate_next_over)||0)/100;
+      g.i13 = g.premium * (Number(rate.rate_13_over)||0)/100;
+    } else if (rate.calc_mode === 'fixed_tier') {
+      // 정액구간표(예: 한화생명)는 계약일(조기/후반월)별로 다른 표를 쓰므로 건별로 계산해 합산합니다.
+      let sumInc13 = 0;
+      g.items.forEach(({ c, rate: r, premium }) => {
+        const day = new Date(c.contract_date).getDate();
+        const isEarly = day <= 20;
+        const tiers = parseTierTable(isEarly ? r.tier_table_early : r.tier_table_late);
+        let matchedTier = null;
+        tiers.forEach(t => { if (premium >= t.min) matchedTier = t; });
+        sumInc13 += matchedTier ? matchedTier.amount : 0;
+      });
+      g.i13 = sumInc13;
+      const th = (parseTierTable(rate.tier_table_early)[0]||{}).min;
+      if (th) { g.threshold = th; g.rateRef = rate; }
     }
+    totalNext += g.next; total13 += g.i13;
   });
 
   const resultEl = document.getElementById('ac_result');
