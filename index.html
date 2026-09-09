@@ -399,6 +399,20 @@
 <!-- ===== 총무업무분장표 (마스터 전용) ===== -->
 <div class="panel" id="panel-duties">
   <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:14px;">📌 고정 공지</div>
+      <button class="secondary small" style="padding:6px 12px;" onclick="startEditDutiesNotice()">수정</button>
+    </div>
+    <div id="dn_view" style="font-size:13px;white-space:pre-line;color:var(--ink);">불러오는 중...</div>
+    <div id="dn_editBox" style="display:none;">
+      <textarea id="dn_textarea" rows="5" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;"></textarea>
+      <div style="margin-top:8px;display:flex;gap:8px;">
+        <button class="act" onclick="saveDutiesNotice()">저장</button>
+        <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="cancelEditDutiesNotice()">취소</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
     <div class="sub">보험사별 담당총무/서브총무 분장 현황 (마스터 전용)</div>
     <div class="row">
       <div><label>보험사</label><input type="text" id="du_insurer" placeholder="예: 흥국화재"></div>
@@ -2164,7 +2178,7 @@ async function startApp(){
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
-    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties(), loadIssues(), loadCallCenters(), loadCallCenterFiles(), loadIndustryLimits(), loadForeignUw(), loadUwFiles('industry_limit'), loadUwFiles('foreign')];
+    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties(), loadIssues(), loadCallCenters(), loadCallCenterFiles(), loadIndustryLimits(), loadForeignUw(), loadUwFiles('industry_limit'), loadUwFiles('foreign'), loadDutiesNotice()];
     if (currentUser.role === 'master') loaders.push(loadCommissionRates());
     await Promise.all(loaders);
     setupPerformanceTab();
@@ -2789,6 +2803,38 @@ async function deleteUwFile(id, topic){
   const { error } = await sb.from('underwriting_files').delete().eq('id', id);
   if (error) { alert('삭제 실패: ' + error.message); return; }
   await loadUwFiles(topic);
+}
+
+/* ============================================================
+   총무업무분장표 - 고정 공지
+============================================================ */
+async function loadDutiesNotice(){
+  const { data, error } = await sb.from('duties_notice').select('*').eq('id', 1).maybeSingle();
+  if (error) { console.error(error); return; }
+  const el = document.getElementById('dn_view');
+  if (!el) return;
+  if (!data || !data.content) {
+    el.innerHTML = '<span style="color:var(--muted);">등록된 공지가 없습니다. "수정" 버튼으로 추가해보세요.</span>';
+  } else {
+    el.textContent = data.content;
+  }
+}
+function startEditDutiesNotice(){
+  const current = document.getElementById('dn_view').textContent.includes('등록된 공지가 없습니다') ? '' : document.getElementById('dn_view').textContent;
+  document.getElementById('dn_textarea').value = current;
+  document.getElementById('dn_view').style.display = 'none';
+  document.getElementById('dn_editBox').style.display = 'block';
+}
+function cancelEditDutiesNotice(){
+  document.getElementById('dn_view').style.display = 'block';
+  document.getElementById('dn_editBox').style.display = 'none';
+}
+async function saveDutiesNotice(){
+  const content = document.getElementById('dn_textarea').value.trim();
+  const { error } = await sb.from('duties_notice').upsert([{ id: 1, content, updated_at: new Date().toISOString(), updated_by: currentUser.manager_name }]);
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  cancelEditDutiesNotice();
+  await loadDutiesNotice();
 }
 
 if (tryAutoLogin()) {
