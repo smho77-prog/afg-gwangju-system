@@ -114,6 +114,16 @@
   .issue-item.imp-상 { border-left-color: var(--red); }
   .issue-item.imp-중 { border-left-color: var(--amber); }
   .issue-item.imp-하 { border-left-color: var(--green); }
+
+  .bmi-results { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 14px; }
+  .bmi-resultbox { background: var(--green-bg); border-radius: 10px; padding: 12px 10px; text-align: center; }
+  .bmi-resultbox .bmi-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .bmi-resultbox .bmi-value { display: block; font-size: 19px; font-weight: 700; word-break: keep-all; }
+  .bmi-scale { margin-top: 16px; position: relative; }
+  .bmi-bar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; }
+  .bmi-bar div { height: 100%; }
+  .bmi-marker { position: absolute; top: -8px; width: 2px; height: 24px; background: var(--ink); transform: translateX(-1px); }
+  .bmi-legend { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -578,6 +588,7 @@
       <button class="act uwmode-btn" id="uwmode-btn-disease" onclick="switchUwMode('disease')" style="flex:none;">🦠 예외질환/사고이력 검색</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-limit" onclick="switchUwMode('limit')" style="flex:none;padding:9px 16px;border-radius:8px;">📊 담보별 업계누적 확인</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-foreign" onclick="switchUwMode('foreign')" style="flex:none;padding:9px 16px;border-radius:8px;">🌏 외국인 인수기준</button>
+      <button class="secondary uwmode-btn" id="uwmode-btn-bmi" onclick="switchUwMode('bmi')" style="flex:none;padding:9px 16px;border-radius:8px;">⚖️ BMI 계산기</button>
     </div>
   </div>
 
@@ -681,6 +692,42 @@
         <button class="act" onclick="commitForeignImport()">일괄등록</button>
         <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="cancelForeignImport()">취소</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 4) BMI 계산기 -->
+  <div id="uwmode-bmi" style="display:none;">
+    <div class="card" style="max-width:420px;">
+      <div class="sub">키/몸무게를 입력하면 BMI와 체중 판정을 바로 확인할 수 있어요. (대한비만학회 아시아·태평양 기준)</div>
+      <div class="row">
+        <div><label>키 (cm)</label><input type="number" id="bmi_height" placeholder="예: 170" step="0.1" min="0" oninput="updateBmiCalc()"></div>
+        <div><label>몸무게 (kg)</label><input type="number" id="bmi_weight" placeholder="예: 65" step="0.1" min="0" oninput="updateBmiCalc()"></div>
+      </div>
+      <div class="bmi-results" id="bmi_results" style="display:none;">
+        <div class="bmi-resultbox">
+          <span class="bmi-label">BMI</span>
+          <span class="bmi-value" id="bmi_val">-</span>
+        </div>
+        <div class="bmi-resultbox">
+          <span class="bmi-label">체중 판정</span>
+          <span class="bmi-value" id="bmi_catVal">-</span>
+        </div>
+      </div>
+      <div class="bmi-scale" id="bmi_scale" style="display:none;">
+        <div class="bmi-bar">
+          <div style="flex:18.5;background:#93c5fd;"></div>
+          <div style="flex:4.5;background:#86efac;"></div>
+          <div style="flex:2;background:#fde047;"></div>
+          <div style="flex:5;background:#fdba74;"></div>
+          <div style="flex:5;background:#fca5a5;"></div>
+          <div style="flex:5;background:#dc2626;"></div>
+        </div>
+        <div class="bmi-marker" id="bmi_marker"></div>
+        <div class="bmi-legend">
+          <span>저체중</span><span>정상</span><span>과체중</span><span>비만1</span><span>비만2</span><span>고도비만</span>
+        </div>
+      </div>
+      <div class="sub" style="margin-top:14px;margin-bottom:0;">저체중 &lt;18.5 · 정상 18.5~22.9 · 과체중 23~24.9 · 비만1단계 25~29.9 · 비만2단계 30~34.9 · 고도비만 ≥35</div>
     </div>
   </div>
 </div>
@@ -2604,7 +2651,7 @@ async function deleteCallCenterFile(id){
    인수기준 검색 - 모드 전환
 ============================================================ */
 function switchUwMode(mode){
-  ['disease','limit','foreign'].forEach(m => {
+  ['disease','limit','foreign','bmi'].forEach(m => {
     document.getElementById('uwmode-'+m).style.display = (m===mode) ? 'block' : 'none';
     const btn = document.getElementById('uwmode-btn-'+m);
     btn.className = (m===mode) ? 'act uwmode-btn' : 'secondary uwmode-btn';
@@ -2613,6 +2660,39 @@ function switchUwMode(mode){
   });
   if (mode === 'limit') updateLimitCoverageOptions();
   if (mode === 'foreign') updateForeignVisaOptions();
+}
+
+/* ============================================================
+   BMI 계산기
+============================================================ */
+function bmiCategory(bmi){
+  if (bmi < 18.5) return { label: "저체중", color: "var(--navy)" };
+  if (bmi < 23) return { label: "정상", color: "var(--green)" };
+  if (bmi < 25) return { label: "과체중", color: "var(--amber)" };
+  if (bmi < 30) return { label: "비만 1단계", color: "#d97706" };
+  if (bmi < 35) return { label: "비만 2단계", color: "var(--red)" };
+  return { label: "고도비만(3단계)", color: "#991b1b" };
+}
+function updateBmiCalc(){
+  const h = parseFloat(document.getElementById('bmi_height').value);
+  const w = parseFloat(document.getElementById('bmi_weight').value);
+  const resultsEl = document.getElementById('bmi_results');
+  const scaleEl = document.getElementById('bmi_scale');
+  if (!h || !w || h <= 0 || w <= 0){
+    resultsEl.style.display = 'none';
+    scaleEl.style.display = 'none';
+    return;
+  }
+  const bmi = w / Math.pow(h / 100, 2);
+  const cat = bmiCategory(bmi);
+  document.getElementById('bmi_val').textContent = bmi.toFixed(1);
+  const catEl = document.getElementById('bmi_catVal');
+  catEl.textContent = cat.label;
+  catEl.style.color = cat.color;
+  const pct = Math.max(0, Math.min(100, (bmi / 40) * 100));
+  document.getElementById('bmi_marker').style.left = pct + '%';
+  resultsEl.style.display = 'grid';
+  scaleEl.style.display = 'block';
 }
 
 /* ============================================================
