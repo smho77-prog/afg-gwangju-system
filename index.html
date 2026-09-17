@@ -124,6 +124,19 @@
   .bmi-bar div { height: 100%; }
   .bmi-marker { position: absolute; top: -8px; width: 2px; height: 24px; background: var(--ink); transform: translateX(-1px); }
   .bmi-legend { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+
+  .date-group { display: flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 0 8px; }
+  .date-group:focus-within { outline: 2px solid var(--navy); outline-offset: 1px; }
+  .date-group input { border: none; background: transparent; padding: 8px 2px; font-size: 13.5px; text-align: center; -moz-appearance: textfield; width: auto; }
+  .date-group input:focus { outline: none; }
+  .date-group input.d-y { width: 44px; }
+  .date-group input.d-m, .date-group input.d-d { width: 26px; }
+  .date-group .d-sep { color: var(--muted); font-size: 13px; }
+  .age-results { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 14px; }
+  .age-resultbox { background: var(--green-bg); border-radius: 10px; padding: 12px 8px; text-align: center; }
+  .age-resultbox .age-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .age-resultbox .age-value { display: block; font-size: 17px; font-weight: 700; word-break: keep-all; }
+  .age-resultbox .age-sub { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -588,7 +601,7 @@
       <button class="act uwmode-btn" id="uwmode-btn-disease" onclick="switchUwMode('disease')" style="flex:none;">🦠 예외질환/사고이력 검색</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-limit" onclick="switchUwMode('limit')" style="flex:none;padding:9px 16px;border-radius:8px;">📊 담보별 업계누적 확인</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-foreign" onclick="switchUwMode('foreign')" style="flex:none;padding:9px 16px;border-radius:8px;">🌏 외국인 인수기준</button>
-      <button class="secondary uwmode-btn" id="uwmode-btn-bmi" onclick="switchUwMode('bmi')" style="flex:none;padding:9px 16px;border-radius:8px;">⚖️ BMI 계산기</button>
+      <button class="secondary uwmode-btn" id="uwmode-btn-bmi" onclick="switchUwMode('bmi')" style="flex:none;padding:9px 16px;border-radius:8px;">📅 나이/BMI 계산기</button>
     </div>
   </div>
 
@@ -695,8 +708,49 @@
     </div>
   </div>
 
-  <!-- 4) BMI 계산기 -->
+  <!-- 4) 나이 / BMI 계산기 -->
   <div id="uwmode-bmi" style="display:none;">
+    <div class="card" style="max-width:460px;">
+      <div class="sub">생년월일과 계약일(기준일)을 입력하면 만나이·보험나이·상령일을 바로 확인할 수 있어요.</div>
+      <div class="row">
+        <div><label>생년월일</label>
+          <div class="date-group">
+            <input type="text" inputmode="numeric" maxlength="4" placeholder="YYYY" class="d-y" id="age_birthY">
+            <span class="d-sep">-</span>
+            <input type="text" inputmode="numeric" maxlength="2" placeholder="MM" class="d-m" id="age_birthM">
+            <span class="d-sep">-</span>
+            <input type="text" inputmode="numeric" maxlength="2" placeholder="DD" class="d-d" id="age_birthD">
+          </div>
+        </div>
+        <div><label>기준일 (계약일)</label>
+          <div class="date-group">
+            <input type="text" inputmode="numeric" maxlength="4" placeholder="YYYY" class="d-y" id="age_refY">
+            <span class="d-sep">-</span>
+            <input type="text" inputmode="numeric" maxlength="2" placeholder="MM" class="d-m" id="age_refM">
+            <span class="d-sep">-</span>
+            <input type="text" inputmode="numeric" maxlength="2" placeholder="DD" class="d-d" id="age_refD">
+          </div>
+        </div>
+      </div>
+      <div class="sub" id="age_error" style="display:none;color:var(--red);"></div>
+      <div class="age-results" id="age_results" style="display:none;">
+        <div class="age-resultbox">
+          <span class="age-label">만나이</span>
+          <span class="age-value" id="age_manVal">-</span>
+        </div>
+        <div class="age-resultbox">
+          <span class="age-label">보험나이</span>
+          <span class="age-value" id="age_insVal">-</span>
+        </div>
+        <div class="age-resultbox">
+          <span class="age-label">상령일</span>
+          <span class="age-value" id="age_sangDate" style="font-size:13px;">-</span>
+          <span class="age-sub" id="age_sangDday">-</span>
+        </div>
+      </div>
+      <div class="sub" style="margin-top:14px;margin-bottom:0;">보험나이는 표준약관 기준(만나이에서 6개월 미만 단수는 버리고, 6개월 이상은 1년으로 절상)으로 계산되며, 상령일은 보험나이가 다음으로 올라가는 날짜입니다.</div>
+    </div>
+
     <div class="card" style="max-width:420px;">
       <div class="sub">키/몸무게를 입력하면 BMI와 체중 판정을 바로 확인할 수 있어요. (대한비만학회 아시아·태평양 기준)</div>
       <div class="row">
@@ -2661,6 +2715,118 @@ function switchUwMode(mode){
   if (mode === 'limit') updateLimitCoverageOptions();
   if (mode === 'foreign') updateForeignVisaOptions();
 }
+
+/* ============================================================
+   나이 계산기 (만나이 / 보험나이 / 상령일)
+============================================================ */
+function ageClampDate(y, m0, d){
+  const last = new Date(y, m0 + 1, 0).getDate();
+  return new Date(y, m0, Math.min(d, last));
+}
+function ageFmtDate(d){
+  const days = ["일","월","화","수","목","금","토"];
+  return d.getFullYear() + "." + String(d.getMonth()+1).padStart(2,"0") + "." + String(d.getDate()).padStart(2,"0") + " (" + days[d.getDay()] + ")";
+}
+function ageTodayStr(){
+  const t = new Date();
+  return t.getFullYear() + "-" + String(t.getMonth()+1).padStart(2,"0") + "-" + String(t.getDate()).padStart(2,"0");
+}
+function ageStartOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+function calcAge(birth, ref){
+  const birthY = birth.getFullYear(), birthM = birth.getMonth()+1, birthD = birth.getDate();
+  const refY = ref.getFullYear();
+  const thisBday = ageClampDate(refY, birthM-1, birthD);
+  let manAge, lastBday;
+  if (ref < thisBday){
+    manAge = refY - birthY - 1;
+    lastBday = ageClampDate(refY-1, birthM-1, birthD);
+  } else {
+    manAge = refY - birthY;
+    lastBday = thisBday;
+  }
+  const halfBday = addMonths(lastBday, 6);
+  let insAge, sangnyeong;
+  if (ref >= halfBday){
+    insAge = manAge + 1;
+    const nextBday = ageClampDate(lastBday.getFullYear()+1, birthM-1, birthD);
+    sangnyeong = addMonths(nextBday, 6);
+  } else {
+    insAge = manAge;
+    sangnyeong = halfBday;
+  }
+  return { manAge, insAge, sangnyeong };
+}
+function ageDigitsOnly(v){ return v.replace(/[^0-9]/g,""); }
+function setupDateGroup(yEl, mEl, dEl, onChange){
+  yEl.addEventListener("input", () => { yEl.value = ageDigitsOnly(yEl.value).slice(0,4); if (yEl.value.length===4){ mEl.focus(); mEl.select(); } onChange(); });
+  mEl.addEventListener("input", () => { mEl.value = ageDigitsOnly(mEl.value).slice(0,2); if (mEl.value.length===2){ dEl.focus(); dEl.select(); } onChange(); });
+  dEl.addEventListener("input", () => { dEl.value = ageDigitsOnly(dEl.value).slice(0,2); onChange(); });
+  yEl.addEventListener("keydown", e => { if (e.key==="ArrowRight" && yEl.selectionStart===yEl.value.length) mEl.focus(); });
+  mEl.addEventListener("keydown", e => {
+    if (e.key==="Backspace" && mEl.value==="") yEl.focus();
+    if (e.key==="ArrowLeft" && mEl.selectionStart===0) yEl.focus();
+    if (e.key==="ArrowRight" && mEl.selectionStart===mEl.value.length) dEl.focus();
+  });
+  dEl.addEventListener("keydown", e => {
+    if (e.key==="Backspace" && dEl.value==="") mEl.focus();
+    if (e.key==="ArrowLeft" && dEl.selectionStart===0) mEl.focus();
+  });
+  mEl.addEventListener("blur", () => {
+    if (mEl.value==="") return;
+    let v = parseInt(mEl.value,10); if (isNaN(v)){ mEl.value=""; return; }
+    if (v<1) v=1; if (v>12) v=12;
+    mEl.value = String(v).padStart(2,"0"); onChange();
+  });
+  dEl.addEventListener("blur", () => {
+    if (dEl.value==="") return;
+    let v = parseInt(dEl.value,10); if (isNaN(v)){ dEl.value=""; return; }
+    if (v<1) v=1; if (v>31) v=31;
+    dEl.value = String(v).padStart(2,"0"); onChange();
+  });
+}
+function getDateGroupValue(yEl, mEl, dEl){
+  if (yEl.value.length!==4 || mEl.value.length===0 || dEl.value.length===0) return null;
+  const y=parseInt(yEl.value,10), m=parseInt(mEl.value,10), d=parseInt(dEl.value,10);
+  if (!y||!m||!d||m<1||m>12||d<1||d>31) return null;
+  return { y, m, d, str: yEl.value + "-" + String(m).padStart(2,"0") + "-" + String(d).padStart(2,"0") };
+}
+function setDateGroupValue(yEl, mEl, dEl, str){
+  const parts = str.split("-");
+  if (parts.length!==3) return;
+  yEl.value = parts[0]; mEl.value = parts[1]; dEl.value = parts[2];
+}
+function updateAgeCalc(){
+  const birthY=document.getElementById('age_birthY'), birthM=document.getElementById('age_birthM'), birthD=document.getElementById('age_birthD');
+  const refY=document.getElementById('age_refY'), refM=document.getElementById('age_refM'), refD=document.getElementById('age_refD');
+  const errEl=document.getElementById('age_error'), resEl=document.getElementById('age_results');
+  errEl.style.display='none';
+  const bVal = getDateGroupValue(birthY, birthM, birthD);
+  const rVal = getDateGroupValue(refY, refM, refD);
+  if (!bVal || !rVal){ resEl.style.display='none'; return; }
+  const birth = new Date(bVal.y, bVal.m-1, bVal.d);
+  const ref = new Date(rVal.y, rVal.m-1, rVal.d);
+  if (birth > ref){
+    resEl.style.display='none';
+    errEl.style.display='block';
+    errEl.textContent = '생년월일이 기준일보다 이후일 수 없습니다.';
+    return;
+  }
+  const r = calcAge(birth, ref);
+  document.getElementById('age_manVal').textContent = r.manAge + '세';
+  document.getElementById('age_insVal').textContent = r.insAge + '세';
+  document.getElementById('age_sangDate').textContent = ageFmtDate(r.sangnyeong);
+  const dday = Math.round((ageStartOfDay(r.sangnyeong) - ageStartOfDay(ref)) / 86400000);
+  document.getElementById('age_sangDday').textContent = dday===0 ? '오늘이 상령일' : ('D-' + dday);
+  resEl.style.display='grid';
+}
+(function initAgeCalc(){
+  const birthY=document.getElementById('age_birthY'), birthM=document.getElementById('age_birthM'), birthD=document.getElementById('age_birthD');
+  const refY=document.getElementById('age_refY'), refM=document.getElementById('age_refM'), refD=document.getElementById('age_refD');
+  if (!birthY) return;
+  setupDateGroup(birthY, birthM, birthD, updateAgeCalc);
+  setupDateGroup(refY, refM, refD, updateAgeCalc);
+  setDateGroupValue(refY, refM, refD, ageTodayStr());
+})();
 
 /* ============================================================
    BMI 계산기
