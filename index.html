@@ -1413,6 +1413,12 @@ async function commitContractImport(){
 ============================================================ */
 let allInsurers = [];
 let editingInsurerId = null;
+let editingInsurerPairs = [];
+function splitMulti(s){
+  const arr = (s||'').split(';').map(x=>x.trim());
+  if(arr.length===1 && arr[0]==='') return [];
+  return arr;
+}
 async function loadInsurers(){
   const {data,error}=await sb.from('insurer_contacts').select('*').order('insurer_name',{ascending:true});
   if(error) throw error;
@@ -1439,7 +1445,8 @@ function renderInsurers(){
     if(editingInsurerId===i.id) return renderInsurerEditRow(i);
     return `<tr>
       <td><b>${escapeHtml(i.insurer_name)}</b></td><td>${escapeHtml(i.role||'')}</td>
-      <td>${escapeHtml(i.contact_person||'')}</td><td>${escapeHtml(i.phone||'')}</td>
+      <td>${splitMulti(i.contact_person).map(x=>`<div>${escapeHtml(x)||'&nbsp;'}</div>`).join('') || ''}</td>
+      <td>${splitMulti(i.phone).map(x=>`<div>${escapeHtml(x)||'&nbsp;'}</div>`).join('') || ''}</td>
       <td>${escapeHtml(i.fax||'')}</td><td>${escapeHtml(i.memo||'')}</td>
       <td class="actions">
         <button class="small secondary" onclick="startEditInsurer(${i.id})">수정</button>
@@ -1448,11 +1455,20 @@ function renderInsurers(){
   }).join('');
 }
 function renderInsurerEditRow(i){
+  const pairsHtml = editingInsurerPairs.map((p,idx)=>`
+    <div style="display:flex;gap:4px;margin-bottom:4px;">
+      <input type="text" class="ie-pair-name" data-idx="${idx}" placeholder="담당자명" value="${escAttr(p.name)}" style="flex:1;">
+      <input type="text" class="ie-pair-phone" data-idx="${idx}" placeholder="연락처" value="${escAttr(p.phone)}" style="flex:1;">
+      <button type="button" class="small danger" onclick="removeInsurerPair(${i.id},${idx})" style="flex:none;">×</button>
+    </div>
+  `).join('');
   return `<tr>
     <td><input type="text" id="ie_name_${i.id}" value="${escAttr(i.insurer_name)}"></td>
     <td><input type="text" id="ie_role_${i.id}" value="${escAttr(i.role||'')}"></td>
-    <td><input type="text" id="ie_person_${i.id}" value="${escAttr(i.contact_person||'')}"></td>
-    <td><input type="text" id="ie_phone_${i.id}" value="${escAttr(i.phone||'')}"></td>
+    <td colspan="2">
+      <div id="ie_pairs_${i.id}">${pairsHtml}</div>
+      <button type="button" class="small secondary" onclick="addInsurerPair(${i.id})">+ 담당자 추가</button>
+    </td>
     <td><input type="text" id="ie_fax_${i.id}" value="${escAttr(i.fax||'')}"></td>
     <td><input type="text" id="ie_memo_${i.id}" value="${escAttr(i.memo||'')}"></td>
     <td class="actions">
@@ -1460,13 +1476,44 @@ function renderInsurerEditRow(i){
       <button class="small secondary" onclick="editingInsurerId=null; renderInsurers();">취소</button>
     </td></tr>`;
 }
-function startEditInsurer(id){ editingInsurerId=id; renderInsurers(); }
+function startEditInsurer(id){
+  editingInsurerId = id;
+  const ins = allInsurers.find(x=>x.id===id);
+  const names = splitMulti(ins ? ins.contact_person : '');
+  const phones = splitMulti(ins ? ins.phone : '');
+  const len = Math.max(names.length, phones.length, 1);
+  editingInsurerPairs = [];
+  for(let k=0;k<len;k++){ editingInsurerPairs.push({ name: names[k]||'', phone: phones[k]||'' }); }
+  renderInsurers();
+}
+function syncInsurerPairsFromDom(id){
+  const container = document.getElementById('ie_pairs_'+id);
+  if(!container) return;
+  const names = container.querySelectorAll('.ie-pair-name');
+  const phones = container.querySelectorAll('.ie-pair-phone');
+  const pairs = [];
+  names.forEach((el,idx)=>{ pairs.push({ name: el.value, phone: phones[idx] ? phones[idx].value : '' }); });
+  editingInsurerPairs = pairs;
+}
+function addInsurerPair(id){
+  syncInsurerPairsFromDom(id);
+  editingInsurerPairs.push({ name:'', phone:'' });
+  renderInsurers();
+}
+function removeInsurerPair(id, idx){
+  syncInsurerPairsFromDom(id);
+  editingInsurerPairs.splice(idx,1);
+  if(editingInsurerPairs.length===0) editingInsurerPairs.push({ name:'', phone:'' });
+  renderInsurers();
+}
 async function saveEditInsurer(id){
+  syncInsurerPairsFromDom(id);
+  const cleanPairs = editingInsurerPairs.filter(p => p.name.trim() || p.phone.trim());
   const vals={
     insurer_name: document.getElementById('ie_name_'+id).value.trim(),
     role: document.getElementById('ie_role_'+id).value.trim(),
-    contact_person: document.getElementById('ie_person_'+id).value.trim(),
-    phone: document.getElementById('ie_phone_'+id).value.trim(),
+    contact_person: cleanPairs.map(p=>p.name.trim()).join('; '),
+    phone: cleanPairs.map(p=>p.phone.trim()).join('; '),
     fax: document.getElementById('ie_fax_'+id).value.trim(),
     memo: document.getElementById('ie_memo_'+id).value.trim(),
     updated_at: new Date().toISOString()
