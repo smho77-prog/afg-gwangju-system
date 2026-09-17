@@ -164,6 +164,7 @@
     <button class="tabbtn" data-tab="issues" onclick="switchTab('issues')">📌 이슈/마감일정</button>
     <button class="tabbtn" data-tab="underwriting" onclick="switchTab('underwriting')">🔍 인수기준 검색</button>
     <button class="tabbtn" data-tab="kcd" onclick="switchTab('kcd')">🩺 질병분류코드 검색</button>
+    <button class="tabbtn" data-tab="surgery" onclick="switchTab('surgery')">🏥 수술등급 검색</button>
   </nav>
   <div id="connStatus" class="st-checking">연결 확인 중...</div>
   <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
@@ -803,6 +804,57 @@
       </table>
     </div>
     <div class="sub" style="margin-top:10px;margin-bottom:0;">건강보험심사평가원 상병마스터(2025-09-30 기준) 데이터 — 총 <span id="kcd_total">0</span>개 코드</div>
+  </div>
+</div>
+
+<!-- ===== 수술등급 검색 ===== -->
+<div class="panel" id="panel-surgery">
+  <div class="card">
+    <div class="sub">1~5종 수술 분류는 <b>보험사·상품마다 기준이 다릅니다.</b> 회사를 추가하고 해당 상품 약관의 수술분류표를 등록해서 사용하세요. (참고용이며 실제 상담에는 각 상품 약관을 확인하세요)</div>
+    <div class="filter-row">
+      <label style="margin:0;">회사/상품:</label>
+      <select id="sg_company" onchange="renderSurgery()"></select>
+      <button class="small secondary" onclick="addSurgeryCompany()">+ 회사 추가</button>
+      <button class="small secondary" onclick="renameSurgeryCompany()">이름변경</button>
+      <button class="small danger" onclick="deleteSurgeryCompany()">이 표 삭제</button>
+      <button class="small secondary" onclick="loadExampleSurgeryData()">예시 데이터 불러오기</button>
+      <label style="margin:0 0 0 8px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="sg_all" onchange="renderSurgery()"> 전체 회사 동시검색</label>
+    </div>
+    <div class="row">
+      <div style="flex:2;"><label>수술명 검색</label><input type="text" id="sg_search" placeholder="예: 디스크, 담낭, 갑상선" oninput="renderSurgery()"></div>
+    </div>
+    <div class="row">
+      <div><label>1종 지급액(만원)</label><input type="number" id="sg_amt_1" placeholder="예: 20" oninput="onSurgAmountChange()"></div>
+      <div><label>2종 지급액(만원)</label><input type="number" id="sg_amt_2" placeholder="예: 30" oninput="onSurgAmountChange()"></div>
+      <div><label>3종 지급액(만원)</label><input type="number" id="sg_amt_3" placeholder="예: 100" oninput="onSurgAmountChange()"></div>
+      <div><label>4종 지급액(만원)</label><input type="number" id="sg_amt_4" placeholder="예: 500" oninput="onSurgAmountChange()"></div>
+      <div><label>5종 지급액(만원)</label><input type="number" id="sg_amt_5" placeholder="예: 1000" oninput="onSurgAmountChange()"></div>
+    </div>
+    <div class="sub" style="margin:0 0 8px;">가입금액을 입력하면 검색결과에 예상 지급액이 함께 표시돼요. (상담 중 임시 계산용이며, 이 브라우저에만 기억됩니다)</div>
+    <div id="sg_count" style="font-size:12px;color:var(--muted);margin:2px 0 8px;"></div>
+    <table>
+      <thead id="sg_thead"><tr><th>수술명</th><th>등급</th><th>비고</th><th></th></tr></thead>
+      <tbody id="sg_body"><tr><td colspan="4" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px;">이 회사 표 관리 · 추가/일괄입력</div>
+    <div class="row">
+      <div><label>수술명</label><input type="text" id="sg_newName" placeholder="예: 담낭절제술"></div>
+      <div><label>등급</label>
+        <select id="sg_newGrade">
+          <option value="1">1종</option><option value="2">2종</option><option value="3">3종</option><option value="4">4종</option><option value="5">5종</option>
+        </select>
+      </div>
+      <div><label>비고 (선택)</label><input type="text" id="sg_newNote" placeholder="예: 복강경"></div>
+      <div style="align-self:flex-end;"><button class="act" onclick="addSurgeryGrade()">+ 추가</button></div>
+    </div>
+    <div style="margin-top:12px;">
+      <label>일괄 붙여넣기 (한 줄에 "수술명, 등급, 비고" 형식)</label>
+      <textarea id="sg_bulkText" rows="4" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:13px;box-sizing:border-box;" placeholder="치핵수술, 1&#10;자궁근종절제술, 2, 복강경&#10;추간판수술, 3"></textarea>
+      <button class="act" style="margin-top:8px;" onclick="bulkAddSurgeryGrade()">일괄 추가</button>
+    </div>
   </div>
 </div>
 
@@ -2350,7 +2402,7 @@ async function startApp(){
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
-    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties(), loadIssues(), loadCallCenters(), loadCallCenterFiles(), loadIndustryLimits(), loadForeignUw(), loadUwFiles('industry_limit'), loadUwFiles('foreign'), loadDutiesNotice()];
+    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties(), loadIssues(), loadCallCenters(), loadCallCenterFiles(), loadIndustryLimits(), loadForeignUw(), loadUwFiles('industry_limit'), loadUwFiles('foreign'), loadDutiesNotice(), loadSurgeryGrades()];
     if (currentUser.role === 'master') loaders.push(loadCommissionRates());
     await Promise.all(loaders);
     setupPerformanceTab();
@@ -2840,6 +2892,9 @@ function updateAgeCalc(){
   document.getElementById('age_sangDday').textContent = dday===0 ? '오늘이 상령일' : ('D-' + dday);
   resEl.style.display='grid';
 }
+(function initSurgAmounts(){
+  if (document.getElementById('sg_amt_1')) loadSurgAmountsFromStorage();
+})();
 (function initAgeCalc(){
   const birthY=document.getElementById('age_birthY'), birthM=document.getElementById('age_birthM'), birthD=document.getElementById('age_birthD');
   const refY=document.getElementById('age_refY'), refM=document.getElementById('age_refM'), refD=document.getElementById('age_refD');
@@ -3271,6 +3326,214 @@ function renderKcdResults(){
   if(results.length > MAX){
     resultsEl.innerHTML += `<tr><td colspan="4" style="color:var(--muted);">결과가 많아 상위 ${MAX}개만 표시됩니다. 검색어를 더 구체적으로 입력해보세요.</td></tr>`;
   }
+}
+
+
+/* ============================================================
+   1~5종 수술 분류 검색
+============================================================ */
+const SEED_SURGERY_DATA = [{"name":"치핵(치질) 수술","grade":1,"note":"결찰 및 절제술 등"},{"name":"백내장 수술","grade":1,"note":"수정체 소절개 매식술 등"},{"name":"충수절제술(맹장 수술)","grade":1,"note":""},{"name":"서혜부 탈장수술","grade":1,"note":""},{"name":"편도 및 아데노이드 절제술","grade":1,"note":""},{"name":"갑상선 절제술","grade":2,"note":""},{"name":"자궁근종 절제술","grade":2,"note":""},{"name":"대장 용종절제술(내시경)","grade":2,"note":""},{"name":"정맥류 결찰 및 절제술(하지정맥류)","grade":2,"note":""},{"name":"추간판(디스크) 수술","grade":3,"note":"경추/요추 디스크 수술"},{"name":"담낭절제술(쓸개 수술)","grade":3,"note":""},{"name":"관절경 수술(반월판 등)","grade":3,"note":""},{"name":"자궁적출술","grade":3,"note":""},{"name":"위 절제술(위암 등 주요 장기절제)","grade":4,"note":""},{"name":"대장 절제술(대장암 등 주요 장기절제)","grade":4,"note":""},{"name":"간 절제술","grade":4,"note":""},{"name":"췌장 절제술","grade":4,"note":""},{"name":"심장 수술(관상동맥우회술 등)","grade":5,"note":""},{"name":"뇌종양 절제술","grade":5,"note":""},{"name":"장기 이식 수술","grade":5,"note":""}];
+
+let allSurgeryGrades = [];
+let currentSurgCompany = null;
+let editingSurgeryId = null;
+
+async function loadSurgeryGrades(){
+  const { data, error } = await sb.from('surgery_grades').select('*').order('company_name',{ascending:true}).order('grade',{ascending:true});
+  if(error){ console.error(error); return; }
+  allSurgeryGrades = data || [];
+  const companies = Array.from(new Set(allSurgeryGrades.map(r=>r.company_name))).sort();
+  if(!currentSurgCompany || !companies.includes(currentSurgCompany)) currentSurgCompany = companies[0] || null;
+  refreshSurgCompanySelect(companies);
+  renderSurgery();
+}
+function refreshSurgCompanySelect(companies){
+  const sel = document.getElementById('sg_company');
+  if(!sel) return;
+  if(companies.length===0){ sel.innerHTML = '<option value="">등록된 표 없음</option>'; return; }
+  sel.innerHTML = companies.map(c=>`<option value="${escAttr(c)}" ${c===currentSurgCompany?'selected':''}>${escapeHtml(c)}</option>`).join('');
+}
+function surgGradeColor(g){
+  const colors = {1:'var(--green)',2:'#7fb13a',3:'var(--amber)',4:'#d97706',5:'var(--red)'};
+  return colors[g] || 'var(--muted)';
+}
+function getSurgAmounts(){
+  const amounts = {};
+  [1,2,3,4,5].forEach(g=>{
+    const v = parseFloat(document.getElementById('sg_amt_'+g).value);
+    amounts[g] = (!isNaN(v) && v>0) ? v : null;
+  });
+  return amounts;
+}
+function onSurgAmountChange(){
+  try{ localStorage.setItem('sgAmounts', JSON.stringify(getSurgAmounts())); }catch(e){}
+  renderSurgery();
+}
+function loadSurgAmountsFromStorage(){
+  try{
+    const raw = localStorage.getItem('sgAmounts');
+    if(!raw) return;
+    const amounts = JSON.parse(raw);
+    [1,2,3,4,5].forEach(g=>{ if(amounts[g]) document.getElementById('sg_amt_'+g).value = amounts[g]; });
+  }catch(e){}
+}
+function renderSurgery(){
+  const tbody = document.getElementById('sg_body');
+  const countEl = document.getElementById('sg_count');
+  const thead = document.getElementById('sg_thead');
+  if(!tbody) return;
+  const companySel = document.getElementById('sg_company');
+  if(companySel.value) currentSurgCompany = companySel.value;
+  const all = document.getElementById('sg_all').checked;
+  const q = document.getElementById('sg_search').value.trim().toLowerCase();
+  const amounts = getSurgAmounts();
+  const anyAmount = Object.values(amounts).some(v => v != null);
+  let rows = all ? allSurgeryGrades : allSurgeryGrades.filter(r=>r.company_name===currentSurgCompany);
+  if(q) rows = rows.filter(r=>r.surgery_name.toLowerCase().includes(q));
+  const amtHeader = anyAmount ? '<th>예상 지급액</th>' : '';
+  thead.innerHTML = all
+    ? `<tr><th>회사</th><th>수술명</th><th>등급</th>${amtHeader}<th>비고</th><th></th></tr>`
+    : `<tr><th>수술명</th><th>등급</th>${amtHeader}<th>비고</th><th></th></tr>`;
+  const total = all ? allSurgeryGrades.length : allSurgeryGrades.filter(r=>r.company_name===currentSurgCompany).length;
+  countEl.textContent = (q ? rows.length + '개 결과' : '전체 ' + total + '개') + (all ? ' (전체 회사 검색 중)' : '');
+  const colspan = (all ? 4 : 3) + (anyAmount ? 1 : 0);
+  if(rows.length===0){
+    tbody.innerHTML = `<tr><td colspan="${colspan}" style="color:var(--muted);">등록된 수술 정보가 없습니다. 아래에서 추가해보세요.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r=>{
+    if(editingSurgeryId === r.id) return renderSurgeryEditRow(r, all);
+    const amt = amounts[r.grade];
+    const amtCell = anyAmount ? `<td style="font-weight:700;color:var(--navy);">${amt != null ? amt.toLocaleString('ko-KR') + '만원' : '-'}</td>` : '';
+    return `<tr>
+      ${all ? `<td style="color:var(--muted);font-size:11.5px;">${escapeHtml(r.company_name)}</td>` : ''}
+      <td>${escapeHtml(r.surgery_name)}</td>
+      <td><span style="display:inline-flex;align-items:center;justify-content:center;min-width:40px;padding:2px 8px;border-radius:20px;font-weight:700;font-size:12px;color:#fff;background:${surgGradeColor(r.grade)};">${r.grade}종</span></td>
+      ${amtCell}
+      <td style="color:var(--muted);font-size:12px;">${escapeHtml(r.note||'')}</td>
+      <td class="actions">
+        <button class="small secondary" onclick="copySurgeryRow(${JSON.stringify(r.surgery_name)},${r.grade},${amt != null ? amt : 'null'})">복사</button>
+        ${all ? '' : `<button class="small secondary" onclick="startEditSurgery(${r.id})">수정</button><button class="small danger" onclick="deleteSurgeryGrade(${r.id})">삭제</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+function renderSurgeryEditRow(r, all){
+  return `<tr>
+    ${all?`<td style="color:var(--muted);font-size:11.5px;">${escapeHtml(r.company_name)}</td>`:''}
+    <td><input type="text" id="sge_name_${r.id}" value="${escAttr(r.surgery_name)}"></td>
+    <td>
+      <select id="sge_grade_${r.id}">
+        ${[1,2,3,4,5].map(g=>`<option value="${g}" ${g===r.grade?'selected':''}>${g}종</option>`).join('')}
+      </select>
+    </td>
+    <td><input type="text" id="sge_note_${r.id}" value="${escAttr(r.note||'')}"></td>
+    <td class="actions">
+      <button class="small act" onclick="saveEditSurgery(${r.id})">저장</button>
+      <button class="small secondary" onclick="editingSurgeryId=null; renderSurgery();">취소</button>
+    </td>
+  </tr>`;
+}
+function startEditSurgery(id){ editingSurgeryId = id; renderSurgery(); }
+async function saveEditSurgery(id){
+  const vals = {
+    surgery_name: document.getElementById('sge_name_'+id).value.trim(),
+    grade: Number(document.getElementById('sge_grade_'+id).value),
+    note: document.getElementById('sge_note_'+id).value.trim()
+  };
+  if(!vals.surgery_name){ alert('수술명은 필수입니다.'); return; }
+  const { error } = await sb.from('surgery_grades').update(vals).eq('id', id);
+  if(error){ alert('수정 실패: '+error.message); return; }
+  editingSurgeryId = null;
+  await loadSurgeryGrades();
+}
+async function deleteSurgeryGrade(id){
+  if(!confirm('이 수술 항목을 삭제할까요?')) return;
+  const { error } = await sb.from('surgery_grades').delete().eq('id', id);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  await loadSurgeryGrades();
+}
+async function addSurgeryGrade(){
+  const name = document.getElementById('sg_newName').value.trim();
+  const grade = Number(document.getElementById('sg_newGrade').value);
+  const note = document.getElementById('sg_newNote').value.trim();
+  if(!name){ alert('수술명을 입력하세요'); return; }
+  if(!currentSurgCompany){ alert('먼저 회사를 추가해주세요'); return; }
+  const { error } = await sb.from('surgery_grades').insert([{ company_name: currentSurgCompany, surgery_name: name, grade, note }]);
+  if(error){ alert('저장 실패: '+error.message); return; }
+  document.getElementById('sg_newName').value=''; document.getElementById('sg_newNote').value='';
+  await loadSurgeryGrades();
+}
+async function bulkAddSurgeryGrade(){
+  const text = document.getElementById('sg_bulkText').value;
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(!lines.length){ alert('입력된 내용이 없습니다'); return; }
+  if(!currentSurgCompany){ alert('먼저 회사를 추가해주세요'); return; }
+  const toInsert = [];
+  lines.forEach(line=>{
+    const parts = line.split(',').map(p=>p.trim());
+    const name = parts[0];
+    const grade = parseInt(parts[1],10);
+    const note = parts[2] || '';
+    if(name && grade>=1 && grade<=5) toInsert.push({ company_name: currentSurgCompany, surgery_name:name, grade, note });
+  });
+  if(!toInsert.length){ alert('형식에 맞는 항목이 없습니다. "수술명, 등급" 형식을 확인하세요.'); return; }
+  const { error } = await sb.from('surgery_grades').insert(toInsert);
+  if(error){ alert('저장 실패: '+error.message); return; }
+  document.getElementById('sg_bulkText').value='';
+  await loadSurgeryGrades();
+  alert(toInsert.length + '개 항목이 추가되었습니다');
+}
+async function addSurgeryCompany(){
+  const name = prompt('추가할 회사/상품 이름을 입력하세요');
+  if(!name) return;
+  const trimmed = name.trim();
+  if(!trimmed) return;
+  const companies = Array.from(new Set(allSurgeryGrades.map(r=>r.company_name)));
+  if(companies.includes(trimmed)){ alert('이미 존재하는 이름입니다'); return; }
+  currentSurgCompany = trimmed;
+  refreshSurgCompanySelect([...companies, trimmed].sort());
+  renderSurgery();
+  alert('새 표를 만들었습니다. 아래에서 수술 항목을 추가하면 저장돼요.');
+}
+async function renameSurgeryCompany(){
+  if(!currentSurgCompany) return;
+  const name = prompt('새 이름을 입력하세요', currentSurgCompany);
+  if(!name) return;
+  const trimmed = name.trim();
+  if(!trimmed || trimmed===currentSurgCompany) return;
+  const companies = Array.from(new Set(allSurgeryGrades.map(r=>r.company_name)));
+  if(companies.includes(trimmed)){ alert('이미 존재하는 이름입니다'); return; }
+  const { error } = await sb.from('surgery_grades').update({company_name:trimmed}).eq('company_name', currentSurgCompany);
+  if(error){ alert('이름 변경 실패: '+error.message); return; }
+  currentSurgCompany = trimmed;
+  await loadSurgeryGrades();
+}
+async function deleteSurgeryCompany(){
+  if(!currentSurgCompany) return;
+  if(!confirm(`"${currentSurgCompany}" 표를 삭제하시겠습니까? 등록된 모든 수술 항목이 삭제됩니다.`)) return;
+  const { error } = await sb.from('surgery_grades').delete().eq('company_name', currentSurgCompany);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  currentSurgCompany = null;
+  await loadSurgeryGrades();
+}
+async function loadExampleSurgeryData(){
+  const companies = Array.from(new Set(allSurgeryGrades.map(r=>r.company_name)));
+  if(companies.includes('예시(참고용)')){
+    currentSurgCompany = '예시(참고용)';
+    refreshSurgCompanySelect(companies);
+    renderSurgery();
+    return;
+  }
+  const toInsert = SEED_SURGERY_DATA.map(s=>({ company_name:'예시(참고용)', surgery_name:s.name, grade:s.grade, note:s.note }));
+  const { error } = await sb.from('surgery_grades').insert(toInsert);
+  if(error){ alert('저장 실패: '+error.message); return; }
+  currentSurgCompany = '예시(참고용)';
+  await loadSurgeryGrades();
+}
+function copySurgeryRow(name, grade, amount){
+  const text = name + ' - ' + grade + '종' + (amount != null ? ' (예상 지급액 ' + amount.toLocaleString('ko-KR') + '만원)' : '');
+  navigator.clipboard?.writeText(text).catch(()=>{});
 }
 
 </script>
