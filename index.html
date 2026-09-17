@@ -1415,7 +1415,7 @@ let allInsurers = [];
 let editingInsurerId = null;
 let editingInsurerPairs = [];
 function splitMulti(s){
-  const arr = (s||'').split(';').map(x=>x.trim());
+  const arr = (s||'').split(/[;,]/).map(x=>x.trim());
   if(arr.length===1 && arr[0]==='') return [];
   return arr;
 }
