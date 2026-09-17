@@ -814,23 +814,22 @@
     <div class="filter-row">
       <label style="margin:0;">회사/상품:</label>
       <select id="sg_company" onchange="renderSurgery()"></select>
-      <button class="small secondary" onclick="addSurgeryCompany()">+ 회사 추가</button>
-      <button class="small secondary" onclick="renameSurgeryCompany()">이름변경</button>
-      <button class="small danger" onclick="deleteSurgeryCompany()">이 표 삭제</button>
-      <button class="small secondary" onclick="loadExampleSurgeryData()">예시 데이터 불러오기</button>
-      <label style="margin:0 0 0 8px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="sg_all" onchange="renderSurgery()"> 전체 회사 동시검색</label>
+      <label style="margin:0 0 0 10px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="sg_all" onchange="renderSurgery()"> 전체 회사 동시검색</label>
     </div>
     <div class="row">
       <div style="flex:2;"><label>수술명 검색</label><input type="text" id="sg_search" placeholder="예: 디스크, 담낭, 갑상선" oninput="renderSurgery()"></div>
     </div>
-    <div class="row">
-      <div><label>1종 지급액(만원)</label><input type="number" id="sg_amt_1" placeholder="예: 20" oninput="onSurgAmountChange()"></div>
-      <div><label>2종 지급액(만원)</label><input type="number" id="sg_amt_2" placeholder="예: 30" oninput="onSurgAmountChange()"></div>
-      <div><label>3종 지급액(만원)</label><input type="number" id="sg_amt_3" placeholder="예: 100" oninput="onSurgAmountChange()"></div>
-      <div><label>4종 지급액(만원)</label><input type="number" id="sg_amt_4" placeholder="예: 500" oninput="onSurgAmountChange()"></div>
-      <div><label>5종 지급액(만원)</label><input type="number" id="sg_amt_5" placeholder="예: 1000" oninput="onSurgAmountChange()"></div>
-    </div>
-    <div class="sub" style="margin:0 0 8px;">가입금액을 입력하면 검색결과에 예상 지급액이 함께 표시돼요. (상담 중 임시 계산용이며, 이 브라우저에만 기억됩니다)</div>
+    <details id="sg_amtDetails" style="margin-bottom:12px;">
+      <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">💰 등급별 예상 지급액 계산 (선택사항 · 클릭해서 펼치기)</summary>
+      <div class="row" style="margin-top:10px;">
+        <div><label>1종(만원)</label><input type="number" id="sg_amt_1" placeholder="20" oninput="onSurgAmountChange()"></div>
+        <div><label>2종(만원)</label><input type="number" id="sg_amt_2" placeholder="30" oninput="onSurgAmountChange()"></div>
+        <div><label>3종(만원)</label><input type="number" id="sg_amt_3" placeholder="100" oninput="onSurgAmountChange()"></div>
+        <div><label>4종(만원)</label><input type="number" id="sg_amt_4" placeholder="500" oninput="onSurgAmountChange()"></div>
+        <div><label>5종(만원)</label><input type="number" id="sg_amt_5" placeholder="1000" oninput="onSurgAmountChange()"></div>
+      </div>
+      <div class="sub" style="margin:6px 0 0;">가입금액을 입력하면 검색결과에 예상 지급액이 함께 표시돼요. (이 브라우저에만 기억됩니다)</div>
+    </details>
     <div id="sg_count" style="font-size:12px;color:var(--muted);margin:2px 0 8px;"></div>
     <table>
       <thead id="sg_thead"><tr><th>수술명</th><th>등급</th><th>비고</th><th></th></tr></thead>
@@ -839,7 +838,15 @@
   </div>
 
   <div class="card">
-    <div style="font-weight:700;font-size:14px;margin-bottom:8px;">이 회사 표 관리 · 추가/일괄입력</div>
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px;">🗂️ 회사/상품 표 관리</div>
+    <div class="filter-row" style="margin-bottom:0;">
+      <button class="small secondary" onclick="addSurgeryCompany()">+ 회사 추가</button>
+      <button class="small secondary" onclick="renameSurgeryCompany()">이름변경</button>
+      <button class="small danger" onclick="deleteSurgeryCompany()">이 표 삭제</button>
+      <button class="small secondary" onclick="loadExampleSurgeryData()">예시 데이터 불러오기</button>
+    </div>
+    <div style="border-top:1px solid var(--line);margin:16px 0 14px;"></div>
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px;">수술 항목 추가</div>
     <div class="row">
       <div><label>수술명</label><input type="text" id="sg_newName" placeholder="예: 담낭절제술"></div>
       <div><label>등급</label>
@@ -3421,7 +3428,9 @@ function loadSurgAmountsFromStorage(){
     const raw = localStorage.getItem('sgAmounts');
     if(!raw) return;
     const amounts = JSON.parse(raw);
-    [1,2,3,4,5].forEach(g=>{ if(amounts[g]) document.getElementById('sg_amt_'+g).value = amounts[g]; });
+    let any = false;
+    [1,2,3,4,5].forEach(g=>{ if(amounts[g]){ document.getElementById('sg_amt_'+g).value = amounts[g]; any = true; } });
+    if(any){ const det = document.getElementById('sg_amtDetails'); if(det) det.open = true; }
   }catch(e){}
 }
 function renderSurgery(){
