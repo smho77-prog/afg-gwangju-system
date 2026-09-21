@@ -291,6 +291,72 @@
 .cvp .pill b { font-size: 16px; font-weight: 800; white-space: nowrap; }
 .cvp .pill.up { background: #FFF1D6; color: #A86400; }
 .cvp .en { margin-top: 12px; font-size: 12.5px; color: #667085; }
+
+/* ===== 회사별 상세 직접 입력 표 ===== */
+#panel-coverage .cv-mwrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; max-height: 540px; background: #fff; }
+#panel-coverage .cv-mt { width: auto; min-width: 100%; table-layout: auto; border-collapse: separate; border-spacing: 0; font-size: 12px; margin: 0; }
+#panel-coverage .cv-mt th, #panel-coverage .cv-mt td { padding: 3px 5px; border-bottom: 1px solid #F0EEE8; text-align: right; white-space: nowrap; vertical-align: middle; }
+#panel-coverage .cv-mt thead th { position: sticky; top: 0; background: #F3F1EC; z-index: 2; font-size: 11.5px; color: var(--ink); }
+#panel-coverage .cv-mt th.l, #panel-coverage .cv-mt td.l { text-align: left; position: sticky; left: 0; background: #fff; min-width: 200px; z-index: 1; }
+#panel-coverage .cv-mt thead th.l { z-index: 3; background: #F3F1EC; }
+#panel-coverage .cv-mt tr.inf td { background: #FAFAF7; }
+#panel-coverage .cv-mt tr.inf td.l { background: #FAFAF7; font-weight: 700; }
+#panel-coverage .cv-mt td.l .g { display: inline-block; width: 34px; color: var(--muted); font-size: 11px; }
+#panel-coverage .cv-mt td.pd { color: var(--muted); }
+#panel-coverage .cv-mt td.sm { font-weight: 700; min-width: 64px; }
+#panel-coverage .cv-mt td.sm.warn { color: #B8620B; background: var(--amber-bg); }
+#panel-coverage .cv-mt input { width: 96px; padding: 4px 6px; font-size: 12px; text-align: right; }
+#panel-coverage .cv-mt input.bad { border-color: var(--red); background: var(--red-bg); }
+#panel-coverage .cv-mt th button { border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; padding: 0 2px; }
+#panel-coverage .cv-mline { font-size: 12px; margin: 8px 0 0; color: var(--ink); }
+#panel-coverage .cv-mline.warn { color: #B8620B; }
+
+/* ===== 보험 정리 전·후 보장 비교 (이미지 카드) ===== */
+.cvc, .cvc * { box-sizing: border-box; }
+.cvc { width: 794px; background: #fff; color: #1B1B1B; padding: 26px 28px 20px; line-height: 1.3;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
+.cvc .hd { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 9px; border-bottom: 2px solid #16233F; }
+.cvc .hd .tt { font-size: 23px; font-weight: 800; letter-spacing: -.5px; color: #111; }
+.cvc .hd .tt small { font-size: 14px; font-weight: 600; color: #667085; margin-left: 8px; letter-spacing: 0; }
+.cvc .hd .meta { text-align: right; font-size: 10.5px; color: #667085; line-height: 1.55; }
+.cvc .top { display: flex; gap: 12px; margin: 14px 0 6px; }
+.cvc .stkbox { flex: 1.55; border: 1px solid #D9DFEA; border-radius: 10px; padding: 12px 14px 10px; }
+.cvc .stkbox .ttl { font-size: 11.5px; font-weight: 800; color: #16233F; margin-bottom: 9px; }
+.cvc .stkrow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.cvc .stkrow .lb { width: 44px; font-size: 11px; font-weight: 800; color: #475467; flex-shrink: 0; }
+.cvc .stk { flex: 1; display: flex; height: 24px; border-radius: 6px; overflow: hidden; background: #EEF1F6; }
+.cvc .stk span { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 800; }
+.cvc .stk .ok { background: #2FA26B; } .cvc .stk .part { background: #F29D0C; } .cvc .stk .none { background: #E5383B; }
+.cvc .lgd { display: flex; gap: 12px; font-size: 10px; color: #667085; padding-left: 52px; }
+.cvc .lgd i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
+.cvc .kpis { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.cvc .kpi { flex: 1; border-radius: 10px; padding: 9px 13px; background: #E3F5F0; color: #1E8A78; display: flex; flex-direction: column; justify-content: center; }
+.cvc .kpi.p { background: #EEF2F8; color: #16233F; }
+.cvc .kpi .k1 { font-size: 10.5px; font-weight: 700; opacity: .85; }
+.cvc .kpi .k2 { font-size: 17px; font-weight: 800; margin-top: 2px; white-space: nowrap; }
+.cvc .kpi .k2 em { font-style: normal; font-size: 12px; font-weight: 700; margin-left: 6px; }
+.cvc .blk { margin-top: 14px; }
+.cvc .bh { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; border-radius: 8px 8px 0 0; color: #fff; font-weight: 800; font-size: 12.5px; }
+.cvc .bh small { font-weight: 500; font-size: 10.5px; opacity: .92; }
+.cvc .bh.new { background: #2FA26B; } .cvc .bh.up { background: #3B6FD4; } .cvc .bh.down { background: #D9822B; }
+.cvc .rw { display: grid; grid-template-columns: 186px 1fr 20px 1fr 58px; gap: 8px; align-items: center; padding: 8px 12px; border: 1px solid #E3E8F0; border-top: 0; }
+.cvc .rw:last-child { border-radius: 0 0 8px 8px; }
+.cvc .rw .nm { font-size: 12px; font-weight: 700; }
+.cvc .rw .nm small { display: block; font-size: 9.5px; font-weight: 500; color: #98A2B3; margin-top: 1px; }
+.cvc .rw .tr { height: 10px; background: #E8ECF3; border-radius: 5px; overflow: hidden; }
+.cvc .rw .tr i { display: block; height: 100%; border-radius: 5px; }
+.cvc .rw .tr i.ok, .cvc .rw .tr i.have { background: #2FA26B; } .cvc .rw .tr i.part { background: #F29D0C; } .cvc .rw .tr i.none { background: #E5383B; } .cvc .rw .tr i.unknown { background: #98A2B3; }
+.cvc .rw .tx { font-size: 10.5px; color: #475467; margin-top: 3px; font-weight: 700; }
+.cvc .rw .tx.none { color: #E5383B; } .cvc .rw .tx.unknown { color: #98A2B3; }
+.cvc .rw .ar { text-align: center; color: #98A2B3; font-weight: 800; font-size: 14px; }
+.cvc .rw .st { text-align: right; }
+.cvc .pl { display: inline-block; min-width: 34px; text-align: center; padding: 2px 6px; border-radius: 10px; font-size: 9.5px; font-weight: 800; color: #fff; line-height: 1.25; }
+.cvc .pl.ok { background: #2FA26B; } .cvc .pl.part { background: #F29D0C; } .cvc .pl.none { background: #E5383B; }
+.cvc .pl.have { background: #fff; color: #2FA26B; border: 1px solid #2FA26B; padding: 1px 5px; } .cvc .pl.unknown { background: #98A2B3; min-width: 0; padding: 2px 4px; }
+.cvc .empty { text-align: center; color: #667085; font-size: 13px; padding: 26px 0; border: 1px dashed #D9DFEA; border-radius: 10px; margin-top: 14px; }
+.cvc .foot { margin-top: 12px; font-size: 8.5px; color: #667085; line-height: 1.55; }
+.cvc .foot p { margin: 0 0 2px; }
+.cvc .foot .who { margin-top: 5px; font-size: 10px; font-weight: 700; color: #16233F; }
 </style>
 </head>
 <body>
@@ -4171,7 +4237,7 @@ var CVCore = (function () {
     var supports = {};
     rows.forEach(function (r) { (MSUM_MAP[norm(r.name)] || []).forEach(function (k) { supports[k] = 1; }); });
     var fn = fromFileName(fileName);
-    warnings.push('이 PDF에는 계약(회사·상품) 정보가 없어요. (고객 LMS 동의 전 자료) 그래서 회사별 열 없이 담보별 합계만 리포트에 표시해요.');
+    warnings.push('이 PDF에는 계약(회사·상품) 정보가 없어요. (고객 LMS 동의 전 자료) 그래서 지금은 회사별 열 없이 담보별 합계만 표시해요. 아래 “회사별 상세가입현황 직접 입력”에 적으면 회사별 카드와 열도 함께 나와요.');
     return {
       kind: 'Msum', label: 'M보장분석 PDF (합계만)', fileName: fileName, aggregate: true, count: count, premiumTotal: prem || 0,
       customer: fn.name || cover.customer, date: cover.date || fn.date,
@@ -4215,15 +4281,31 @@ var CVCore = (function () {
           (evidence[k] = evidence[k] || []).push({ ci: ci, name: r.name, amt: amt, orig: r.amt, f: f, svc: isSvc });
         });
       });
-      return { company: c.company, product: c.product, premium: c.premium, cycle: c.cycle, renew: c.renew, vals: vals };
+      return { id: 's' + ci, company: c.company, product: c.product, premium: c.premium, cycle: c.cycle, renew: c.renew, vals: vals };
     });
     var supports = src.supports ? {} : null;
     if (supports) src.supports.forEach(function (k) { supports[k] = 1; });
-    var totals = {}, status = {}, counts = { ok: 0, part: 0, none: 0, unknown: 0, have: 0 };
+
+    // 계약 상세가 없는 PDF(합계형)에 사용자가 직접 적은 회사별 상세
+    var manualC = null;
+    if (src.aggregate && cfg.manual && cfg.manual.length) {
+      manualC = cfg.manual.filter(function (c) {
+        return (c.company && String(c.company).trim()) || c.premium > 0 || Object.keys(c.vals || {}).length;
+      }).map(function (c, i) {
+        return { id: 'm' + (c.id != null ? c.id : i), company: (c.company && String(c.company).trim()) || ('계약' + (i + 1)), product: String(c.product || '').trim(), premium: c.premium > 0 ? c.premium : null, cycle: String(c.cycle || '').trim(), renew: '', vals: c.vals || {} };
+      });
+      if (!manualC.length) manualC = null;
+    }
+
+    var totals = {}, status = {}, counts = { ok: 0, part: 0, none: 0, unknown: 0, have: 0 }, pdfTotals = {};
     ITEMS.forEach(function (it) {
-      var total = null;
+      var total = null, pdfTotal = null, mSum = null;
+      if (!supports || supports[it.k]) { pdfTotal = 0; contracts.forEach(function (c) { pdfTotal += (c.vals[it.k] || 0); }); }
+      if (manualC) manualC.forEach(function (c) { if (c.vals[it.k] != null) mSum = (mSum || 0) + c.vals[it.k]; });
+      pdfTotals[it.k] = pdfTotal;
       if (Object.prototype.hasOwnProperty.call(override, it.k) && override[it.k] != null) total = override[it.k];
-      else if (!supports || supports[it.k]) { total = 0; contracts.forEach(function (c) { total += (c.vals[it.k] || 0); }); }
+      else if (pdfTotal != null) total = mSum != null ? Math.max(pdfTotal, mSum) : pdfTotal;
+      else total = mSum;
       totals[it.k] = total;
       var rc = (rec[it.k] != null ? rec[it.k] : it.rec);
       var st;
@@ -4237,13 +4319,55 @@ var CVCore = (function () {
     });
     unmapped.sort(function (a, b) { return b.total - a.total; });
     var premTotal = 0, missingPrem = 0;
-    contracts.forEach(function (c) { if (c.premium == null) missingPrem++; else premTotal += c.premium; });
-    return { contracts: contracts, totals: totals, status: status, counts: counts, evidence: evidence, unmapped: unmapped, premTotal: premTotal, missingPrem: missingPrem, itemCount: ITEMS.length, ratioUsed: ratioUsed, aggregate: !!src.aggregate, count: src.aggregate ? (src.count != null ? src.count : null) : contracts.length };
+    if (manualC) {
+      // 보험료 합계는 PDF(신용정보원) 값을 기준으로 하되, 직접 적은 계약의 합이 더 크면 그 값을 사용
+      var msum = 0; manualC.forEach(function (c) { if (c.premium != null) msum += c.premium; else if (!(src.premiumTotal > 0)) missingPrem++; });
+      premTotal = src.premiumTotal > 0 ? Math.max(src.premiumTotal, msum) : msum;
+      contracts = manualC;
+    } else contracts.forEach(function (c) { if (c.premium == null) missingPrem++; else premTotal += c.premium; });
+    return { contracts: contracts, totals: totals, pdfTotals: pdfTotals, status: status, counts: counts, evidence: evidence, unmapped: unmapped, premTotal: premTotal, missingPrem: missingPrem, itemCount: ITEMS.length, ratioUsed: ratioUsed, aggSource: !!src.aggregate, detail: !!manualC, svcKeys: svcKeys, aggregate: !!src.aggregate && !manualC, count: src.aggregate ? (src.count != null ? src.count : null) : contracts.length };
+  }
+
+  /* ---------- 보험 정리 전 → 후 보장 비교 ---------- */
+  function statusOf(it, total, rc) {
+    if (total == null) return 'unknown';
+    if (it.yn) return total > 0 ? 'have' : 'none';
+    if (total <= 0) return 'none';
+    return total >= rc ? 'ok' : 'part';
+  }
+  var RANK = { unknown: 0, none: 0, part: 1, ok: 2, have: 2 };
+  function compareModel(model, opts) {
+    opts = opts || {};
+    var rec = opts.rec || {}, dropIds = opts.dropIds || [], repl = opts.repl || [];
+    var drop = model.contracts.filter(function (c) { return c.id != null && dropIds.indexOf(c.id) >= 0; });
+    var rows = [];
+    var cb = { good: 0, part: 0, none: 0, unknown: 0 }, ca = { good: 0, part: 0, none: 0, unknown: 0 };
+    function bump(o, st) { if (st === 'ok' || st === 'have') o.good++; else if (st === 'part') o.part++; else if (st === 'none') o.none++; else o.unknown++; }
+    ITEMS.forEach(function (it) {
+      var rc = rec[it.k] != null ? rec[it.k] : it.rec;
+      var before = model.totals[it.k], sub = 0, add = 0, addAny = false;
+      drop.forEach(function (c) { sub += (c.vals[it.k] || 0); });
+      repl.forEach(function (r) { if (r.vals && r.vals[it.k] != null) { add += r.vals[it.k]; addAny = true; } });
+      var after = before == null ? (addAny ? add : null) : Math.max(0, before - sub) + add;
+      var sb = model.status[it.k], sa = statusOf(it, after, rc);
+      if (model.svcKeys && model.svcKeys[it.k] && sa === 'part') sa = 'ok';
+      bump(cb, sb); bump(ca, sa);
+      var rb = RANK[sb], ra = RANK[sa], kind = 'same';
+      if (sa !== 'unknown') {
+        if (rb === 0 && ra > 0) kind = 'new';
+        else if (ra > rb) kind = 'up';
+        else if (ra === rb && ra === 1 && after > before + 0.0001) kind = 'up';
+        else if (ra < rb) kind = 'down';
+        else if (before != null && after < before - 0.0001) kind = 'down';   // 같은 상태여도 금액이 줄면 표시
+      }
+      rows.push({ k: it.k, label: it.label, group: it.group, yn: !!it.yn, tag: it.tag || '', rec: rc, before: before, after: after, sb: sb, sa: sa, kind: kind, amtOnly: kind === 'down' && RANK[sa] === RANK[sb] });
+    });
+    return { rows: rows, before: cb, after: ca, dropCount: drop.length, replCount: repl.length };
   }
 
   return {
     parseAmt: parseAmt, fmtMan: fmtMan, norm: norm, SECTIONS: SECTIONS, ITEMS: ITEMS, ITEM_BY_KEY: ITEM_BY_KEY,
-    classify: classify, classifyRow: classifyRow, rowFactor: rowFactor, parseMSummaryPages: parseMSummaryPages, parseXlsx: parseXlsx, parseSPages: parseSPages, parseMPages: parseMPages,
+    classify: classify, classifyRow: classifyRow, rowFactor: rowFactor, compareModel: compareModel, statusOf: statusOf, parseMSummaryPages: parseMSummaryPages, parseXlsx: parseXlsx, parseSPages: parseSPages, parseMPages: parseMPages,
     detectPdfKind: detectPdfKind, compute: compute, fromFileName: fromFileName, cycleText: cycleText, XLSX_MAP: XLSX_MAP
   };
 })();
@@ -4268,7 +4392,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     mask: lsGet('cv_mask', true), footer: lsGet('cv_footer', null),
     rec: lsGet('cv_rec', {}), assign: lsGet('cv_assign', {}), logos: lsGet('cv_logos', {}),
     open: {},
-    plan: { keep: [], drop: [], repl: [], baseNote: '(종신보험·납입완료건 제외)', endNote: '' }
+    plan: { keep: [], drop: [], repl: [], baseNote: '(종신보험·납입완료건 제외)', endNote: '' },
+    mid: 0
   };
 
   /* ---------- 라이브러리 지연 로딩 ---------- */
@@ -4348,6 +4473,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
         setMsg('busy', '“' + f.name + '” 읽는 중…');
         return tick().then(function () { return readFile(f); }).then(function (src) {
           src.override = {};
+          if (src.aggregate) { src.manual = { contracts: [] }; if (S.open.manual === undefined) S.open.manual = true; }
           src.name = src.customer || ''; src.dateVal = src.date || '';
           S.sources.push(src); S.active = S.sources.length - 1; okN++;
         }).catch(function (e) { errs.push('“' + f.name + '”: ' + (e && e.message ? e.message : e)); });
@@ -4373,7 +4499,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     return a[0] + new Array(a.length - 1).join('O') + a[a.length - 1];
   }
   function footerText() { return S.footer !== null ? S.footer : ('AFG 광주센터' + (managerName() ? ' · ' + managerName() : '')); }
-  function cfgFor(src) { return { rec: S.rec, assign: S.assign, override: src.override || {} }; }
+  function cfgFor(src) { return { rec: S.rec, assign: S.assign, override: src.override || {}, manual: src.manual ? src.manual.contracts : null }; }
   function shortName(c) {
     var s = String(c || '').replace(/\(주\)|주식회사|㈜/g, '').replace(/\s+/g, '').replace(/손해보험/, '손보').replace(/생명보험/, '생명');
     var m = s.match(/^(.+?)(화재|생명|손보|라이프|해상|증권|캐피탈)$/);
@@ -4404,11 +4530,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     var cw = Math.max(30, Math.min(54, Math.floor(400 / Math.max(N, 1))));
     var wG = 34, wR = 50, wS = 46, wT = 58;
     if (agg) { wR = 96; wS = 76; wT = 110; }
+    var cnt = (model.aggSource && model.count != null) ? model.count : (agg ? null : N);
     var wItem = 738 - (wG + wR + wS + wT) - N * cw;
     var i, h = '';
     h += '<div class="cvr">';
     h += '<div class="cvr-h"><div class="tt">' + esc((meta.name || '고객') + '님') + '<small>주요 보장 분석리포트</small></div>';
-    h += '<div class="meta">' + ((agg ? model.count : N) != null ? '보험 증권 <b>' + (agg ? model.count : N) + '</b>건 · ' : '') + '분석 담보 <b>' + model.itemCount + '</b>개<br>작성기준일 ' + esc(fmtDate(meta.date)) + '</div></div>';
+    h += '<div class="meta">' + (cnt != null ? '보험 증권 <b>' + cnt + '</b>건 · ' : '') + '분석 담보 <b>' + model.itemCount + '</b>개<br>작성기준일 ' + esc(fmtDate(meta.date)) + '</div></div>';
     h += '<div class="cvr-prem"><div class="l">월 납입보험료 합계' + (model.missingPrem ? '<small>※ 보험료 미제공 ' + model.missingPrem + '건은 합계에서 제외</small>' : '') + '</div>';
     h += '<div class="v">' + model.premTotal.toLocaleString('en-US') + '<small>원</small></div></div>';
 
@@ -4482,6 +4609,86 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   }
 
 
+
+  /* ---------- 회사별 상세가입현황 직접 입력 (계약 상세 없는 PDF용) ---------- */
+  var CO_LIST = ['메리츠화재', '삼성화재', '현대해상', 'DB손해보험', 'KB손해보험', '한화손해보험', '흥국화재', '롯데손해보험', '하나손해보험', 'NH농협손해보험',
+    '삼성생명', '한화생명', '교보생명', '흥국생명', '라이나생명', '신한라이프', '동양생명', '푸르덴셜생명', 'AIA생명', 'ABL생명', 'NH농협생명', '처브라이프생명', 'KDB생명', 'DB생명', 'IBK연금보험', '카카오페이손해보험'];
+  function parseInputMan(v) {
+    v = String(v == null ? '' : v).trim().replace(/,/g, '');
+    if (/^\d+(\.\d+)?$/.test(v)) return parseFloat(v);
+    var a = C.parseAmt(v);
+    return (a == null || !isFinite(a) || a < 0) ? null : a;
+  }
+  function mCells(k) { var src = cur(); return src && src.manual ? src.manual.contracts : []; }
+  function mSum(k) {
+    var sum = null; mCells().forEach(function (c) { if (c.vals[k] != null) sum = (sum || 0) + c.vals[k]; });
+    return sum;
+  }
+  function mSumCell(k) {
+    var sum = mSum(k), pdf = lastModel && lastModel.pdfTotals ? lastModel.pdfTotals[k] : null;
+    var warn = pdf != null && sum != null && sum > 0 && Math.abs(sum - pdf) > 0.5;
+    return { txt: sum == null ? '-' : (sum === 0 ? '0' : C.fmtMan(sum)), warn: warn, tip: warn ? 'PDF 합계(' + C.fmtMan(pdf) + ')와 달라요' : '' };
+  }
+  function manualFormHTML() {
+    var src = cur(); if (!src || !src.manual) return '';
+    var cs = src.manual.contracts, N = cs.length, pdfT = lastModel && lastModel.pdfTotals ? lastModel.pdfTotals : {};
+    var h = '<div class="cv-mwrap"><table class="cv-mt"><thead><tr><th class="l">항목</th><th>PDF 합계</th>';
+    cs.forEach(function (c, i) { h += '<th>계약 ' + (i + 1) + ' <button type="button" title="이 계약 삭제" onclick="CVUI.mDel(' + i + ')">✕</button></th>'; });
+    h += '<th>입력 합</th></tr></thead><tbody>';
+    var infos = [['회사', 'company', '메리츠화재'], ['상품명 (선택)', 'product', ''], ['월 보험료 (원)', 'premium', ''], ['납입 (예: 매월납/20년)', 'cycle', '']];
+    infos.forEach(function (f) {
+      h += '<tr class="inf"><td class="l">' + f[0] + '</td><td></td>';
+      cs.forEach(function (c, i) {
+        var val = f[1] === 'premium' ? fmtNum(c.premium) : (c[f[1]] || '');
+        h += '<td><input type="text" ' + (f[1] === 'company' ? 'list="cv_cos" ' : '') + (f[1] === 'premium' ? 'inputmode="numeric" onblur="CVUI.planFmt(this)" ' : '') + 'placeholder="' + esc(f[2]) + '" value="' + esc(val) + '" oninput="CVUI.mInfo(' + i + ',\'' + f[1] + '\',this.value)"></td>';
+      });
+      h += '<td></td></tr>';
+    });
+    C.SECTIONS.forEach(function (sec) { sec.groups.forEach(function (g) { g.rows.forEach(function (r) {
+      if (!r.k) return;
+      var sc = mSumCell(r.k);
+      h += '<tr><td class="l"><span class="g">' + esc(g.name) + '</span>' + esc(r.label) + '</td><td class="pd">' + (pdfT[r.k] != null ? (pdfT[r.k] > 0 ? C.fmtMan(pdfT[r.k]) : '0') : '없음(원본에 없음)').replace('없음(원본에 없음)', '-') + '</td>';
+      cs.forEach(function (c, i) {
+        var v = c.vals[r.k];
+        h += '<td><input type="text" data-c="' + i + '" data-k="' + r.k + '" placeholder="-" value="' + (v == null ? '' : (v === 0 ? '0' : C.fmtMan(v))) + '" oninput="CVUI.mSet(' + i + ',\'' + r.k + '\',this.value,this)" onblur="CVUI.mFmt(this)"></td>';
+      });
+      h += '<td class="sm' + (sc.warn ? ' warn' : '') + '" id="cv_ms_' + r.k + '" title="' + esc(sc.tip) + '">' + sc.txt + '</td></tr>';
+    }); }); });
+    h += '</tbody></table></div>';
+    h += '<div class="cv-actions"><button type="button" class="act" onclick="CVUI.mAdd()">+ 계약 추가</button>' + (N ? '<button type="button" class="danger" style="padding:9px 16px;font-size:13.5px;" onclick="CVUI.mClear()">입력 모두 비우기</button>' : '') + '</div>';
+    h += '<div class="cv-mline" id="cv_m_prem"></div>';
+    return h;
+  }
+  function manualPremLine() {
+    var el = $('cv_m_prem'), src = cur(); if (!el || !src || !src.manual) return;
+    var sum = 0, any = false; src.manual.contracts.forEach(function (c) { if (c.premium > 0) { sum += c.premium; any = true; } });
+    var pdf = src.premiumTotal || 0;
+    if (!any) { el.className = 'cv-mline'; el.textContent = pdf ? 'PDF 월 보험료 합계: ' + won(pdf) + (src.count != null ? ' (' + src.count + '건)' : '') : ''; return; }
+    var diff = pdf ? sum - pdf : 0;
+    el.className = 'cv-mline' + (pdf && diff !== 0 ? ' warn' : '');
+    el.textContent = '입력한 월 보험료 합계 ' + won(sum) + ' / PDF 합계 ' + won(pdf) + (pdf ? (diff === 0 ? ' — 일치해요' : ' — ' + (diff > 0 ? '+' : '−') + won(Math.abs(diff)) + ' 차이 (아직 안 적은 계약이 있는지 확인해 보세요)') : '');
+  }
+  function manualSection() {
+    var src = cur();
+    var h = '<details class="cv-det" data-id="manual"' + (S.open.manual ? ' open' : '') + '><summary>✍️ 회사별 상세가입현황 직접 입력 (선택)</summary>';
+    h += '<div class="sub" style="margin-top:0;">이 PDF에는 회사별 계약 정보가 없어서, 고객에게 받은 증권·앱 화면 등을 보고 <b>직접 적으면</b> 회사 로고 카드와 회사별 열이 리포트에 함께 나와요. 아무것도 안 적으면 지금처럼 담보별 합계만 나와요. 금액 칸에는 <b>5000</b>(만원 단위), <b>5천만</b>, <b>1억</b>처럼 적으면 돼요.<br>※ 총 보장금액은 PDF 합계를 기준으로 하고(적은 합이 더 크면 적은 합), PDF에 없는 항목은 적은 합이 총 보장금액이 돼요. 적은 합이 PDF와 다르면 주황색으로 알려드려요. 이 내용은 저장되지 않아요.</div>';
+    h += '<datalist id="cv_cos">' + CO_LIST.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>';
+    h += '<div id="cv_manual_form">' + manualFormHTML() + '</div>';
+    return h + '</details>';
+  }
+  function manualRefresh(k) {
+    if (k) {
+      var sc = mSumCell(k), el = $('cv_ms_' + k);
+      if (el) { el.textContent = sc.txt; el.className = 'sm' + (sc.warn ? ' warn' : ''); el.title = sc.tip; }
+    }
+    lastModel = currentModel(); renderWarn(lastModel); renderReport(); manualPremLine(); planImpRefresh(); cmpRebuild();
+  }
+  function manualRebuild() {
+    lastModel = currentModel();
+    var f = $('cv_manual_form'); if (f) f.innerHTML = manualFormHTML();
+    renderWarn(lastModel); renderReport(); manualPremLine(); planImpRefresh(); cmpRebuild();
+  }
+
   /* ---------- 보험 정리 표 (유지 · 정리 · 교체) ---------- */
   function digits(v) { return parseInt(String(v == null ? '' : v).replace(/[^\d]/g, ''), 10) || 0; }
   function won(n) { return (Math.round(n) || 0).toLocaleString('en-US') + '원'; }
@@ -4528,6 +4735,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     var c = planCalc(S.plan);
     [['cv_pt_keep', c.keepSum], ['cv_pt_drop', c.dropSum], ['cv_pt_repl', c.replSum]].forEach(function (x) { var el = $(x[0]); if (el) el.textContent = won(x[1]); });
     var prev = $('cv_plan_prev'); if (prev) prev.innerHTML = planHTML(S.plan);
+    cmpPreview();
     fit();
   }
   function planRowHTML(list, i, r) {
@@ -4551,19 +4759,134 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       '<div><label>표 맨 아래 문구 (선택)</label><input type="text" value="' + esc(p.endNote) + '" placeholder="예: 보장은 더 넓혀드림" oninput="CVUI.planNote(\'endNote\',this.value)"></div></div>';
     return h;
   }
+
+  function planImpHTML() {
+    var m = lastModel;
+    if (!m) return '';
+    if (m.aggregate) return '<div class="sub" style="margin-top:0;">📌 이 파일은 회사별 계약 정보가 없어서 <b>[유지로] [정리로]</b> 버튼이 아직 없어요. 위쪽 <b>✍️ 회사별 상세가입현황 직접 입력</b>에 계약을 적으면 이 자리에 계약 목록과 버튼이 나타나요.</div>';
+    if (!m.contracts.length) return '';
+    return '<div style="margin:0 0 6px;font-size:12px;font-weight:700;">불러온 계약에서 바로 담기</div><div class="cv-scroll" style="max-height:170px;margin-bottom:8px;">' + m.contracts.map(function (c, ci) {
+      return '<div class="cv-pl-imp"><span class="t">[' + (ci + 1) + '] ' + esc(c.company) + ' ' + esc(planName(c.product)) + ' · ' + (c.premium != null ? won(c.premium) : '보험료 미제공') + '</span>' +
+        '<button type="button" class="small secondary" onclick="CVUI.planFromContract(' + ci + ',\'keep\')">유지로</button><button type="button" class="small secondary" onclick="CVUI.planFromContract(' + ci + ',\'drop\')">정리로</button></div>';
+    }).join('') + '</div>';
+  }
+  function planImpRefresh() { var el = $('cv_plan_imp'); if (el) el.innerHTML = planImpHTML(); }
   function planSection() {
     var h = '<details class="cv-det" data-id="plan"' + (S.open.plan ? ' open' : '') + '><summary>🗂 보험 정리 표 만들기 (유지 · 정리 · 교체 · 비고)</summary>';
     h += '<div class="sub" style="margin-top:0;">유지·정리·교체할 보험과 보험료를 적으면 합계와 “매달 줄어드는 보험료”가 자동으로 계산돼요. 내용은 언제든 고칠 수 있고, 이 표는 화면을 닫으면 사라져요(저장되지 않아요).</div>';
-    var imp = (lastModel && !lastModel.aggregate && lastModel.contracts.length) ? lastModel.contracts : [];
-    if (imp.length) {
-      h += '<div style="margin:0 0 6px;font-size:12px;font-weight:700;">불러온 계약에서 바로 담기</div><div class="cv-scroll" style="max-height:170px;margin-bottom:8px;">' + imp.map(function (c, ci) {
-        return '<div class="cv-pl-imp"><span class="t">[' + (ci + 1) + '] ' + esc(c.company) + ' ' + esc(planName(c.product)) + ' · ' + (c.premium != null ? won(c.premium) : '보험료 미제공') + '</span>' +
-          '<button type="button" class="small secondary" onclick="CVUI.planFromContract(' + ci + ',\'keep\')">유지로</button><button type="button" class="small secondary" onclick="CVUI.planFromContract(' + ci + ',\'drop\')">정리로</button></div>';
-      }).join('') + '</div>';
-    }
+    h += '<div id="cv_plan_imp">' + planImpHTML() + '</div>';
     h += '<div id="cv_plan_form">' + planFormHTML() + '</div>';
     h += '<div class="cv-actions"><button class="act" onclick="CVUI.savePlanPng()">🖼 정리표 이미지(PNG) 저장</button><button class="secondary" style="padding:9px 16px;font-size:13.5px;" onclick="CVUI.copyPlanPng()">📋 이미지 복사</button><button class="danger" style="padding:9px 16px;font-size:13.5px;" onclick="CVUI.planReset()">표 비우기</button></div>';
     h += '<div class="cv-stage" id="cv_plan_stage" style="margin:12px 0 4px;"><div id="cv_plan_scaler" style="display:inline-block;text-align:left;box-shadow:0 2px 14px rgba(0,0,0,.16);background:#fff;"><div id="cv_plan_prev">' + planHTML(S.plan) + '</div></div></div>';
+    return h + '</details>';
+  }
+
+  /* ---------- 보험 정리 전 → 후 보장 비교 ---------- */
+  function planHasData(r) { return (r.name && r.name.trim()) || r.prem > 0 || (r.vals && Object.keys(r.vals).length); }
+  function cmpInputs() {
+    var m = lastModel, dropIds = [], unlinked = 0, linkedNames = [];
+    S.plan.drop.forEach(function (r) {
+      if (!planHasData(r)) return;
+      if (m && r.link && r.link.src === S.active && m.contracts.some(function (c) { return c.id === r.link.cid; })) { dropIds.push(r.link.cid); linkedNames.push(r.name || '(이름 없음)'); }
+      else unlinked++;
+    });
+    var cols = [];
+    S.plan.repl.forEach(function (r, i) { if (planHasData(r)) cols.push({ r: r, i: i }); });
+    return { dropIds: dropIds, unlinked: unlinked, linkedNames: linkedNames, cols: cols };
+  }
+  function cmpCompute() {
+    var inp = cmpInputs();
+    var res = lastModel ? C.compareModel(lastModel, { rec: S.rec, dropIds: inp.dropIds, repl: inp.cols.map(function (c) { return { vals: c.r.vals || {} }; }) }) : null;
+    return { inp: inp, res: res };
+  }
+  function cmpBar(x, which) {
+    var tot = which === 'b' ? x.before : x.after, st = which === 'b' ? x.sb : x.sa, w;
+    var mx = Math.max(x.before || 0, x.after || 0);
+    if (st === 'unknown') w = 0;
+    else if (x.amtOnly) w = mx > 0 ? Math.round((tot || 0) / mx * 100) : 0;   // 같은 상태에서 금액만 줄면 전·후를 같은 눈금으로 비교
+    else if (x.yn) w = tot > 0 ? 100 : 0;
+    else w = x.rec > 0 ? Math.min(100, Math.round((tot || 0) / x.rec * 100)) : 0;
+    var txt = st === 'unknown' ? '미확인' : (tot > 0 ? C.fmtMan(tot) : '없음');
+    return '<div><div class="tr"><i class="' + st + '" style="width:' + w + '%"></i></div><div class="tx ' + (st === 'none' || st === 'unknown' ? st : '') + '">' + txt + '</div></div>';
+  }
+  function cmpRow(x) {
+    return '<div class="rw"><div class="nm">' + esc(x.label) + '<small>' + (x.yn ? esc(x.tag) : '권장 ' + C.fmtMan(x.rec)) + (x.amtOnly ? ' · 금액이 줄어요' : '') + '</small></div>' + cmpBar(x, 'b') + '<div class="ar">→</div>' + cmpBar(x, 'a') +
+      '<div class="st"><span class="pl ' + x.sa + '">' + ST_TXT[x.sa] + '</span></div></div>';
+  }
+  function stkRow(label, o) {
+    var tot = o.good + o.part + o.none;
+    var seg = function (cls, n) { return n > 0 ? '<span class="' + cls + '" style="flex:' + n + '">' + n + '</span>' : ''; };
+    return '<div class="stkrow"><div class="lb">' + label + '</div><div class="stk">' + (tot ? seg('ok', o.good) + seg('part', o.part) + seg('none', o.none) : '') + '</div></div>';
+  }
+  function cmpHTML(cc, meta) {
+    var res = cc.res, h = '';
+    if (!res) return '<div class="cvc"><div class="empty">먼저 파일을 올려 주세요.</div></div>';
+    var rows = res.rows, news = rows.filter(function (x) { return x.kind === 'new'; }), ups = rows.filter(function (x) { return x.kind === 'up'; }), downs = rows.filter(function (x) { return x.kind === 'down'; });
+    var lack = function (o) { return o.part + o.none; };
+    var pc = planCalc(S.plan), hasPrem = pc.base > 0;
+    var afterPrem = pc.keepSum + pc.convSum + pc.replSum, diff = pc.base - afterPrem;
+    h += '<div class="cvc"><div class="hd"><div class="tt">' + esc((meta.name || '고객') + '님') + '<small>보험 정리 전 · 후 보장 비교</small></div>';
+    h += '<div class="meta">작성기준일 ' + esc(fmtDate(meta.date)) + '</div></div>';
+    h += '<div class="top"><div class="stkbox"><div class="ttl">보장 상태 (전체 ' + (res.before.good + res.before.part + res.before.none) + '개 항목)</div>' + stkRow('정리 전', res.before) + stkRow('정리 후', res.after) +
+      '<div class="lgd"><span><i style="background:#2FA26B"></i>충분·가입</span><span><i style="background:#F29D0C"></i>부족</span><span><i style="background:#E5383B"></i>없음</span></div></div>';
+    h += '<div class="kpis"><div class="kpi"><div class="k1">부족 · 없음 보장</div><div class="k2">' + lack(res.before) + '개 → ' + lack(res.after) + '개<em>' + (lack(res.after) < lack(res.before) ? (lack(res.before) - lack(res.after)) + '개 개선' : (lack(res.after) > lack(res.before) ? (lack(res.after) - lack(res.before)) + '개 늘어남' : '변화 없음')) + '</em></div></div>';
+    if (hasPrem) h += '<div class="kpi p"><div class="k1">월 보험료</div><div class="k2">' + won(pc.base) + ' → ' + won(afterPrem) + '<em>' + (diff > 0 ? '월 ' + won(diff) + ' 절감' : (diff < 0 ? '월 ' + won(-diff) + ' 증가' : '변화 없음')) + '</em></div></div>';
+    h += '</div></div>';
+    var block = function (cls, title, sub, list) {
+      if (!list.length) return '';
+      return '<div class="blk"><div class="bh ' + cls + '"><span>' + title + ' (' + list.length + '개)</span><small>' + sub + '</small></div>' + list.map(cmpRow).join('') + '</div>';
+    };
+    h += block('new', '새로 생기는 보장', '기존에 없던 보장이 채워져요', news);
+    h += block('up', '더 든든해지는 보장', '부족했던 보장이 늘어나요', ups);
+    h += block('down', '줄어드는 보장 — 꼭 확인해 주세요', '정리하면 함께 줄어들거나 없어지는 보장', downs);
+    if (!news.length && !ups.length && !downs.length) h += '<div class="empty">정리 전과 후를 비교할 변화가 아직 없어요.</div>';
+    h += '<div class="foot"><p>※ 정리 후 보장은 유지하는 계약과 새로 가입하는 보험의 가입금액을 합산한 예상 값이며, 보험사 인수심사 결과와 약관에 따라 달라질 수 있습니다. 최소 권장금액은 상담용 기준입니다.</p>';
+    h += '<p>※ 기존 계약을 해지하면 납입한 보험료의 환급 여부, 새 계약의 면책·감액기간, 갱신형 보험료 인상, 재가입 가능 여부 등이 달라질 수 있으니 함께 확인하시기 바랍니다.</p>';
+    if (footerText()) h += '<div class="who">' + esc(footerText()) + '</div>';
+    return h + '</div></div>';
+  }
+  function cmpFormHTML() {
+    var m = lastModel; if (!m) return '';
+    if (m.aggregate) return '<div class="sub">이 파일은 회사별 계약 정보가 없어서 정리 후 비교를 만들 수 없어요. 위의 “회사별 상세가입현황 직접 입력”에 계약을 적어 주세요.</div>';
+    var cc = cmpCompute(), inp = cc.inp, h = '';
+    h += '<div class="cv-mline" style="margin:0 0 8px;">' + (inp.linkedNames.length ? '정리로 반영되는 계약 <b>' + inp.linkedNames.length + '개</b>: ' + inp.linkedNames.map(esc).join(' · ') : '정리할 계약이 아직 없어요. 위 “보험 정리 표”에서 <b>불러온 계약의 [정리로]</b> 버튼으로 담으면 이 비교에 반영돼요.') + '</div>';
+    if (inp.unlinked) h += '<div class="cv-mline warn" style="margin:0 0 8px;">직접 타이핑한 정리 항목 ' + inp.unlinked + '개는 보장 금액을 알 수 없어 비교에 반영하지 못했어요. (불러온 계약에서 [정리로]로 담아 주세요)</div>';
+    h += '<div class="cv-mwrap"><table class="cv-mt"><thead><tr><th class="l">항목</th><th>현재</th><th>정리 후</th>';
+    inp.cols.forEach(function (c, n) { h += '<th>교체 ' + (n + 1) + '<br><span style="font-weight:500;color:var(--muted)">' + esc((c.r.name || '').slice(0, 12)) + '</span></th>'; });
+    h += '</tr></thead><tbody>';
+    var byK = {}; cc.res.rows.forEach(function (x) { byK[x.k] = x; });
+    C.SECTIONS.forEach(function (sec) { sec.groups.forEach(function (g) { g.rows.forEach(function (r) {
+      if (!r.k) return; var x = byK[r.k];
+      h += '<tr><td class="l"><span class="g">' + esc(g.name) + '</span>' + esc(r.label) + '</td><td class="pd">' + (x.sb === 'unknown' ? '확인필요' : C.fmtMan(x.before)) + '</td><td class="sm" id="cv_ca_' + r.k + '">' + cmpAfterTxt(x) + '</td>';
+      inp.cols.forEach(function (c) {
+        var v = c.r.vals && c.r.vals[r.k];
+        h += '<td><input type="text" data-r="' + c.i + '" data-k="' + r.k + '" placeholder="-" value="' + (v == null ? '' : (v === 0 ? '0' : C.fmtMan(v))) + '" oninput="CVUI.cSet(' + c.i + ',\'' + r.k + '\',this.value,this)" onblur="CVUI.cFmt(this)"></td>';
+      });
+      h += '</tr>';
+    }); }); });
+    return h + '</tbody></table></div>';
+  }
+  function cmpAfterTxt(x) { return x.sa === 'unknown' ? '확인필요' : (x.after > 0 ? C.fmtMan(x.after) : '없음') + (x.kind === 'new' || x.kind === 'up' ? ' ▲' : (x.kind === 'down' ? ' ▼' : '')); }
+  function cmpPreview() {
+    var p = $('cv_cmp_prev'); if (!p || !cur()) return;
+    p.innerHTML = cmpHTML(cmpCompute(), currentMeta());
+    fit();
+  }
+  function cmpRebuild() {
+    var f = $('cv_cmp_form'); if (!f) return;
+    f.innerHTML = cmpFormHTML(); cmpPreview();
+  }
+  function cmpRefresh(k) {
+    var cc = cmpCompute(); if (!cc.res) return;
+    cc.res.rows.forEach(function (x) { var el = $('cv_ca_' + x.k); if (el) el.textContent = cmpAfterTxt(x); });
+    cmpPreview();
+  }
+  function cmpSection() {
+    var h = '<details class="cv-det" data-id="cmp"' + (S.open.cmp ? ' open' : '') + '><summary>📈 정리 전 · 후 보장 비교 이미지 (부족했던 보장이 어떻게 좋아지는지)</summary>';
+    h += '<div class="sub" style="margin-top:0;">① 위 “보험 정리 표”에서 <b>불러온 계약의 [정리로]</b>로 정리할 계약을 담고, <b>교체할 보험</b>(새로 가입)을 추가하세요. ② 아래 표에서 교체할 보험의 <b>보장 금액</b>을 적으면 ③ 정리 전·후 보장 변화가 그림으로 만들어져요. 정리하면서 <b>줄어드는 보장도 함께 표시</b>돼요.</div>';
+    h += '<div id="cv_cmp_form">' + cmpFormHTML() + '</div>';
+    h += '<div class="cv-actions"><button class="act" onclick="CVUI.saveCmpPng()">🖼 비교 이미지(PNG) 저장</button><button class="secondary" style="padding:9px 16px;font-size:13.5px;" onclick="CVUI.copyCmpPng()">📋 이미지 복사</button></div>';
+    h += '<div class="cv-stage" id="cv_cmp_stage" style="margin:12px 0 4px;"><div id="cv_cmp_scaler" style="display:inline-block;text-align:left;box-shadow:0 2px 14px rgba(0,0,0,.16);background:#fff;"><div id="cv_cmp_prev"></div></div></div>';
     return h + '</details>';
   }
   function planName(prod) { return String(prod || '').replace(/^\(무\)\s*/, '').replace(/^무배당\s*/, '').trim(); }
@@ -4576,7 +4899,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     var z = avail > 0 ? Math.min(1, avail / 794) : 1;
     sc.style.zoom = z < 1 ? String(z) : '';
   }
-  function fit() { fitPair('cv_stage', 'cv_scaler'); fitPair('cv_plan_stage', 'cv_plan_scaler'); }
+  function fit() { fitPair('cv_stage', 'cv_scaler'); fitPair('cv_plan_stage', 'cv_plan_scaler'); fitPair('cv_cmp_stage', 'cv_cmp_scaler'); }
 
   function renderReport() {
     var el = $('cv_report');
@@ -4626,7 +4949,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   function renderExtras(model) {
     var box = $('cv_extra'), src = cur();
     if (!src) { box.innerHTML = planSection() + recSection(); planUpdate(); return; }
-    var h = planSection(), k;
+    var h = (src.aggregate ? manualSection() : '') + planSection() + cmpSection(), k;
     // 1) 합산 근거
     h += '<details class="cv-det" data-id="ev"' + (S.open.ev ? ' open' : '') + '><summary>📎 항목별 합산 근거 (어떤 담보가 합쳐졌는지)</summary>';
     var any = false;
@@ -4635,7 +4958,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       if (!ev || !ev.length) return;
       any = true;
       h += '<div class="cv-ev"><b>' + esc(it.label) + '</b>' + esc(C.fmtMan(model.totals[it.k])) + (src.override && src.override[it.k] != null ? ' <span class="mu">(직접 입력한 값)</span>' : '') + '<br>' +
-        ev.map(function (e) { return (model.aggregate ? '' : '<span class="mu">[' + (e.ci + 1) + ']</span> ') + esc(e.name) + ' ' + (e.f && e.f !== 1 ? esc(C.fmtMan(e.orig)) + ' <span class="mu">× ' + Math.round(e.f * 100) + '% =</span> ' : '') + esc(C.fmtMan(e.amt)) + (e.svc ? ' <span class="mu">(간병인 지원 · 가입으로 인정)</span>' : ''); }).join('<span class="mu"> + </span>') + '</div>';
+        ev.map(function (e) { return (model.aggSource ? '' : '<span class="mu">[' + (e.ci + 1) + ']</span> ') + esc(e.name) + ' ' + (e.f && e.f !== 1 ? esc(C.fmtMan(e.orig)) + ' <span class="mu">× ' + Math.round(e.f * 100) + '% =</span> ' : '') + esc(C.fmtMan(e.amt)) + (e.svc ? ' <span class="mu">(간병인 지원 · 가입으로 인정)</span>' : ''); }).join('<span class="mu"> + </span>') + '</div>';
     });
     if (!any) h += '<div class="sub">합산된 담보가 없어요.</div>';
     h += '</details>';
@@ -4675,7 +4998,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     h += '<div class="sub" style="margin-top:6px;">로고가 없는 회사는 이미지 파일을 골라 등록하세요. (이 브라우저에만 저장돼요)</div></details>';
     }
     box.innerHTML = h;
-    planUpdate();
+    planUpdate(); manualPremLine(); cmpPreview();
   }
 
   function recSection() {
@@ -4716,6 +5039,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   }
   function canvasFor(kind) {
     if (kind === 'plan') return renderHtmlToCanvas(planHTML(S.plan));
+    if (kind === 'cmp') return renderHtmlToCanvas(cmpHTML(cmpCompute(), currentMeta()));
     var model = currentModel(); if (!model) return Promise.reject(new Error('먼저 파일을 올려주세요.'));
     return renderHtmlToCanvas(reportHTML(model, currentMeta(), false));
   }
@@ -4727,7 +5051,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 
   function savePng(kind) {
     setMsg('busy', '이미지를 만드는 중…');
-    var base = kind === 'plan' ? planFileBase() : fileBase();
+    var base = kind === 'plan' ? planFileBase() : (kind === 'cmp' ? planFileBase().replace('보험정리표', '보장개선비교') : fileBase());
     return canvasFor(kind).then(canvasBlob).then(function (blob) {
       var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = base + '.png';
       document.body.appendChild(a); a.click(); a.remove();
@@ -4783,7 +5107,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       var k = el.getAttribute('data-k'), v = parseFloat(el.value);
       if (el.value === '' || !isFinite(v) || v < 0) delete S.rec[k]; else S.rec[k] = v;
       lsSet('cv_rec', S.rec);
-      lastModel = currentModel(); renderWarn(lastModel); renderReport();
+      lastModel = currentModel(); renderWarn(lastModel); renderReport(); cmpPreview();
     },
     resetRec: function () { S.rec = {}; lsSet('cv_rec', S.rec); renderAll(); },
     assignRow: function (ui, key) {
@@ -4794,10 +5118,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     editTotal: editTotal,
     savePng: function () { return savePng('report'); }, copyPng: function () { return copyPng('report'); }, printReport: printReport,
     savePlanPng: function () { return savePng('plan'); }, copyPlanPng: function () { return copyPng('plan'); },
+    saveCmpPng: function () { return savePng('cmp'); }, copyCmpPng: function () { return copyPng('cmp'); },
     planSet: function (list, i, f, v) {
       var r = S.plan[list] && S.plan[list][i]; if (!r) return;
       if (f === 'name') r.name = v; else if (f === 'prem') r.prem = digits(v); else if (f === 'convPrem') r.convPrem = digits(v);
       planUpdate();
+      if (f === 'name' && (list === 'repl' || list === 'drop')) cmpRebuild();
     },
     planFmt: function (el) { var n = digits(el.value); el.value = n > 0 ? n.toLocaleString('en-US') : ''; },
     planAdd: function (list) {
@@ -4806,14 +5132,59 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       planUpdate();
       var boxes = document.querySelectorAll('#cv_plan_form .cv-plan-box'), idx = { keep: 0, drop: 1, repl: 2 }[list];
       var ins = boxes[idx] && boxes[idx].querySelectorAll('input.nm'); if (ins && ins.length) ins[ins.length - 1].focus();
+      cmpRebuild();
     },
-    planDel: function (list, i) { S.plan[list].splice(i, 1); var f = $('cv_plan_form'); if (f) f.innerHTML = planFormHTML(); planUpdate(); },
+    planDel: function (list, i) { S.plan[list].splice(i, 1); var f = $('cv_plan_form'); if (f) f.innerHTML = planFormHTML(); planUpdate(); cmpRebuild(); },
     planConv: function (i, on) { var r = S.plan.drop[i]; if (!r) return; r.conv = !!on; var f = $('cv_plan_form'); if (f) f.innerHTML = planFormHTML(); planUpdate(); },
     planNote: function (field, v) { S.plan[field] = v; planUpdate(); },
+    cSet: function (ri, k, v, el) {
+      var r = S.plan.repl[ri]; if (!r) return;
+      if (!r.vals) r.vals = {};
+      if (String(v).trim() === '') { delete r.vals[k]; if (el) el.classList.remove('bad'); }
+      else { var n = parseInputMan(v); if (n == null) { if (el) el.classList.add('bad'); return; } r.vals[k] = n; if (el) el.classList.remove('bad'); }
+      cmpRefresh(k);
+    },
+    cFmt: function (el) {
+      var r = S.plan.repl[parseInt(el.getAttribute('data-r'), 10)], k = el.getAttribute('data-k'); if (!r) return;
+      var v = r.vals && r.vals[k]; el.value = v == null ? '' : (v === 0 ? '0' : C.fmtMan(v)); el.classList.remove('bad');
+    },
+    mAdd: function () {
+      var src = cur(); if (!src || !src.manual) return;
+      src.manual.contracts.push({ id: ++S.mid, company: '', product: '', premium: 0, cycle: '', vals: {} });
+      manualRebuild();
+      var ins = document.querySelectorAll('#cv_manual_form .cv-mt tr.inf:first-child input');
+      if (ins.length) ins[ins.length - 1].focus();
+    },
+    mDel: function (i) { var src = cur(); if (!src || !src.manual) return; src.manual.contracts.splice(i, 1); manualRebuild(); },
+    mInfo: function (i, f, v) {
+      var src = cur(), c = src && src.manual && src.manual.contracts[i]; if (!c) return;
+      if (f === 'premium') c.premium = digits(v); else c[f] = v;
+      manualRefresh(null);
+    },
+    mSet: function (i, k, v, el) {
+      var src = cur(), c = src && src.manual && src.manual.contracts[i]; if (!c) return;
+      if (String(v).trim() === '') { delete c.vals[k]; if (el) el.classList.remove('bad'); }
+      else {
+        var n = parseInputMan(v);
+        if (n == null) { if (el) el.classList.add('bad'); return; }
+        c.vals[k] = n; if (el) el.classList.remove('bad');
+      }
+      manualRefresh(k);
+    },
+    mFmt: function (el) {
+      var src = cur(), i = parseInt(el.getAttribute('data-c'), 10), k = el.getAttribute('data-k');
+      var c = src && src.manual && src.manual.contracts[i]; if (!c) return;
+      var v = c.vals[k]; el.value = v == null ? '' : (v === 0 ? '0' : C.fmtMan(v)); el.classList.remove('bad');
+    },
+    mClear: function () {
+      var src = cur(); if (!src || !src.manual) return;
+      if (!window.confirm('직접 입력한 회사별 내용을 모두 비울까요? (리포트는 담보별 합계만 나오게 돼요)')) return;
+      src.manual.contracts = []; manualRebuild();
+    },
     planFromContract: function (ci, list) {
       var c = lastModel && lastModel.contracts[ci]; if (!c) return;
-      S.plan[list].push({ name: (c.company + ' ' + planName(c.product)).trim(), prem: c.premium || 0, conv: false, convPrem: 0 });
-      var f = $('cv_plan_form'); if (f) f.innerHTML = planFormHTML(); planUpdate();
+      S.plan[list].push({ name: (c.company + ' ' + planName(c.product)).trim(), prem: c.premium || 0, conv: false, convPrem: 0, link: { src: S.active, cid: c.id } });
+      var f = $('cv_plan_form'); if (f) f.innerHTML = planFormHTML(); planUpdate(); cmpRebuild();
     },
     planReset: function () {
       if (!window.confirm('보험 정리 표의 내용을 모두 비울까요?')) return;
