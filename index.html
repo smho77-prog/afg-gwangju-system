@@ -3913,9 +3913,24 @@ var CVCore = (function () {
     '골절진단': ['fracture'], '가족일상생활배상책임': ['liability']
   };
 
+  // M보장분석(계약 상세 없음) 담보별 합계표의 항목명 → 모델 항목 (정확히 일치하는 이름만)
+  var MSUM_MAP = {
+    '질병사망': ['dis_death'], '상해사망': ['inj_death'],
+    '일반암진단비': ['cancer_dx'], '유사암진단비': ['minor_cancer'], '암수술비': ['cancer_surgery'],
+    '고액항암치료비(표적)': ['targeted'], '중입자방사선치료비': ['heavy'],
+    '뇌혈관진단비': ['brain_dx'], '뇌혈관수술비': ['brain_surg'],
+    '허혈성심장질환진단비': ['heart_dx'], '허혈심장질환수술비': ['heart_surg'], '허혈성심장질환수술비': ['heart_surg'],
+    '질병수술비': ['dis_surg'], '상해수술비': ['inj_surg'], '질병종수술': ['dis_major'], '상해종수술': ['inj_major'],
+    '골절진단비': ['fracture'],
+    '질병간병인사용입원일당': ['cg_dis_ex'], '상해간병인사용입원일당': ['cg_inj_ex'],
+    '일상생활배상책임': ['liability'],
+    '질병입원': ['dis_indem'], '상해입원': ['inj_indem']
+  };
+
   function classifyRow(name, kind, assign) {
     var n = norm(name);
     if (assign && Object.prototype.hasOwnProperty.call(assign, n)) return assign[n] ? [assign[n]] : [];
+    if (kind === 'Msum') return MSUM_MAP[n] || [];
     if (kind === 'xlsx' && XLSX_MAP[n]) return XLSX_MAP[n];
     return classify(name);
   }
@@ -4113,10 +4128,55 @@ var CVCore = (function () {
     return { kind: 'M', label: 'M보장분석 PDF', fileName: fileName, customer: fn.name || cover.customer, date: cover.date || fn.date, contracts: contracts, supports: null, warnings: warnings };
   }
 
+  /* ---------- M보장분석 (LMS 동의 전: 계약 상세 없이 담보별 합계만 있는 양식) ---------- */
+  function parseMSummaryPages(pages, fileName) {
+    var warnings = [], rows = [], count = null, prem = null, cover = { customer: '', date: '' };
+    pages.forEach(function (p, pi) {
+      var text = pageText(p), mm, its = p.items;
+      if (pi === 0 && (mm = text.match(/(\d{4})\.(\d{2})\.(\d{2})/))) cover.date = mm[1] + '-' + mm[2] + '-' + mm[3];
+      if (!cover.customer && (mm = text.match(/([가-힣A-Za-z*O]{2,5})\s*고객님을\s*위한/))) cover.customer = mm[1];
+      if ((count == null || prem == null) && /간편보장분석/.test(text)) {
+        var lab = its.filter(function (i) { return i.s.trim() === '정상계약'; })[0];
+        if (lab && count == null) {
+          var v = its.filter(function (i) { return i.x > lab.x + 20 && Math.abs(i.y - lab.y) < 6 && /^\d+$/.test(i.s.trim()); })[0];
+          if (v) count = parseInt(v.s.trim(), 10);
+        }
+        var pl = its.filter(function (i) { return /^월\s*보험료$/.test(i.s.trim()); })[0];
+        if (pl && prem == null) {
+          var pv = its.filter(function (i) { return i.x > pl.x + 20 && Math.abs(i.y - pl.y) < 6 && /^[\d,]+$/.test(i.s.trim()); })[0];
+          if (pv) prem = parseInt(pv.s.replace(/,/g, ''), 10);
+        }
+      }
+      if (!(/상품별\s*가입현황/.test(text) && /세부내역/.test(text))) return;
+      var first = its.filter(function (i) { return norm(i.s) === '질병사망' && i.x >= 55 && i.x < 200; })[0];
+      var y0 = first ? first.y - 4 : 0;
+      its.forEach(function (nm) {
+        if (nm.x < 55 || nm.x >= 200 || nm.y < y0 || nm.y > 780) return;
+        var name = nm.s.trim();
+        if (!name || /^[\d,.\s]+$/.test(name)) return;
+        var val = its.filter(function (i) { return i !== nm && i.x >= 200 && Math.abs(i.y - nm.y) < 4 && parseAmt(i.s) != null; })[0];
+        if (!val) return;
+        rows.push({ name: name, amt: parseAmt(val.s), type: '' });
+      });
+    });
+    if (rows.length < 10) throw new Error('담보별 가입금액 표를 읽지 못했어요. (M보장분석 PDF의 “가입현황 세부내역” 페이지가 필요해요)');
+    var supports = {};
+    rows.forEach(function (r) { (MSUM_MAP[norm(r.name)] || []).forEach(function (k) { supports[k] = 1; }); });
+    var fn = fromFileName(fileName);
+    warnings.push('이 PDF에는 계약(회사·상품) 정보가 없어요. (고객 LMS 동의 전 자료) 그래서 회사별 열 없이 담보별 합계만 리포트에 표시해요.');
+    return {
+      kind: 'Msum', label: 'M보장분석 PDF (합계만)', fileName: fileName, aggregate: true, count: count, premiumTotal: prem || 0,
+      customer: fn.name || cover.customer, date: cover.date || fn.date,
+      contracts: [{ company: '전체 합계', product: '', premium: prem, cycle: '', renew: '', rows: rows }],
+      supports: Object.keys(supports), warnings: warnings
+    };
+  }
+
   function detectPdfKind(pages) {
     var all = pages.map(pageText).join(' ');
     if (/상품별\s*상세\s*현황/.test(all)) return 'S';
     if (/상품별\s*보험가입현황/.test(all)) return 'M';
+    if (/간편보장분석/.test(all) && /상품별\s*가입현황/.test(all)) return 'Msum';
     return '';
   }
 
@@ -4166,12 +4226,12 @@ var CVCore = (function () {
     unmapped.sort(function (a, b) { return b.total - a.total; });
     var premTotal = 0, missingPrem = 0;
     contracts.forEach(function (c) { if (c.premium == null) missingPrem++; else premTotal += c.premium; });
-    return { contracts: contracts, totals: totals, status: status, counts: counts, evidence: evidence, unmapped: unmapped, premTotal: premTotal, missingPrem: missingPrem, itemCount: ITEMS.length, ratioUsed: ratioUsed };
+    return { contracts: contracts, totals: totals, status: status, counts: counts, evidence: evidence, unmapped: unmapped, premTotal: premTotal, missingPrem: missingPrem, itemCount: ITEMS.length, ratioUsed: ratioUsed, aggregate: !!src.aggregate, count: src.aggregate ? (src.count != null ? src.count : null) : contracts.length };
   }
 
   return {
     parseAmt: parseAmt, fmtMan: fmtMan, norm: norm, SECTIONS: SECTIONS, ITEMS: ITEMS, ITEM_BY_KEY: ITEM_BY_KEY,
-    classify: classify, classifyRow: classifyRow, rowFactor: rowFactor, parseXlsx: parseXlsx, parseSPages: parseSPages, parseMPages: parseMPages,
+    classify: classify, classifyRow: classifyRow, rowFactor: rowFactor, parseMSummaryPages: parseMSummaryPages, parseXlsx: parseXlsx, parseSPages: parseSPages, parseMPages: parseMPages,
     detectPdfKind: detectPdfKind, compute: compute, fromFileName: fromFileName, cycleText: cycleText, XLSX_MAP: XLSX_MAP
   };
 })();
@@ -4253,6 +4313,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
         var kind = C.detectPdfKind(pages);
         if (kind === 'S') return C.parseSPages(pages, file.name);
         if (kind === 'M') return C.parseMPages(pages, file.name);
+        if (kind === 'Msum') return C.parseMSummaryPages(pages, file.name);
         throw new Error('이 PDF는 S보장분석(삼성화재)·M보장분석(메리츠화재) 양식이 아니에요.');
       });
     }
@@ -4326,19 +4387,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   var ST_TXT = { ok: '충분', part: '부족', none: '없음', have: '가입', unknown: '확인필요' };
 
   function reportHTML(model, meta, interactive) {
-    var N = model.contracts.length;
+    var agg = !!model.aggregate;
+    var N = agg ? 0 : model.contracts.length;
     var cw = Math.max(30, Math.min(54, Math.floor(400 / Math.max(N, 1))));
     var wG = 34, wR = 50, wS = 46, wT = 58;
+    if (agg) { wR = 96; wS = 76; wT = 110; }
     var wItem = 738 - (wG + wR + wS + wT) - N * cw;
     var i, h = '';
     h += '<div class="cvr">';
     h += '<div class="cvr-h"><div class="tt">' + esc((meta.name || '고객') + '님') + '<small>주요 보장 분석리포트</small></div>';
-    h += '<div class="meta">보험 증권 <b>' + N + '</b>건 · 분석 담보 <b>' + model.itemCount + '</b>개<br>작성기준일 ' + esc(fmtDate(meta.date)) + '</div></div>';
+    h += '<div class="meta">' + ((agg ? model.count : N) != null ? '보험 증권 <b>' + (agg ? model.count : N) + '</b>건 · ' : '') + '분석 담보 <b>' + model.itemCount + '</b>개<br>작성기준일 ' + esc(fmtDate(meta.date)) + '</div></div>';
     h += '<div class="cvr-prem"><div class="l">월 납입보험료 합계' + (model.missingPrem ? '<small>※ 보험료 미제공 ' + model.missingPrem + '건은 합계에서 제외</small>' : '') + '</div>';
     h += '<div class="v">' + model.premTotal.toLocaleString('en-US') + '<small>원</small></div></div>';
 
-    h += '<div class="cvr-cards">';
-    model.contracts.forEach(function (c, ci) {
+    h += agg ? '' : '<div class="cvr-cards">';
+    if (!agg) model.contracts.forEach(function (c, ci) {
       var lg = logoFor(c.company);
       h += '<div class="cd" title="' + esc(c.product) + '"><div class="cd-t"><span class="cn2">' + (ci + 1) + '</span>';
       h += lg ? '<img class="lg" src="' + lg + '" alt="' + esc(c.company) + '">' : '<span class="lgt">' + esc(c.company) + '</span>';
@@ -4346,12 +4409,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       h += c.premium != null ? '<div class="cd-p"><b>' + c.premium.toLocaleString('en-US') + '원</b>' + (c.cycle ? '<span>(' + esc(c.cycle) + ')</span>' : '') + '</div>' : '<div class="cd-p na">보험료 미제공</div>';
       h += '</div>';
     });
-    h += '</div>';
+    if (!agg) h += '</div>';
 
     h += '<table class="t"><colgroup><col style="width:' + wG + 'px"><col style="width:' + wItem + 'px"><col style="width:' + wR + 'px"><col style="width:' + wS + 'px"><col style="width:' + wT + 'px">';
     for (i = 0; i < N; i++) h += '<col style="width:' + cw + 'px">';
     h += '</colgroup><thead><tr><th>구분</th><th>보장 항목</th><th>최소<br>권장금액</th><th>상태</th><th>총<br>보장금액</th>';
-    model.contracts.forEach(function (c, ci) {
+    if (!agg) model.contracts.forEach(function (c, ci) {
       var sn = shortName(c.company);
       h += '<th class="cch"><span class="cn">' + (ci + 1) + '</span><br>' + esc(sn[0]) + (sn[1] ? '<br>' + esc(sn[1]) : '') + '</th>';
     });
@@ -4377,7 +4440,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
           h += '<td class="st"><span class="pl ' + st + '">' + ST_TXT[st] + '</span></td>';
           var zero = !(tot > 0);
           h += '<td class="tot' + (zero ? ' z' : '') + (interactive ? ' click' : '') + (isOv ? ' ov' : '') + '"' + (interactive ? ' data-k="' + r.k + '" title="클릭해서 금액을 직접 입력"' : '') + '>' + (zero ? '-' : C.fmtMan(tot)) + '</td>';
-          model.contracts.forEach(function (c, ci) {
+          if (!agg) model.contracts.forEach(function (c, ci) {
             var v = c.vals[r.k] || 0;
             h += '<td class="cc' + (ci % 2 ? ' p1' : '') + (v > 0 ? '' : ' z') + '">' + (v > 0 ? C.fmtMan(v) : '-') + '</td>';
           });
@@ -4479,7 +4542,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   function planSection() {
     var h = '<details class="cv-det" data-id="plan"' + (S.open.plan ? ' open' : '') + '><summary>🗂 보험 정리 표 만들기 (유지 · 정리 · 교체 · 비고)</summary>';
     h += '<div class="sub" style="margin-top:0;">유지·정리·교체할 보험과 보험료를 적으면 합계와 “매달 줄어드는 보험료”가 자동으로 계산돼요. 내용은 언제든 고칠 수 있고, 이 표는 화면을 닫으면 사라져요(저장되지 않아요).</div>';
-    var imp = (lastModel && lastModel.contracts.length) ? lastModel.contracts : [];
+    var imp = (lastModel && !lastModel.aggregate && lastModel.contracts.length) ? lastModel.contracts : [];
     if (imp.length) {
       h += '<div style="margin:0 0 6px;font-size:12px;font-weight:700;">불러온 계약에서 바로 담기</div><div class="cv-scroll" style="max-height:170px;margin-bottom:8px;">' + imp.map(function (c, ci) {
         return '<div class="cv-pl-imp"><span class="t">[' + (ci + 1) + '] ' + esc(c.company) + ' ' + esc(planName(c.product)) + ' · ' + (c.premium != null ? won(c.premium) : '보험료 미제공') + '</span>' +
@@ -4560,7 +4623,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       if (!ev || !ev.length) return;
       any = true;
       h += '<div class="cv-ev"><b>' + esc(it.label) + '</b>' + esc(C.fmtMan(model.totals[it.k])) + (src.override && src.override[it.k] != null ? ' <span class="mu">(직접 입력한 값)</span>' : '') + '<br>' +
-        ev.map(function (e) { return '<span class="mu">[' + (e.ci + 1) + ']</span> ' + esc(e.name) + ' ' + (e.f && e.f !== 1 ? esc(C.fmtMan(e.orig)) + ' <span class="mu">× ' + Math.round(e.f * 100) + '% =</span> ' : '') + esc(C.fmtMan(e.amt)); }).join('<span class="mu"> + </span>') + '</div>';
+        ev.map(function (e) { return (model.aggregate ? '' : '<span class="mu">[' + (e.ci + 1) + ']</span> ') + esc(e.name) + ' ' + (e.f && e.f !== 1 ? esc(C.fmtMan(e.orig)) + ' <span class="mu">× ' + Math.round(e.f * 100) + '% =</span> ' : '') + esc(C.fmtMan(e.amt)); }).join('<span class="mu"> + </span>') + '</div>';
     });
     if (!any) h += '<div class="sub">합산된 담보가 없어요.</div>';
     h += '</details>';
@@ -4590,6 +4653,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 
     // 4) 로고
     var comps = {}; model.contracts.forEach(function (c) { comps[c.company] = 1; });
+    if (!model.aggregate) {
     h += '<details class="cv-det" data-id="logo"' + (S.open.logo ? ' open' : '') + '><summary>🏷 회사 로고</summary>';
     h += Object.keys(comps).map(function (cn, idx) {
       var lg = logoFor(cn), own = S.logos[C.norm(cn)];
@@ -4597,6 +4661,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
         '<input type="file" accept="image/*" onchange="CVUI.setLogo(' + idx + ',this)">' + (own ? '<button class="small secondary" onclick="CVUI.clearLogo(' + idx + ')">내 로고 지우기</button>' : '') + '</div>';
     }).join('');
     h += '<div class="sub" style="margin-top:6px;">로고가 없는 회사는 이미지 파일을 골라 등록하세요. (이 브라우저에만 저장돼요)</div></details>';
+    }
     box.innerHTML = h;
     planUpdate();
   }
