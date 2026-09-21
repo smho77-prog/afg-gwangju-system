@@ -3821,6 +3821,10 @@ var CVCore = (function () {
     var t = n.replace(/[\(\[]?유사암제외[\)\]]?/g, '');
     return /암통합치료비/.test(t) && !/생활비|유사암|소액암/.test(t);
   }
+  function isMajorCare(n) {
+    var t = n.replace(/[\(\[]?유사암제외[\)\]]?/g, '');
+    return /암주요치료비/.test(t) && !/유사암|소액암|고액암|특정암|생활비|2대질환/.test(t);
+  }
   function rowFactor(name, keys) {
     if (keys && keys.length === RATIO_KEYS.length && keys.join() === RATIO_KEYS.join() && isIntegrated(norm(name))) return RATIO_F;
     return 1;
@@ -3852,6 +3856,8 @@ var CVCore = (function () {
 
     // 암 통합치료비 (암수술·항암약물·항암방사선 3개 항목에 20%씩)
     if (isIntegrated(n)) return RATIO_KEYS.slice();
+    // 암 주요치료비 (암수술·항암약물·항암방사선 3개 항목에 각각 전액)
+    if (isMajorCare(n)) return RATIO_KEYS.slice();
 
     // 암 진단/수술 (유사암·소액암 등은 제외 처리)
     t = n.replace(/[\(\[]?유사암제외[\)\]]?/g, '');
@@ -3922,7 +3928,9 @@ var CVCore = (function () {
     '허혈성심장질환진단비': ['heart_dx'], '허혈심장질환수술비': ['heart_surg'], '허혈성심장질환수술비': ['heart_surg'],
     '질병수술비': ['dis_surg'], '상해수술비': ['inj_surg'], '질병종수술': ['dis_major'], '상해종수술': ['inj_major'],
     '골절진단비': ['fracture'],
+    '암주요치료비': ['cancer_surgery', 'chemo_drug', 'chemo_radio'],
     '질병간병인사용입원일당': ['cg_dis_ex'], '상해간병인사용입원일당': ['cg_inj_ex'],
+    '질병간병인지원입원일당': ['cg_dis_ex'], '상해간병인지원입원일당': ['cg_inj_ex'],
     '일상생활배상책임': ['liability'],
     '질병입원': ['dis_indem'], '상해입원': ['inj_indem']
   };
@@ -4184,7 +4192,7 @@ var CVCore = (function () {
   function compute(src, cfg) {
     cfg = cfg || {};
     var rec = cfg.rec || {}, assign = cfg.assign || {}, override = cfg.override || {};
-    var evidence = {}, unmappedMap = {}, unmapped = [], ratioUsed = false;
+    var evidence = {}, unmappedMap = {}, unmapped = [], ratioUsed = false, svcKeys = {};
     var contracts = src.contracts.map(function (c, ci) {
       var vals = {};
       c.rows.forEach(function (r) {
@@ -4197,12 +4205,14 @@ var CVCore = (function () {
           u.total += r.amt; u.per.push({ ci: ci, amt: r.amt });
           return;
         }
+        var isSvc = /간병인지원/.test(norm(r.name));
         var f = rowFactor(r.name, keys);
         var amt = f === 1 ? r.amt : Math.round(r.amt * f * 100) / 100;
         if (f !== 1) ratioUsed = true;
         keys.forEach(function (k) {
           if (AGG_MAX[k]) vals[k] = Math.max(vals[k] || 0, amt); else vals[k] = (vals[k] || 0) + amt;
-          (evidence[k] = evidence[k] || []).push({ ci: ci, name: r.name, amt: amt, orig: r.amt, f: f });
+          if (isSvc) svcKeys[k] = true;
+          (evidence[k] = evidence[k] || []).push({ ci: ci, name: r.name, amt: amt, orig: r.amt, f: f, svc: isSvc });
         });
       });
       return { company: c.company, product: c.product, premium: c.premium, cycle: c.cycle, renew: c.renew, vals: vals };
@@ -4221,6 +4231,8 @@ var CVCore = (function () {
       else if (it.yn) st = total > 0 ? 'have' : 'none';
       else if (total <= 0) st = 'none';
       else st = total >= rc ? 'ok' : 'part';
+      // 메리츠 간병인지원일당(간병인 파견 서비스)은 금액 크기와 상관없이 가입으로 인정
+      if (svcKeys[it.k] && st === 'part' && !Object.prototype.hasOwnProperty.call(override, it.k)) st = 'ok';
       status[it.k] = st; counts[st]++;
     });
     unmapped.sort(function (a, b) { return b.total - a.total; });
@@ -4623,7 +4635,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       if (!ev || !ev.length) return;
       any = true;
       h += '<div class="cv-ev"><b>' + esc(it.label) + '</b>' + esc(C.fmtMan(model.totals[it.k])) + (src.override && src.override[it.k] != null ? ' <span class="mu">(직접 입력한 값)</span>' : '') + '<br>' +
-        ev.map(function (e) { return (model.aggregate ? '' : '<span class="mu">[' + (e.ci + 1) + ']</span> ') + esc(e.name) + ' ' + (e.f && e.f !== 1 ? esc(C.fmtMan(e.orig)) + ' <span class="mu">× ' + Math.round(e.f * 100) + '% =</span> ' : '') + esc(C.fmtMan(e.amt)); }).join('<span class="mu"> + </span>') + '</div>';
+        ev.map(function (e) { return (model.aggregate ? '' : '<span class="mu">[' + (e.ci + 1) + ']</span> ') + esc(e.name) + ' ' + (e.f && e.f !== 1 ? esc(C.fmtMan(e.orig)) + ' <span class="mu">× ' + Math.round(e.f * 100) + '% =</span> ' : '') + esc(C.fmtMan(e.amt)) + (e.svc ? ' <span class="mu">(간병인 지원 · 가입으로 인정)</span>' : ''); }).join('<span class="mu"> + </span>') + '</div>';
     });
     if (!any) h += '<div class="sub">합산된 담보가 없어요.</div>';
     h += '</details>';
