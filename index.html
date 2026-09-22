@@ -21,11 +21,11 @@
     background: var(--navy); color: #fff; padding: 16px 20px 0;
   }
   header h1 { margin: 0 0 10px 0; font-size: 18px; }
-  nav { display: flex; gap: 4px; }
+  nav { display: flex; gap: 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
   nav button {
     background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
-    color: #E7EAF0; padding: 9px 16px; border-radius: 8px 8px 0 0;
-    font-size: 13.5px; cursor: pointer;
+    color: #E7EAF0; padding: 6px 8px; border-radius: 6px 6px 0 0;
+    font-size: 11px; cursor: pointer; white-space: nowrap; flex: 0 0 auto;
   }
   nav button.active { background: var(--paper); color: var(--navy); font-weight: 700; }
   main { max-width: 920px; margin: 0 auto; padding: 20px 16px 60px; }
