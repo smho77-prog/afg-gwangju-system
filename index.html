@@ -4246,6 +4246,85 @@ var CVCore = (function () {
     };
   }
 
+
+  /* ---------- M보장분석(합계형) — 글자가 그림으로 저장된 PDF를 OCR로 읽을 때 쓰는 고정 양식 ---------- */
+  // [항목명, 페이지 안 세로 위치(pt), 메리츠 권장금액(만원)] — 이 양식은 50개 담보가 항상 같은 순서·위치예요
+  var MSUM_TEMPLATE = [
+    ["질병사망", 172, 10000],
+    ["상해사망", 184.4, 20000],
+    ["질병후유 3%이상", 196.8, 5000],
+    ["상해후유 3%이상", 209.2, 10000],
+    ["일반암 진단비", 221.6, 15000],
+    ["유사암 진단비", 234, 3000],
+    ["통합암 진단비", 246.4, 5000],
+    ["특정암 진단비", 258.8, 5000],
+    ["뇌혈관 진단비", 271.2, 5000],
+    ["뇌졸중 진단비", 283.6, 5000],
+    ["뇌출혈 진단비", 296, 1000],
+    ["뇌산정특례대상 진단비", 308.4, 1000],
+    ["허혈성심장질환 진단비", 320.8, 5000],
+    ["급성심근경색증 진단비", 333.2, 5000],
+    ["심장산정특례대상 진단비", 345.6, 1000],
+    ["중증치매진단", 358, 5000],
+    ["경증치매진단", 370.4, 2000],
+    ["질병입원", 382.8, 5000],
+    ["질병통원", 395.2, 30],
+    ["상해입원", 407.6, 5000],
+    ["상해통원", 420, 30],
+    ["암수술비", 432.4, 3000],
+    ["뇌혈관수술비", 444.8, 3000],
+    ["허혈심장질환수술비", 457.2, 3000],
+    ["질병수술비", 469.6, 50],
+    ["상해수술비", 482, 200],
+    ["질병종수술", 494.4, 1000],
+    ["상해종수술", 506.8, 1000],
+    ["질병일당", 519.2, 3],
+    ["상해일당", 531.6, 3],
+    ["질병 간병인지원 입원일당", 544, 1],
+    ["상해 간병인지원 입원일당", 556.4, 1],
+    ["질병 간병인사용 입원일당", 568.8, 15],
+    ["상해 간병인사용 입원일당", 581.2, 15],
+    ["1인실 입원일당", 593.6, 40],
+    ["고액항암 치료비(표적)", 606, 10000],
+    ["중입자방사선치료비", 618.4, 10000],
+    ["암 주요치료비", 630.8, 2000],
+    ["2대질환 주요치료비", 643.2, 1000],
+    ["교통사고처리 지원금", 655.6, 20000],
+    ["변호사 선임비용", 668, 5000],
+    ["벌금", 680.4, 3000],
+    ["자동차사고 부상치료비", 692.8, 30],
+    ["일상생활 배상책임", 705.2, 10000],
+    ["민사소송 법률비용", 717.6, 2000],
+    ["화재벌금", 730, 2000],
+    ["치아보철 치료비", 742.4, 200],
+    ["치아보존 치료비", 754.8, 50],
+    ["화상 진단비", 767.2, 100],
+    ["골절 진단비", 779.6, 100]
+  ];
+  function buildMSummaryFromOcr(vals, meta, fileName) {
+    var rows = [], warnings = [], unread = [], supports = {};
+    MSUM_TEMPLATE.forEach(function (t, i) {
+      var v = vals[i];
+      if (v == null) { unread.push(t[0]); v = 0; }
+      rows.push({ name: t[0], amt: v, type: '', ocrFail: vals[i] == null });
+    });
+    var zeros = rows.filter(function (r) { return r.amt === 0 && !r.ocrFail; }).length;
+    rows.forEach(function (r) { if (!r.ocrFail) (MSUM_MAP[norm(r.name)] || []).forEach(function (k) { supports[k] = 1; }); });
+    warnings.push('이 PDF는 글자가 그림으로 저장돼 있어서 글자 인식(OCR)으로 읽었어요. 금액을 원본 화면과 한 번 대조해 주세요.');
+    if (meta.unpaid != null) {
+      if (meta.unpaid === zeros + unread.length && !unread.length) warnings.push('검증: 원본 요약의 “미가입 ' + meta.unpaid + '건”과 읽은 결과(금액 0인 담보 ' + zeros + '개)가 일치해요.');
+      else warnings.push('⚠ 검증 실패: 원본 요약은 “미가입 ' + meta.unpaid + '건”인데 읽은 결과는 금액 0인 담보 ' + zeros + '개예요. 인식이 틀렸을 수 있으니 반드시 원본과 대조하세요.');
+    } else warnings.push('원본 요약 숫자(미가입 건수)를 읽지 못해 자동 검증은 못 했어요. 금액을 꼭 원본과 대조하세요.');
+    if (unread.length) warnings.push('⚠ 읽지 못한 칸 ' + unread.length + '개는 “확인필요”로 두었어요: ' + unread.join(', '));
+    var fn = fromFileName(fileName);
+    return {
+      kind: 'Msum', label: 'M보장분석 PDF (합계만·OCR)', fileName: fileName, aggregate: true, ocr: true, count: meta.count != null ? meta.count : null, premiumTotal: meta.premium || 0,
+      customer: fn.name || '', date: fn.date || '',
+      contracts: [{ company: '전체 합계', product: '', premium: meta.premium != null ? meta.premium : null, cycle: '', renew: '', rows: rows }],
+      supports: Object.keys(supports), warnings: warnings
+    };
+  }
+
   function detectPdfKind(pages) {
     var all = pages.map(pageText).join(' ');
     if (/상품별\s*상세\s*현황/.test(all)) return 'S';
@@ -4367,7 +4446,7 @@ var CVCore = (function () {
 
   return {
     parseAmt: parseAmt, fmtMan: fmtMan, norm: norm, SECTIONS: SECTIONS, ITEMS: ITEMS, ITEM_BY_KEY: ITEM_BY_KEY,
-    classify: classify, classifyRow: classifyRow, rowFactor: rowFactor, compareModel: compareModel, statusOf: statusOf, parseMSummaryPages: parseMSummaryPages, parseXlsx: parseXlsx, parseSPages: parseSPages, parseMPages: parseMPages,
+    classify: classify, classifyRow: classifyRow, rowFactor: rowFactor, MSUM_TEMPLATE: MSUM_TEMPLATE, buildMSummaryFromOcr: buildMSummaryFromOcr, compareModel: compareModel, statusOf: statusOf, parseMSummaryPages: parseMSummaryPages, parseXlsx: parseXlsx, parseSPages: parseSPages, parseMPages: parseMPages,
     detectPdfKind: detectPdfKind, compute: compute, fromFileName: fromFileName, cycleText: cycleText, XLSX_MAP: XLSX_MAP
   };
 })();
@@ -4381,6 +4460,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   var PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
   var H2C_URL = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
   var XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js';
+  var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  var TESS_WORKER = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
+  var TESS_CORE = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5';
+  var TESS_LANG = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/kor/4.0.0_best_int';
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
@@ -4413,6 +4496,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   }
   function ensurePdf() { return ensure('pdf', function () { return window.pdfjsLib; }, PDFJS_URL, function () { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; }); }
   function ensureH2C() { return ensure('h2c', function () { return window.html2canvas; }, H2C_URL); }
+  function ensureTess() { return ensure('tess', function () { return window.Tesseract; }, TESS_URL); }
   function ensureXlsx() { return ensure('xlsx', function () { return window.XLSX; }, XLSX_URL); }
   function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
 
@@ -4432,8 +4516,90 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
           });
         })(i);
       }
-      return chain.then(function () { return pages; });
+      return chain.then(function () { return { pdf: pdf, pages: pages }; });
     });
+  }
+
+
+  /* ---------- 글자가 그림으로 저장된 M보장분석(합계형) PDF → 글자 인식(OCR) ---------- */
+  var OCR_SCALE = 5;
+  function renderPageCanvas(pdf, n, scale) {
+    return pdf.getPage(n).then(function (page) {
+      var vp = page.getViewport({ scale: scale });
+      var cv = document.createElement('canvas'); cv.width = Math.ceil(vp.width); cv.height = Math.ceil(vp.height);
+      var ctx = cv.getContext('2d', { willReadFrequently: true }); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+      return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () { return cv; });
+    });
+  }
+  // 페이지 그림에서 (pt 단위) 영역을 잘라 흑백으로 만들고, 표의 줄은 지워요
+  function binCrop(cv, x0, y0, x1, y1, opts) {
+    opts = opts || {};
+    var sc = OCR_SCALE, thr = opts.thr || 170, pad = 26;
+    var sx = Math.max(0, Math.round(x0 * sc)), sy = Math.max(0, Math.round(y0 * sc));
+    var w = Math.min(cv.width - sx, Math.round((x1 - x0) * sc)), h = Math.min(cv.height - sy, Math.round((y1 - y0) * sc));
+    var d = cv.getContext('2d').getImageData(sx, sy, w, h).data, bin = new Uint8Array(w * h), x, y, i;
+    for (i = 0; i < w * h; i++) { var lum = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]; bin[i] = (opts.invert ? lum > 200 : lum < thr) ? 1 : 0; }
+    for (y = 0; y < h; y++) { var rc = 0; for (x = 0; x < w; x++) rc += bin[y * w + x]; if (rc > 0.8 * w) for (x = 0; x < w; x++) bin[y * w + x] = 0; }
+    for (x = 0; x < w; x++) { var cc = 0; for (y = 0; y < h; y++) cc += bin[y * w + x]; if (cc > 0.8 * h) for (y = 0; y < h; y++) bin[y * w + x] = 0; }
+    var minX = w, maxX = -1, ink = 0;
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) if (bin[y * w + x]) { ink++; if (x < minX) minX = x; if (x > maxX) maxX = x; }
+    var out = document.createElement('canvas'); out.width = w + pad * 2; out.height = h + pad * 2;
+    var octx = out.getContext('2d'); octx.fillStyle = '#fff'; octx.fillRect(0, 0, out.width, out.height);
+    var od = octx.getImageData(0, 0, out.width, out.height), o = od.data;
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) if (bin[y * w + x]) { var p = ((y + pad) * out.width + (x + pad)) * 4; o[p] = o[p + 1] = o[p + 2] = 0; }
+    octx.putImageData(od, 0, 0);
+    return { canvas: out, blank: ink < 8, inkW: maxX >= minX ? (maxX - minX + 1) / sc : 0 };
+  }
+  function ocrText(worker, canvas, psm) {
+    return worker.setParameters({ tessedit_pageseg_mode: String(psm || 7) }).then(function () { return worker.recognize(canvas); }).then(function (r) { return String(r.data.text || '').replace(/\s+/g, ''); });
+  }
+  function ocrAmount(worker, cv, y) {
+    var c = binCrop(cv, 214, y - 9.2, 267.5, y + 3.4);
+    if (c.blank) return Promise.resolve(null);                 // 칸을 찾지 못함
+    if (c.inkW < 8.5) return Promise.resolve(0);               // 글자가 한 개뿐 → 항상 “0”
+    var ok = function (t) { return /^(\d{1,4}억)?(\d{1,3}(,\d{3})*만)?$/.test(t) && t !== ''; };
+    return ocrText(worker, c.canvas, 7).then(function (t) {
+      if (ok(t)) return C.parseAmt(t);
+      var c2 = binCrop(cv, 212, y - 9.6, 268, y + 3.8, { thr: 150 });      // 한 번 더: 조금 다른 기준으로
+      return ocrText(worker, c2.canvas, 7).then(function (t2) { return ok(t2) ? C.parseAmt(t2) : null; });
+    });
+  }
+  function ocrDigits(worker, cv, x0, x1, y, comma) {
+    var c = binCrop(cv, x0, y - 12, x1, y + 4);
+    if (c.blank) return Promise.resolve(null);
+    var wl = comma ? '0123456789,' : '0123456789';
+    return worker.setParameters({ tessedit_char_whitelist: wl }).then(function () {
+      return ocrText(worker, c.canvas, c.inkW < 8.5 ? 10 : 7);
+    }).then(function (t) {
+      t = t.replace(/,/g, ''); return /^\d{1,9}$/.test(t) ? parseInt(t, 10) : null;
+    });
+  }
+  function ocrMSummary(pdf, fileName) {
+    if (pdf.numPages < 4) return Promise.reject(new Error('이 PDF는 글자가 그림으로 저장된 파일인데, M보장분석 양식(20쪽)으로 보이지 않아요. 보험사 시스템에서 받은 원본 PDF를 올려 주세요.'));
+    var T = C.MSUM_TEMPLATE, vals = new Array(T.length), meta = {}, worker = null;
+    setMsg('busy', '글자가 그림으로 저장된 PDF예요. 글자 인식(OCR)으로 읽는 중… (처음에는 언어 데이터를 내려받느라 1분쯤 걸릴 수 있어요)');
+    return ensureTess().then(function () {
+      return window.Tesseract.createWorker('kor', 1, { workerPath: TESS_WORKER, corePath: TESS_CORE, langPath: TESS_LANG, gzip: true });
+    }).then(function (w) {
+      worker = w;
+      return worker.setParameters({ tessedit_char_whitelist: '0123456789,억만' });
+    }).then(function () { return renderPageCanvas(pdf, 4, OCR_SCALE); }).then(function (cv) {
+      var chain = Promise.resolve();
+      T.forEach(function (t, i) {
+        chain = chain.then(function () { setMsg('busy', '글자 인식(OCR) 중… ' + (i + 1) + ' / ' + T.length); return worker.setParameters({ tessedit_char_whitelist: '0123456789,억만' }); })
+          .then(function () { return ocrAmount(worker, cv, t[1]); }).then(function (v) { vals[i] = v; });
+      });
+      return chain;
+    }).then(function () { return renderPageCanvas(pdf, 3, OCR_SCALE); }).then(function (cv3) {
+      return ocrDigits(worker, cv3, 240, 262.5, 159.9, false).then(function (v) { meta.count = v; })
+        .then(function () { return ocrDigits(worker, cv3, 208, 262.5, 197.9, true); }).then(function (v) { meta.premium = v; })
+        .then(function () { return ocrDigits(worker, cv3, 352, 377, 198.9, false); }).then(function (v) { meta.unpaid = v; });
+    }).then(function () {
+      var src = C.buildMSummaryFromOcr(vals, meta, fileName);
+      var bad = src.contracts[0].rows.filter(function (r) { return r.ocrFail; }).length;
+      if (bad >= 8) { return worker.terminate().then(function () { throw new Error('이 PDF는 글자가 그림으로 저장돼 있고, 글자 인식으로도 M보장분석 표를 읽지 못했어요. 보험사 시스템에서 처음 내려받은 원본 PDF를 올려 주세요.'); }); }
+      return worker.terminate().then(function () { return src; });
+    }, function (e) { if (worker) worker.terminate(); throw e; });
   }
 
   function readFile(file) {
@@ -4446,7 +4612,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       });
     }
     if (ext === 'pdf') {
-      return readPdfPages(file).then(function (pages) {
+      return readPdfPages(file).then(function (res) {
+        var pages = res.pages;
+        var textN = pages.reduce(function (a, p) { return a + p.items.length; }, 0);
+        if (textN < 20 || window.CV_FORCE_OCR) return ocrMSummary(res.pdf, file.name);
         var kind = C.detectPdfKind(pages);
         if (kind === 'S') return C.parseSPages(pages, file.name);
         if (kind === 'M') return C.parseMPages(pages, file.name);
@@ -4772,7 +4941,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   }
   function planImpRefresh() { var el = $('cv_plan_imp'); if (el) el.innerHTML = planImpHTML(); }
   function planSection() {
-    var h = '<details class="cv-det" data-id="plan"' + (S.open.plan ? ' open' : '') + '><summary>🗂 보험 정리 표 만들기 (유지 · 정리 · 교체 · 비고)</summary>';
+    var h = '<details class="cv-det" data-id="plan"' + ((S.open.plan || !cur()) ? ' open' : '') + '><summary>🗂 보험 정리 표 만들기 (유지 · 정리 · 교체 · 비고)</summary>';
     h += '<div class="sub" style="margin-top:0;">유지·정리·교체할 보험과 보험료를 적으면 합계와 “매달 줄어드는 보험료”가 자동으로 계산돼요. 내용은 언제든 고칠 수 있고, 이 표는 화면을 닫으면 사라져요(저장되지 않아요).</div>';
     h += '<div id="cv_plan_imp">' + planImpHTML() + '</div>';
     h += '<div id="cv_plan_form">' + planFormHTML() + '</div>';
@@ -5231,7 +5400,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       panel.addEventListener(ev, function (e) { e.preventDefault(); if (ev === 'drop' || e.target === drop || e.target === panel) drop.classList.remove('over'); });
     });
     panel.addEventListener('drop', function (e) { drop.classList.remove('over'); if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files); });
-    panel.addEventListener('toggle', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-id')) { S.open[t.getAttribute('data-id')] = t.open; if (t.open) setTimeout(fit, 0); } }, true);
+    panel.addEventListener('toggle', function (e) { var t = e.target; var id = t && t.getAttribute && t.getAttribute('data-id'); if (!id) return; if (id === 'plan' && !cur()) return; S.open[id] = t.open; if (t.open) setTimeout(fit, 0); }, true);
     $('cv_report').addEventListener('click', function (e) {
       var td = e.target.closest ? e.target.closest('td.tot') : null;
       if (td && td.getAttribute('data-k')) editTotal(td.getAttribute('data-k'));
