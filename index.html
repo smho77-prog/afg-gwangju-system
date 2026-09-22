@@ -2871,10 +2871,11 @@ async function startApp(){
 
   try{
     if(typeof window.supabase==='undefined') throw new Error('supabase-js 라이브러리 로드 실패');
-    const noCacheFetch = (url, options) => fetch(url, Object.assign({}, options, {
-      cache: 'no-store',
-      headers: Object.assign({}, options && options.headers, { 'Cache-Control': 'no-cache' })
-    }));
+    const noCacheFetch = (url, options) => {
+      const mergedHeaders = new Headers(options && options.headers);
+      mergedHeaders.set('Cache-Control', 'no-cache');
+      return fetch(url, Object.assign({}, options, { cache: 'no-store', headers: mergedHeaders }));
+    };
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { global: { fetch: noCacheFetch } });
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
