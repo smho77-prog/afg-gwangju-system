@@ -387,6 +387,7 @@
     <button class="tabbtn" data-tab="surgery" onclick="switchTab('surgery')">🏥 수술등급 검색</button>
     <button class="tabbtn" data-tab="coverage" onclick="switchTab('coverage')">📑 보장분석</button>
     <button class="tabbtn" data-tab="rapport" onclick="switchTab('rapport')">🤝 라포 브리핑</button>
+    <button class="tabbtn" data-tab="newsscrap" onclick="switchTab('newsscrap')">📰 기사 스크랩</button>
   </nav>
   <div id="connStatus" class="st-checking">연결 확인 중...</div>
   <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
@@ -1102,6 +1103,24 @@
   </div>
 </div>
 
+<!-- ===== 기사 스크랩 ===== -->
+<div class="panel" id="panel-newsscrap">
+  <div class="card">
+    <div class="sub">구글 뉴스에서 보험 관련 기사 후보를 가져와요. 마음에 드는 기사만 "스크랩"하면 팀장님들 모두 보는 목록에 저장됩니다. (완전 자동 저장이 아니라, 후보 중에서 직접 골라 저장하는 방식이에요)</div>
+    <button class="act" onclick="loadNewsCandidates()">🔄 오늘의 후보 기사 가져오기</button>
+    <span id="ns_candMsg" style="font-size:12.5px;color:var(--muted);margin-left:10px;"></span>
+    <div id="ns_candList" style="margin-top:14px;"></div>
+  </div>
+  <div class="card">
+    <div class="sub">스크랩한 기사 (전체 팀장 공유)</div>
+    <table>
+      <colgroup><col style="width:10%"><col style="width:9%"><col style="width:33%"><col style="width:11%"><col style="width:12%"><col style="width:15%"><col style="width:8%"></colgroup>
+      <thead><tr><th>날짜</th><th>분류</th><th>제목</th><th>출처</th><th>스크랩한 사람</th><th>메모</th><th></th></tr></thead>
+      <tbody id="ns_savedBody"><tr><td colspan="7" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
 </main>
 
 <script>
@@ -1164,6 +1183,7 @@ function switchTab(name) {
   if (name === 'performance') renderPerformance();
   if (name === 'salary') setupSalaryAutoCalc();
   if (name === 'kcd') renderKcdResults();
+  if (name === 'newsscrap') loadScrapedNews();
 }
 
 /* ============================================================
@@ -3784,6 +3804,120 @@ async function loadExampleSurgeryData(){
 function copySurgeryRow(name, grade, amount){
   const text = name + ' - ' + grade + '종' + (amount != null ? ' (예상 보험금 ' + amount.toLocaleString('ko-KR') + '만원)' : '');
   navigator.clipboard?.writeText(text).catch(()=>{});
+}
+
+/* ============================================================
+   기사 스크랩
+============================================================ */
+let lastNewsCandidates = [];
+let scrapedLinks = new Set();
+
+function formatNewsDate(iso){
+  if(!iso) return '-';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '-';
+  return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
+async function loadNewsCandidates(){
+  const msgEl = document.getElementById('ns_candMsg');
+  const listEl = document.getElementById('ns_candList');
+  msgEl.textContent = '불러오는 중...';
+  listEl.innerHTML = '';
+  try{
+    const resp = await fetch('/api/insurance-news');
+    const data = await resp.json();
+    if(!data.ok) throw new Error(data.error || '알 수 없는 오류');
+    lastNewsCandidates = data.items || [];
+    msgEl.textContent = lastNewsCandidates.length + '건 · ' + new Date(data.fetchedAt).toLocaleTimeString('ko-KR');
+    renderNewsCandidates();
+  }catch(e){
+    msgEl.textContent = '가져오기 실패: ' + e.message + ' (잠시 후 다시 시도해주세요)';
+  }
+}
+
+function renderNewsCandidates(){
+  const listEl = document.getElementById('ns_candList');
+  if(!lastNewsCandidates.length){
+    listEl.innerHTML = '<div class="sub">후보 기사가 없어요. 다시 가져와보세요.</div>';
+    return;
+  }
+  listEl.innerHTML = lastNewsCandidates.map(function(item, idx){
+    const already = scrapedLinks.has(item.link);
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);">'
+      + '<div style="flex:1;min-width:0;">'
+      + '<span style="font-size:10.5px;background:#EFEDE6;color:var(--ink);border-radius:10px;padding:2px 8px;margin-right:6px;">'+item.category+'</span>'
+      + '<a href="'+item.link+'" target="_blank" rel="noopener" style="font-size:13.5px;color:var(--ink);text-decoration:none;">'+item.title+'</a>'
+      + '<div style="font-size:11.5px;color:var(--muted);margin-top:3px;">'+item.source+' · '+formatNewsDate(item.pubDate)+'</div>'
+      + '</div>'
+      + '<button class="secondary" style="font-size:12px;padding:6px 12px;flex:none;" '
+      + (already ? 'disabled' : 'onclick="scrapArticle('+idx+')"') + '>'
+      + (already ? '스크랩됨' : '+ 스크랩') + '</button>'
+      + '</div>';
+  }).join('');
+}
+
+async function scrapArticle(idx){
+  const item = lastNewsCandidates[idx];
+  if(!item) return;
+  const memo = prompt('메모를 남기고 싶으면 입력해주세요 (선택, 비워두면 그냥 저장돼요)', '');
+  if(memo === null) return; // 취소
+  const { error } = await sb.from('news_scraps').insert([{
+    title: item.title,
+    link: item.link,
+    source: item.source,
+    pub_date: item.pubDate,
+    category: item.category,
+    manager_name: currentUser.manager_name,
+    memo: memo || null
+  }]);
+  if(error){
+    if(String(error.message).includes('duplicate') || String(error.code) === '23505'){
+      alert('이미 스크랩된 기사예요.');
+      scrapedLinks.add(item.link);
+      renderNewsCandidates();
+    } else {
+      alert('저장 실패: ' + error.message);
+    }
+    return;
+  }
+  scrapedLinks.add(item.link);
+  renderNewsCandidates();
+  await loadScrapedNews();
+}
+
+async function loadScrapedNews(){
+  const tbody = document.getElementById('ns_savedBody');
+  const { data, error } = await sb.from('news_scraps').select('*').order('created_at', { ascending: false });
+  if(error){
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--red);">불러오기 실패: '+error.message+'</td></tr>';
+    return;
+  }
+  const rows = data || [];
+  scrapedLinks = new Set(rows.map(function(r){ return r.link; }));
+  if(!rows.length){
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);">아직 스크랩한 기사가 없어요</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function(r){
+    const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'}) : '-';
+    return '<tr>'
+      + '<td>'+dateStr+'</td>'
+      + '<td>'+(r.category||'-')+'</td>'
+      + '<td><a href="'+r.link+'" target="_blank" rel="noopener">'+r.title+'</a></td>'
+      + '<td>'+(r.source||'-')+'</td>'
+      + '<td>'+(r.manager_name||'-')+'</td>'
+      + '<td>'+(r.memo||'-')+'</td>'
+      + '<td><button class="secondary" style="font-size:11.5px;padding:4px 8px;" onclick="deleteScrap(\''+r.id+'\')">삭제</button></td>'
+      + '</tr>';
+  }).join('');
+}
+
+async function deleteScrap(id){
+  if(!confirm('이 스크랩을 삭제할까요?')) return;
+  const { error } = await sb.from('news_scraps').delete().eq('id', id);
+  if(error){ alert('삭제 실패: ' + error.message); return; }
+  await loadScrapedNews();
 }
 
 </script>
