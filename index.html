@@ -389,6 +389,7 @@
     <button class="tabbtn" data-tab="rapport" onclick="switchTab('rapport')">🤝 라포 브리핑</button>
     <button class="tabbtn" data-tab="newsscrap" onclick="switchTab('newsscrap')">📰 기사 스크랩</button>
     <button class="tabbtn" data-tab="rebuttal" onclick="switchTab('rebuttal')">💬 나는 이렇게 반론했어요</button>
+    <button class="tabbtn" data-tab="practice" onclick="switchTab('practice')">🎯 반론대처 연습</button>
   </nav>
   <div id="connStatus" class="st-checking">연결 확인 중...</div>
   <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
@@ -1183,6 +1184,56 @@
   </div>
 </div>
 
+<!-- ===== 반론대처 연습 시뮬레이터 ===== -->
+<div class="panel" id="panel-practice">
+
+  <div class="card" id="pr_setupCard">
+    <div class="sub">난이도를 선택하면 가상고객이 랜덤 생성돼요. 이름·성별·연령·성향·관심상품이 매번 다른 조합으로 만들어집니다. 마음에 드는 조합이 아니면 🔀 아이콘으로 다시 뽑아보세요. (Claude API 없이, 등록된 반론 데이터로만 동작해요)</div>
+    <div id="pr_personaCards"></div>
+    <div class="filter-row" style="margin-top:4px;">
+      <label style="margin:0;">지난 연습 기록</label>
+      <button class="secondary" style="font-size:12px;padding:5px 10px;" onclick="togglePracticeLog()">보기/숨기기</button>
+    </div>
+    <div id="pr_logBox" style="display:none;margin-top:8px;"></div>
+  </div>
+
+  <div class="card" id="pr_sessionCard" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <span id="pr_personaSummary" style="font-weight:700;"></span>
+        <span id="pr_roundLabel" style="font-size:12px;color:var(--muted);margin-left:8px;"></span>
+      </div>
+      <button class="secondary" style="font-size:12px;padding:5px 12px;" onclick="endPracticeSession(true)">종료</button>
+    </div>
+    <div style="margin-top:14px;background:#F5F3ED;border:1px solid var(--line);border-radius:10px;padding:12px 14px;">
+      <span id="pr_categoryBadge" style="font-size:11px;background:#EFEDE6;color:var(--ink);border-radius:10px;padding:2px 9px;"></span>
+      <div style="margin-top:8px;font-size:14.5px;line-height:1.6;">고객: "<span id="pr_objectionText"></span>"</div>
+    </div>
+    <label style="margin-top:12px;">나라면 이렇게 대응하겠다</label>
+    <textarea id="pr_myAnswer" rows="3" placeholder="직접 소리내어 말해보고, 그 다음 여기에 적어보세요"></textarea>
+    <button class="act" style="margin-top:8px;" onclick="revealModelAnswers()">모범답안 보기</button>
+
+    <div id="pr_answerBox" style="display:none;margin-top:14px;">
+      <div class="sub">모범 답안 (팀장님들이 실제로 등록한 멘트예요)</div>
+      <div id="pr_modelAnswers"></div>
+      <div style="margin-top:12px;">
+        <label style="margin:0;">스스로 체크해보세요</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:6px;"><input type="checkbox" id="pr_chk1" style="width:auto;"> 고객 감정에 먼저 공감했다</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:4px;"><input type="checkbox" id="pr_chk2" style="width:auto;"> 근거나 이유를 들어 설명했다</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:4px;"><input type="checkbox" id="pr_chk3" style="width:auto;"> 다음 행동(질문/제안)으로 자연스럽게 이어갔다</label>
+      </div>
+      <button class="act" style="margin-top:12px;" onclick="nextRound()">다음 반론 →</button>
+    </div>
+  </div>
+
+  <div class="card" id="pr_resultCard" style="display:none;">
+    <div class="sub" style="font-weight:700;color:var(--ink);font-size:15px;">연습 완료!</div>
+    <div id="pr_resultSummary" style="margin-top:8px;font-size:14px;line-height:1.7;"></div>
+    <button class="act" style="margin-top:12px;" onclick="backToSetup()">다시 연습하기</button>
+  </div>
+
+</div>
+
 </main>
 
 <script>
@@ -1247,6 +1298,7 @@ function switchTab(name) {
   if (name === 'kcd') renderKcdResults();
   if (name === 'newsscrap') loadScrapedNews();
   if (name === 'rebuttal') loadRebuttals();
+  if (name === 'practice') initPracticeSetup();
 }
 
 /* ============================================================
@@ -4142,6 +4194,248 @@ async function deleteRebuttal(id){
   const { error } = await sb.from('objection_rebuttals').delete().eq('id', id);
   if(error){ alert('삭제 실패: ' + error.message); return; }
   await loadRebuttals();
+}
+
+/* ============================================================
+   반론대처 연습 시뮬레이터 (API 없이, 등록된 반론 데이터 기반)
+============================================================ */
+const PR_NAMES = ['김민준','이서연','박지훈','최수빈','정다은','한상훈','오영희','강민재','임재현','유상철','최준영','박선희','조은지','신동혁','배수진','문경식','양지수','서동원'];
+const PR_AGES = ['30대','40대','50대','60대','70대'];
+const PR_GENDERS = ['남성','여성'];
+const PR_TRAITS = ['바쁜형','꼼꼼형','의심많은형','무뚝뚝형','친절형','우유부단형'];
+const PR_PRODUCTS = ['암보험','실손보험','치아보험','간병보험','운전자보험','종신보험'];
+
+const PR_DIFFICULTY = {
+  '초급': { rounds: 1, categories: ['가격/보험료 부담','지금 바쁘다/시간없다'], desc: '반론 1회, 쉽게 풀리는 상담', color: '#2E7D5B' },
+  '중급': { rounds: 2, categories: ['가격/보험료 부담','지금 바쁘다/시간없다','이미 가입되어 있음','생각해볼게요/나중에','배우자·가족과 상의'], desc: '거절 1~2회, 논리적 설득 필요', color: '#B8791A' },
+  '고급': { rounds: 4, categories: ['신뢰가 안 감(보이스피싱 등)','타사가 더 좋다/비교','필요 없다고 느낌','이미 가입되어 있음','생각해볼게요/나중에'], desc: '강한 거절/방어, 통화 초반 내내 유지', color: '#A6402F' }
+};
+
+// 공유 DB(objection_rebuttals)가 비어있는 카테고리를 위한 기본 반론·모범답안
+const PR_FALLBACK = {
+  '가격/보험료 부담': [
+    { objection: '지금도 나가는 보험료가 많아서 부담스러워요.', answer: '그 마음 충분히 이해합니다. 오늘은 새로 가입시켜드리려는 게 아니라, 지금 내고 계신 보험료 중에 중복되거나 불필요하게 나가는 부분이 있는지 먼저 점검해드리려는 거예요. 오히려 줄일 수 있는 부분이 나올 수도 있거든요.' },
+    { objection: '한 달에 20만원이면 너무 비싸요.', answer: '적은 금액은 아니시죠. 다만 하루로 나누면 6~7천원 정도인데, 필요한 순간에 받으실 보험금을 생각하면 어떠실지 같이 한번 확인해볼까요?' }
+  ],
+  '이미 가입되어 있음': [
+    { objection: '저 이미 보험 여러 개 들어놨어요.', answer: '잘 준비해두셨네요. 여러 개 들어두신 분들 중에 막상 보장이 겹치거나 필요한 담보가 빠져있는 경우를 정말 많이 봐서요. 지금 가입하신 것들 한번 정리해서 봐드려도 될까요?' }
+  ],
+  '생각해볼게요/나중에': [
+    { objection: '일단 생각 좀 해볼게요.', answer: '네, 중요한 결정이니 신중하신 게 당연해요. 나중에 생각하실 때 참고하시게 지금 3분만 시간 내주시면 상황에 맞는 부분만 정리해서 문자로 남겨드릴게요. 그 다음에 천천히 결정하셔도 늦지 않아요.' }
+  ],
+  '배우자·가족과 상의': [
+    { objection: '가족이랑 상의해봐야 할 것 같아요.', answer: '그럼요, 가족 일이니 상의하시는 게 맞죠. 헷갈리지 않으시게 오늘 확인한 보장 내용을 간단히 정리해서 보내드릴게요. 그거 보시고 편하게 얘기 나눠보세요.' }
+  ],
+  '필요 없다고 느낌': [
+    { objection: '저는 아직 건강해서 필요 없을 것 같아요.', answer: '지금처럼 건강하실 때 준비해두시는 게 오히려 훨씬 유리해요. 막상 아프고 나면 가입 자체가 어려워지는 경우가 많거든요. 건강하실 때 조건 좋게 들어두시는 게 결국 이득이세요.' }
+  ],
+  '타사가 더 좋다/비교': [
+    { objection: '다른 데서 더 좋다고 하던데요.', answer: '비교해보시는 거 정말 잘하고 계신 거예요. 저희는 어디가 좋다 나쁘다를 떠나서 고객님 조건에 맞는 보장을 있는 그대로 보여드리려고 해요. 안내받으신 내용이랑 나란히 놓고 비교해보시면 판단하시기 훨씬 편하실 거예요.' }
+  ],
+  '신뢰가 안 감(보이스피싱 등)': [
+    { objection: '혹시 보이스피싱 아니에요?', answer: '그렇게 의심하시는 게 당연해요, 요즘 워낙 많으니까요. 저는 어센틱금융 소속이고 제 소속과 등록번호는 언제든 확인해드릴 수 있어요. 편하게 확인해보시고 말씀 이어가시면 됩니다.' }
+  ],
+  '지금 바쁘다/시간없다': [
+    { objection: '지금 바빠서 통화하기 어려워요.', answer: '네, 바쁘신데 갑자기 전화드려서 죄송해요. 3분이면 충분한데, 지금 어려우시면 편하신 시간 말씀해주시면 그때 다시 연락드릴게요.' }
+  ]
+};
+
+const PR_LOG_KEY = 'afg_rebuttal_practice_log_v1';
+let pr_personas = {};
+let pr_current = null; // { difficulty, persona, rounds:[{category, objection, answers:[]}], idx }
+
+function pr_randomPersona(){
+  return {
+    name: PR_NAMES[Math.floor(Math.random()*PR_NAMES.length)],
+    age: PR_AGES[Math.floor(Math.random()*PR_AGES.length)],
+    gender: PR_GENDERS[Math.floor(Math.random()*PR_GENDERS.length)],
+    trait: PR_TRAITS[Math.floor(Math.random()*PR_TRAITS.length)],
+    product: PR_PRODUCTS[Math.floor(Math.random()*PR_PRODUCTS.length)]
+  };
+}
+
+function initPracticeSetup(){
+  document.getElementById('pr_setupCard').style.display = '';
+  document.getElementById('pr_sessionCard').style.display = 'none';
+  document.getElementById('pr_resultCard').style.display = 'none';
+  Object.keys(PR_DIFFICULTY).forEach(function(d){ pr_personas[d] = pr_randomPersona(); });
+  renderPersonaCards();
+}
+
+function renderPersonaCards(){
+  const box = document.getElementById('pr_personaCards');
+  box.innerHTML = Object.keys(PR_DIFFICULTY).map(function(d){
+    const cfg = PR_DIFFICULTY[d];
+    const p = pr_personas[d];
+    return '<div class="card" style="margin-bottom:12px;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;">'
+      + '<span style="font-size:11.5px;font-weight:700;color:#fff;background:'+cfg.color+';border-radius:10px;padding:3px 10px;">'+d+'</span>'
+      + '<button class="secondary" style="font-size:12px;padding:5px 9px;" onclick="reshufflePersona(\''+d+'\')">🔀</button>'
+      + '</div>'
+      + '<div style="margin-top:8px;font-size:13.5px;color:var(--muted);">'+cfg.desc+'</div>'
+      + '<div style="margin-top:8px;background:#F5F3ED;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;">'
+      + '<b>'+p.name+'</b> · '+p.age+' '+p.gender+' · '+p.trait+' · '+p.product+' 관심'
+      + '</div>'
+      + '<button class="act" style="margin-top:10px;" onclick="startPracticeSession(\''+d+'\')">이 고객으로 시작</button>'
+      + '</div>';
+  }).join('');
+}
+
+function reshufflePersona(difficulty){
+  pr_personas[difficulty] = pr_randomPersona();
+  renderPersonaCards();
+}
+
+function pr_pickObjection(category){
+  // 1) 공유 DB(objection_rebuttals)에 이 카테고리의 실제 사례가 있으면 우선 사용
+  const shared = allRebuttals.filter(function(r){ return r.category === category && r.customer_objection; });
+  if(shared.length){
+    const pick = shared[Math.floor(Math.random()*shared.length)];
+    return { objection: pick.customer_objection, category: category };
+  }
+  // 2) 없으면 기본 반론 뱅크 사용
+  const fb = PR_FALLBACK[category] || PR_FALLBACK['가격/보험료 부담'];
+  const pick = fb[Math.floor(Math.random()*fb.length)];
+  return { objection: pick.objection, category: category };
+}
+
+function pr_getModelAnswers(category){
+  const answers = [];
+  const shared = allRebuttals.filter(function(r){ return r.category === category; });
+  // 공유 DB에서 최대 2개
+  const shuffled = shared.slice().sort(function(){ return Math.random()-0.5; });
+  shuffled.slice(0,2).forEach(function(r){
+    answers.push({ text: r.rebuttal_script, source: (r.manager_name||'팀장님') + ' 등록' });
+  });
+  if(!answers.length){
+    const fb = PR_FALLBACK[category] || [];
+    fb.forEach(function(item){ answers.push({ text: item.answer, source: '기본 예시' }); });
+  }
+  return answers;
+}
+
+async function startPracticeSession(difficulty){
+  // 공유 반론 데이터가 아직 없으면 미리 로드
+  if(!allRebuttals.length){
+    try{ const { data } = await sb.from('objection_rebuttals').select('*'); allRebuttals = data || []; }catch(e){}
+  }
+  const cfg = PR_DIFFICULTY[difficulty];
+  const categories = [];
+  for(let i=0;i<cfg.rounds;i++){
+    categories.push(cfg.categories[Math.floor(Math.random()*cfg.categories.length)]);
+  }
+  const rounds = categories.map(function(cat){
+    const picked = pr_pickObjection(cat);
+    return { category: cat, objection: picked.objection, checks: [false,false,false] };
+  });
+  pr_current = { difficulty: difficulty, persona: pr_personas[difficulty], rounds: rounds, idx: 0 };
+  document.getElementById('pr_setupCard').style.display = 'none';
+  document.getElementById('pr_resultCard').style.display = 'none';
+  document.getElementById('pr_sessionCard').style.display = '';
+  renderRound();
+}
+
+function renderRound(){
+  const s = pr_current;
+  const p = s.persona;
+  document.getElementById('pr_personaSummary').textContent = p.name + ' · ' + p.age + ' ' + p.gender + ' · ' + p.trait + ' · ' + p.product + ' 관심 [' + s.difficulty + ']';
+  document.getElementById('pr_roundLabel').textContent = '반론 ' + (s.idx+1) + ' / ' + s.rounds.length;
+  const round = s.rounds[s.idx];
+  document.getElementById('pr_categoryBadge').textContent = round.category;
+  document.getElementById('pr_objectionText').textContent = round.objection;
+  document.getElementById('pr_myAnswer').value = '';
+  document.getElementById('pr_answerBox').style.display = 'none';
+  document.getElementById('pr_chk1').checked = false;
+  document.getElementById('pr_chk2').checked = false;
+  document.getElementById('pr_chk3').checked = false;
+}
+
+function revealModelAnswers(){
+  const s = pr_current;
+  const round = s.rounds[s.idx];
+  const answers = pr_getModelAnswers(round.category);
+  const box = document.getElementById('pr_modelAnswers');
+  box.innerHTML = answers.map(function(a){
+    return '<div style="background:#F5F3ED;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:14px;line-height:1.6;">'
+      + a.text
+      + '<div style="font-size:11px;color:var(--muted);margin-top:6px;">— '+a.source+'</div>'
+      + '</div>';
+  }).join('');
+  document.getElementById('pr_answerBox').style.display = '';
+}
+
+function nextRound(){
+  const s = pr_current;
+  s.rounds[s.idx].myAnswer = document.getElementById('pr_myAnswer').value.trim();
+  s.rounds[s.idx].checks = [
+    document.getElementById('pr_chk1').checked,
+    document.getElementById('pr_chk2').checked,
+    document.getElementById('pr_chk3').checked
+  ];
+  if(s.idx < s.rounds.length - 1){
+    s.idx++;
+    renderRound();
+  } else {
+    endPracticeSession(false);
+  }
+}
+
+function endPracticeSession(isEarlyExit){
+  const s = pr_current;
+  if(!s) return;
+  const doneRounds = isEarlyExit ? s.idx : s.rounds.length;
+  const checkedCounts = [0,0,0];
+  s.rounds.slice(0, doneRounds+1).forEach(function(r){
+    if(r.checks){ r.checks.forEach(function(c, i){ if(c) checkedCounts[i]++; }); }
+  });
+
+  // 기록 저장
+  try{
+    const log = JSON.parse(localStorage.getItem(PR_LOG_KEY) || '[]');
+    log.unshift({
+      date: new Date().toISOString(),
+      difficulty: s.difficulty,
+      persona: s.persona.name + ' · ' + s.persona.age + ' ' + s.persona.gender,
+      roundsDone: doneRounds + (isEarlyExit ? 0 : 0),
+      totalRounds: s.rounds.length,
+      categories: s.rounds.map(function(r){ return r.category; }),
+      earlyExit: !!isEarlyExit
+    });
+    localStorage.setItem(PR_LOG_KEY, JSON.stringify(log.slice(0,30)));
+  }catch(e){}
+
+  document.getElementById('pr_sessionCard').style.display = 'none';
+  document.getElementById('pr_resultCard').style.display = '';
+  document.getElementById('pr_resultSummary').innerHTML =
+    '난이도 <b>'+s.difficulty+'</b> · 총 '+s.rounds.length+'개 반론 중 <b>'+(doneRounds + (isEarlyExit?0:1))+'개</b> 연습했어요.<br>'
+    + '공감 체크: '+checkedCounts[0]+'회 · 근거 제시 체크: '+checkedCounts[1]+'회 · 다음행동 제안 체크: '+checkedCounts[2]+'회';
+  pr_current = null;
+}
+
+function backToSetup(){
+  initPracticeSetup();
+}
+
+function togglePracticeLog(){
+  const box = document.getElementById('pr_logBox');
+  if(box.style.display === 'none'){
+    let log = [];
+    try{ log = JSON.parse(localStorage.getItem(PR_LOG_KEY) || '[]'); }catch(e){}
+    if(!log.length){
+      box.innerHTML = '<div class="sub">아직 연습 기록이 없어요.</div>';
+    } else {
+      box.innerHTML = log.map(function(item){
+        const d = new Date(item.date);
+        const dateStr = (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+        return '<div style="font-size:13px;padding:6px 0;border-bottom:1px solid var(--line);">'
+          + dateStr+' · '+item.difficulty+' · '+item.persona+' · '+item.totalRounds+'개 반론'+(item.earlyExit?' (중도종료)':'')
+          + '</div>';
+      }).join('');
+    }
+    box.style.display = '';
+  } else {
+    box.style.display = 'none';
+  }
 }
 
 </script>
