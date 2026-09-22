@@ -388,6 +388,7 @@
     <button class="tabbtn" data-tab="coverage" onclick="switchTab('coverage')">📑 보장분석</button>
     <button class="tabbtn" data-tab="rapport" onclick="switchTab('rapport')">🤝 라포 브리핑</button>
     <button class="tabbtn" data-tab="newsscrap" onclick="switchTab('newsscrap')">📰 기사 스크랩</button>
+    <button class="tabbtn" data-tab="rebuttal" onclick="switchTab('rebuttal')">💬 나는 이렇게 반론했어요</button>
   </nav>
   <div id="connStatus" class="st-checking">연결 확인 중...</div>
   <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
@@ -1121,6 +1122,67 @@
   </div>
 </div>
 
+<!-- ===== 나는 이렇게 반론했어요 ===== -->
+<div class="panel" id="panel-rebuttal">
+  <div class="card">
+    <div class="sub">고객이 이런 반론을 했을 때 이렇게 대응했더니 효과가 있었다 — 그 경험을 남겨서 팀장님들끼리 공유하는 코너예요. 어떤 도입멘트 다음에 나온 반론인지부터 골라주세요.</div>
+    <label>도입멘트</label>
+    <select id="rb_introType" onchange="onIntroTypeChange()">
+      <option value="">선택하세요</option>
+      <option value="퍼미션 DB">퍼미션 DB</option>
+      <option value="상품광고 3">상품광고 3</option>
+    </select>
+    <div id="rb_introPreview" class="sub" style="display:none;margin-top:8px;white-space:pre-line;background:#F5F3ED;padding:12px 14px;border-radius:8px;border:1px solid var(--line);"></div>
+
+    <div class="row" style="margin-top:12px;">
+      <div>
+        <label>반론 유형</label>
+        <select id="rb_category" onchange="toggleRebuttalCustomCategory()">
+          <option value="">선택하세요</option>
+          <option value="가격/보험료 부담">가격/보험료 부담</option>
+          <option value="이미 가입되어 있음">이미 가입되어 있음</option>
+          <option value="생각해볼게요/나중에">생각해볼게요/나중에</option>
+          <option value="배우자·가족과 상의">배우자·가족과 상의</option>
+          <option value="필요 없다고 느낌">필요 없다고 느낌</option>
+          <option value="타사가 더 좋다/비교">타사가 더 좋다/비교</option>
+          <option value="신뢰가 안 감(보이스피싱 등)">신뢰가 안 감(보이스피싱 등)</option>
+          <option value="지금 바쁘다/시간없다">지금 바쁘다/시간없다</option>
+          <option value="__custom__">+ 직접 입력</option>
+        </select>
+        <input type="text" id="rb_categoryCustom" placeholder="반론 유형을 직접 입력하세요" style="display:none;margin-top:6px;">
+      </div>
+      <div class="grow">
+        <label>고객이 이렇게 말했어요 <span style="font-weight:400;color:var(--muted);">(선택)</span></label>
+        <input type="text" id="rb_objection" placeholder="예: 지금 보험이 너무 많아서 더 못 들어요">
+      </div>
+    </div>
+    <label style="margin-top:10px;">나는 이렇게 반론했어요</label>
+    <textarea id="rb_script" rows="3" placeholder="실제로 썼던 멘트를 그대로 적어주세요"></textarea>
+    <div class="row" style="margin-top:8px;">
+      <div class="grow">
+        <label>메모 <span style="font-weight:400;color:var(--muted);">(선택 · 언제 잘 먹히는지, 주의할 점 등)</span></label>
+        <input type="text" id="rb_memo" placeholder="예: 40대 이상 고객에게 특히 잘 통함">
+      </div>
+    </div>
+    <button class="act" style="margin-top:10px;" onclick="addRebuttal()">+ 등록하기</button>
+  </div>
+
+  <div class="card">
+    <div class="filter-row">
+      <label style="margin:0;">도입멘트:</label>
+      <select id="rb_filterIntro" onchange="renderRebuttals()">
+        <option value="__all__">전체</option>
+        <option value="퍼미션 DB">퍼미션 DB</option>
+        <option value="상품광고 3">상품광고 3</option>
+      </select>
+      <label style="margin:0;">유형:</label>
+      <select id="rb_filterCategory" onchange="renderRebuttals()"><option value="__all__">전체</option></select>
+      <input type="text" id="rb_search" placeholder="키워드로 검색 (반론 내용, 멘트 내용)" style="flex:1;min-width:180px;" oninput="renderRebuttals()">
+    </div>
+    <div id="rb_list" style="margin-top:6px;"></div>
+  </div>
+</div>
+
 </main>
 
 <script>
@@ -1184,6 +1246,7 @@ function switchTab(name) {
   if (name === 'salary') setupSalaryAutoCalc();
   if (name === 'kcd') renderKcdResults();
   if (name === 'newsscrap') loadScrapedNews();
+  if (name === 'rebuttal') loadRebuttals();
 }
 
 /* ============================================================
@@ -3918,6 +3981,167 @@ async function deleteScrap(id){
   const { error } = await sb.from('news_scraps').delete().eq('id', id);
   if(error){ alert('삭제 실패: ' + error.message); return; }
   await loadScrapedNews();
+}
+
+/* ============================================================
+   나는 이렇게 반론했어요 (반론극복 멘트)
+============================================================ */
+let allRebuttals = [];
+
+const INTRO_SCRIPTS = {
+  '퍼미션 DB': '여보세요, OOO 선생님(고객님) 안녕하세요. 보험점검 담당하고 있는 OOO입니다. 최근에 저희 상담원을 통해서 보험료 점검에 동의해주신 것 확인하고 연락드렸어요. 선생님처럼 50대 되시면 바쁘게 지내시다 보니, 가입해두신 보험이 정작 필요 없는 부분까지 계속 보험료만 나가는 경우가 정말 많더라고요. 지금 월 20만원 정도 내고 계신데, 혹시 과하게 내고 계시거나 필요한 보장이 빠져 있는 건 아닌지 무료로 점검해드리려고 합니다. 점검해서 손해 볼 일은 없으니 편하게 봐주시면 되고, 제가 간단히 몇 가지만 확인 하고 바로 정리해서 마무리해드릴게요. 괜찮으시죠? 네, OOO 선생님(고객님) 맞으신 거죠? 네, 그리고 71년 9월 17일생이시고요. 본인 여부 확인하고 안내해 드릴 건데, OOO 고객님 710917 그다음에는 어떻게 되세요?',
+  '상품광고 3': '여보세요, OOO 선생님(고객님) 안녕하세요. OOO플랜 광고에서 OOOOOOOOO 내용 보시고 문의 남겨주셔서 연락드렸습니다. 저는 상담 도와드릴 어센틱금융 OOO 팀장이라고 하고요. OOO 플랜 관련해서 상담드릴텐데, 보험료 외에 평소 많이 신경 쓰이셨거나 궁금하셨던 부분이 있으셨을까요? 그러시면 말씀하신 이 보장내용이 고객님께서 이미 가지고 계시거나 중복되어 있을 수 있거든요. 중복으로 보험료를 더 내실 필요는 없으시니까요, 제가 먼저 고객님 기존 보장부터 확인해드리고 말씀드리는게 어떠세요?'
+};
+
+function onIntroTypeChange(){
+  const val = document.getElementById('rb_introType').value;
+  const preview = document.getElementById('rb_introPreview');
+  if(val && INTRO_SCRIPTS[val]){
+    preview.textContent = INTRO_SCRIPTS[val];
+    preview.style.display = '';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+function toggleRebuttalCustomCategory(){
+  const sel = document.getElementById('rb_category');
+  const custom = document.getElementById('rb_categoryCustom');
+  custom.style.display = (sel.value === '__custom__') ? '' : 'none';
+}
+
+async function addRebuttal(){
+  const introType = document.getElementById('rb_introType').value;
+  const selVal = document.getElementById('rb_category').value;
+  const category = selVal === '__custom__'
+    ? document.getElementById('rb_categoryCustom').value.trim()
+    : selVal;
+  const objection = document.getElementById('rb_objection').value.trim();
+  const script = document.getElementById('rb_script').value.trim();
+  const memo = document.getElementById('rb_memo').value.trim();
+
+  if(!introType){ alert('어떤 도입멘트 다음에 나온 반론인지 선택해주세요.'); return; }
+  if(!category){ alert('반론 유형을 선택하거나 입력해주세요.'); return; }
+  if(!script){ alert('반론했던 멘트를 입력해주세요.'); return; }
+
+  const { error } = await sb.from('objection_rebuttals').insert([{
+    intro_type: introType,
+    category: category,
+    customer_objection: objection || null,
+    rebuttal_script: script,
+    memo: memo || null,
+    manager_name: currentUser.manager_name
+  }]);
+  if(error){ alert('저장 실패: ' + error.message); return; }
+
+  document.getElementById('rb_introType').value = '';
+  document.getElementById('rb_introPreview').style.display = 'none';
+  document.getElementById('rb_category').value = '';
+  document.getElementById('rb_categoryCustom').value = '';
+  document.getElementById('rb_categoryCustom').style.display = 'none';
+  document.getElementById('rb_objection').value = '';
+  document.getElementById('rb_script').value = '';
+  document.getElementById('rb_memo').value = '';
+  await loadRebuttals();
+}
+
+async function loadRebuttals(){
+  const listEl = document.getElementById('rb_list');
+  listEl.innerHTML = '<div class="sub">불러오는 중...</div>';
+  const { data, error } = await sb.from('objection_rebuttals').select('*').order('created_at', { ascending: false });
+  if(error){
+    listEl.innerHTML = '<div class="sub" style="color:var(--red);">불러오기 실패: '+error.message+'</div>';
+    return;
+  }
+  allRebuttals = data || [];
+  updateRebuttalFilterOptions();
+  renderRebuttals();
+}
+
+function updateRebuttalFilterOptions(){
+  const sel = document.getElementById('rb_filterCategory');
+  const current = sel.value || '__all__';
+  const categories = Array.from(new Set(allRebuttals.map(function(r){ return r.category; }).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="__all__">전체</option>' + categories.map(function(c){
+    return '<option value="'+c+'">'+c+'</option>';
+  }).join('');
+  sel.value = categories.includes(current) ? current : '__all__';
+}
+
+function renderRebuttals(){
+  const listEl = document.getElementById('rb_list');
+  const filterIntro = document.getElementById('rb_filterIntro').value;
+  const filterCat = document.getElementById('rb_filterCategory').value;
+  const keyword = document.getElementById('rb_search').value.trim().toLowerCase();
+
+  let rows = allRebuttals;
+  if(filterIntro && filterIntro !== '__all__'){
+    rows = rows.filter(function(r){ return r.intro_type === filterIntro; });
+  }
+  if(filterCat && filterCat !== '__all__'){
+    rows = rows.filter(function(r){ return r.category === filterCat; });
+  }
+  if(keyword){
+    rows = rows.filter(function(r){
+      return (r.rebuttal_script||'').toLowerCase().includes(keyword)
+        || (r.customer_objection||'').toLowerCase().includes(keyword)
+        || (r.category||'').toLowerCase().includes(keyword);
+    });
+  }
+
+  if(!rows.length){
+    listEl.innerHTML = '<div class="sub" style="margin-top:10px;">등록된 반론극복 멘트가 없어요. 위에서 첫 사례를 남겨보세요.</div>';
+    return;
+  }
+
+  listEl.innerHTML = rows.map(function(r){
+    const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'}) : '-';
+    const objectionHtml = r.customer_objection
+      ? '<div style="font-size:12.5px;color:var(--muted);margin-bottom:6px;">고객: "'+r.customer_objection+'"</div>'
+      : '';
+    const memoHtml = r.memo
+      ? '<div style="font-size:11.5px;color:var(--muted);margin-top:6px;">💡 '+r.memo+'</div>'
+      : '';
+    const canDelete = (currentUser.role === 'master') || (r.manager_name === currentUser.manager_name);
+    const deleteBtnHtml = canDelete
+      ? '<button class="secondary" style="font-size:11.5px;padding:5px 10px;" onclick="deleteRebuttal(\''+String(r.id)+'\')">삭제</button>'
+      : '';
+    return '<div class="card" style="margin-bottom:10px;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+      + '<div>'
+      + '<span style="font-size:11px;background:var(--navy);color:#fff;border-radius:10px;padding:2px 9px;margin-right:6px;">'+(r.intro_type||'미지정')+'</span>'
+      + '<span style="font-size:11px;background:#EFEDE6;color:var(--ink);border-radius:10px;padding:2px 9px;">'+r.category+'</span>'
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--muted);white-space:nowrap;">'+dateStr+' · '+(r.manager_name||'-')+'</div>'
+      + '</div>'
+      + '<div style="margin-top:8px;">' + objectionHtml
+      + '<div style="font-size:14px;line-height:1.6;white-space:pre-line;">'+r.rebuttal_script+'</div>'
+      + memoHtml
+      + '</div>'
+      + '<div style="display:flex;gap:8px;margin-top:10px;">'
+      + '<button class="secondary" style="font-size:11.5px;padding:5px 10px;" onclick="copyRebuttal(\''+String(r.id)+'\')">복사</button>'
+      + deleteBtnHtml
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function copyRebuttal(id){
+  const r = allRebuttals.find(function(x){ return String(x.id) === String(id); });
+  if(!r) return;
+  navigator.clipboard?.writeText(r.rebuttal_script).catch(()=>{});
+}
+
+async function deleteRebuttal(id){
+  const r = allRebuttals.find(function(x){ return String(x.id) === String(id); });
+  if(r && currentUser.role !== 'master' && r.manager_name !== currentUser.manager_name){
+    alert('본인이 등록한 멘트만 삭제할 수 있어요.');
+    return;
+  }
+  if(!confirm('이 멘트를 삭제할까요?')) return;
+  const { error } = await sb.from('objection_rebuttals').delete().eq('id', id);
+  if(error){ alert('삭제 실패: ' + error.message); return; }
+  await loadRebuttals();
 }
 
 </script>
