@@ -496,6 +496,8 @@
         <input type="checkbox" id="c_groupByDate" onchange="renderContracts()"> 계약일별로 보기
       </label>
     </div>
+    <div id="c_monthSummary" style="font-size:13px;margin:8px 0 2px;padding:8px 12px;background:#F5F3ED;border:1px solid var(--line);border-radius:8px;"></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">고객명 앞 숫자 = 해당 팀장님의 그달 몇 번째 계약인지 (매월 1부터 다시 시작, 진한 색 = 이달 최신 건)</div>
     <table>
       <colgroup>
         <col style="width:9%"><col style="width:16%"><col style="width:10%"><col style="width:23%">
@@ -1166,7 +1168,17 @@
         <input type="text" id="rb_memo" placeholder="예: 40대 이상 고객에게 특히 잘 통함">
       </div>
     </div>
-    <button class="act" style="margin-top:10px;" onclick="addRebuttal()">+ 등록하기</button>
+    <div class="row" style="margin-top:8px;">
+      <div class="grow">
+        <label>🔒 누구의 콜인가요? <span style="font-weight:400;color:var(--muted);">(선택 · 등록한 본인과 마스터만 볼 수 있어요)</span></label>
+        <input type="text" id="rb_callOwner" list="rb_callOwnerList" placeholder="예: 배혜영 (목록에서 고르거나 직접 입력)">
+        <datalist id="rb_callOwnerList"></datalist>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="act" id="rb_submitBtn" onclick="addRebuttal()">+ 등록하기</button>
+      <button class="secondary" id="rb_cancelEditBtn" style="display:none;padding:9px 16px;border-radius:8px;" onclick="cancelEditRebuttal()">수정 취소</button>
+    </div>
   </div>
 
   <div class="card">
@@ -1548,6 +1560,45 @@ function renderDueBox(){
   box.className = 'due-box' + (bdayItems.length && !dueItems.length ? ' birthday' : '');
   box.innerHTML = html;
 }
+// 팀장별·월별 계약 순번 (계약일 오름차순 1,2,3...) — 검색/필터와 무관하게 전체 기준으로 계산
+let contractSeqMap = {};
+function buildContractSeqMap(){
+  contractSeqMap = {};
+  const groups = {};
+  allContracts.forEach(c=>{
+    if(!c.contract_date) return;
+    const key = (c.manager_name||'') + '|' + String(c.contract_date).slice(0,7);
+    (groups[key] = groups[key] || []).push(c);
+  });
+  Object.keys(groups).forEach(key=>{
+    const list = groups[key].sort((a,b)=>{
+      const d = String(a.contract_date).localeCompare(String(b.contract_date));
+      return d !== 0 ? d : (Number(a.id)||0) - (Number(b.id)||0);
+    });
+    list.forEach((c,i)=>{ contractSeqMap[c.id] = { seq: i+1, total: list.length, month: Number(String(c.contract_date).slice(5,7)) }; });
+  });
+}
+function contractSeqBadge(c){
+  const info = contractSeqMap[c.id];
+  if(!info) return '';
+  const isLast = info.seq === info.total;
+  return `<span title="${info.month}월 ${info.seq}번째 계약 (이달 총 ${info.total}건)" style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;margin-right:6px;border-radius:11px;font-size:11.5px;font-weight:700;vertical-align:middle;${isLast?'background:var(--navy);color:#fff;':'background:#E4E1D8;color:var(--ink);'}">${info.seq}</span>`;
+}
+function renderContractMonthSummary(rows){
+  const box = document.getElementById('c_monthSummary');
+  if(!box) return;
+  const now = new Date();
+  const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const counts = {};
+  rows.forEach(c=>{
+    if(c.contract_date && String(c.contract_date).startsWith(ym)){
+      counts[c.manager_name] = (counts[c.manager_name]||0) + 1;
+    }
+  });
+  const names = Object.keys(counts).sort();
+  if(!names.length){ box.innerHTML = `📊 ${now.getMonth()+1}월 계약: 아직 없음`; return; }
+  box.innerHTML = `📊 ${now.getMonth()+1}월 누적 계약 — ` + names.map(n=>`<b>${escapeHtml(n)}</b> ${counts[n]}건`).join(' · ');
+}
 function renderContractRow(c){
   if (editingContractId === c.id) return renderContractEditRow(c);
   const today=new Date(); today.setHours(0,0,0,0);
@@ -1560,7 +1611,7 @@ function renderContractRow(c){
   };
   return `<tr>
     <td>${escapeHtml(c.manager_name)}</td>
-    <td>${escapeHtml(c.customer_name)}${c.customer_birthday?` <span style="color:var(--muted);font-size:11px;">(${new Date(c.customer_birthday).getMonth()+1}/${new Date(c.customer_birthday).getDate()})</span>`:''}</td>
+    <td>${contractSeqBadge(c)}${escapeHtml(c.customer_name)}${c.customer_birthday?` <span style="color:var(--muted);font-size:11px;">(${new Date(c.customer_birthday).getMonth()+1}/${new Date(c.customer_birthday).getDate()})</span>`:''}</td>
     <td>${new Date(c.contract_date).toLocaleDateString('ko-KR')}</td>
     <td>${escapeHtml(c.product_name||'')}${c.insurer?' / '+escapeHtml(c.insurer):''}</td>
     <td>${c.premium ? Number(c.premium).toLocaleString('ko-KR')+'원' : ''}</td>
@@ -1577,8 +1628,10 @@ function renderContracts(){
   const search=document.getElementById('c_search').value.trim().toLowerCase();
   const groupByDate = document.getElementById('c_groupByDate') && document.getElementById('c_groupByDate').checked;
   let rows=allContracts;
+  buildContractSeqMap();
   if(filterManager!=='__all__') rows=rows.filter(c=>c.manager_name===filterManager);
-  if(search) rows=rows.filter(c=>c.customer_name.toLowerCase().includes(search));
+  renderContractMonthSummary(rows);
+  if(search) rows=rows.filter(c=>(c.customer_name||'').toLowerCase().includes(search));
   if(rows.length===0){ tbody.innerHTML='<tr><td colspan="10" style="color:var(--muted);">해당 계약이 없습니다</td></tr>'; return; }
 
   if(!groupByDate){
@@ -4108,20 +4161,35 @@ async function addRebuttal(){
   const objection = document.getElementById('rb_objection').value.trim();
   const script = document.getElementById('rb_script').value.trim();
   const memo = document.getElementById('rb_memo').value.trim();
+  const callOwner = document.getElementById('rb_callOwner').value.trim();
 
   if(!introType){ alert('어떤 도입멘트 다음에 나온 반론인지 선택해주세요.'); return; }
   if(!category){ alert('반론 유형을 선택하거나 입력해주세요.'); return; }
   if(!script){ alert('반론했던 멘트를 입력해주세요.'); return; }
 
-  const { error } = await sb.from('objection_rebuttals').insert([{
+  const payload = {
     intro_type: introType,
     category: category,
     customer_objection: objection || null,
     rebuttal_script: script,
     memo: memo || null,
-    manager_name: currentUser.manager_name
-  }]);
-  if(error){ alert('저장 실패: ' + error.message); return; }
+    call_owner: callOwner || null
+  };
+
+  if(editingRebuttalId !== null){
+    // 수정 모드
+    const target = allRebuttals.find(function(x){ return String(x.id) === String(editingRebuttalId); });
+    if(target && currentUser.role !== 'master' && target.manager_name !== currentUser.manager_name){
+      alert('본인이 등록한 멘트만 수정할 수 있어요.'); return;
+    }
+    const { data: upd, error: updErr } = await sb.from('objection_rebuttals').update(payload).eq('id', editingRebuttalId).select();
+    if(updErr){ alert('수정 실패: ' + updErr.message + (String(updErr.message).includes('call_owner') ? '\n\n(Supabase에서 call_owner 컬럼 추가 SQL을 먼저 실행해주세요)' : '')); return; }
+    if(!upd || !upd.length){ alert('수정이 반영되지 않았어요. Supabase에서 수정 권한(UPDATE 정책) SQL을 실행했는지 확인해주세요.'); return; }
+  } else {
+    payload.manager_name = currentUser.manager_name;
+    const { error } = await sb.from('objection_rebuttals').insert([payload]);
+    if(error){ alert('저장 실패: ' + error.message + (String(error.message).includes('call_owner') ? '\n\n(Supabase에서 call_owner 컬럼 추가 SQL을 먼저 실행해주세요)' : '')); return; }
+  }
 
   document.getElementById('rb_introType').value = '';
   document.getElementById('rb_introPreview').style.display = 'none';
@@ -4131,7 +4199,74 @@ async function addRebuttal(){
   document.getElementById('rb_objection').value = '';
   document.getElementById('rb_script').value = '';
   document.getElementById('rb_memo').value = '';
+  document.getElementById('rb_callOwner').value = '';
+  setRebuttalEditMode(null);
   await loadRebuttals();
+}
+
+var editingRebuttalId = null;
+function setRebuttalEditMode(id){
+  editingRebuttalId = id;
+  const btn = document.getElementById('rb_submitBtn');
+  const cancelBtn = document.getElementById('rb_cancelEditBtn');
+  if(id === null){
+    btn.textContent = '+ 등록하기';
+    cancelBtn.style.display = 'none';
+  } else {
+    btn.textContent = '✔ 수정 저장';
+    cancelBtn.style.display = '';
+  }
+}
+function canManageRebuttal(r){
+  return !!r && ((currentUser.role === 'master') || (r.manager_name === currentUser.manager_name));
+}
+function startEditRebuttal(id){
+  const r = allRebuttals.find(function(x){ return String(x.id) === String(id); });
+  if(!r) return;
+  if(!canManageRebuttal(r)){ alert('본인이 등록한 멘트만 수정할 수 있어요.'); return; }
+  const introSel = document.getElementById('rb_introType');
+  introSel.value = r.intro_type || '';
+  onIntroTypeChange();
+  const catSel = document.getElementById('rb_category');
+  const hasOption = Array.from(catSel.options).some(function(o){ return o.value === r.category && o.value !== '__custom__' && o.value !== ''; });
+  if(hasOption){
+    catSel.value = r.category;
+    document.getElementById('rb_categoryCustom').value = '';
+  } else {
+    catSel.value = '__custom__';
+    document.getElementById('rb_categoryCustom').value = r.category || '';
+  }
+  toggleRebuttalCustomCategory();
+  document.getElementById('rb_objection').value = r.customer_objection || '';
+  document.getElementById('rb_script').value = r.rebuttal_script || '';
+  document.getElementById('rb_memo').value = r.memo || '';
+  document.getElementById('rb_callOwner').value = r.call_owner || '';
+  setRebuttalEditMode(r.id);
+  renderRebuttals();
+  introSel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function cancelEditRebuttal(){
+  document.getElementById('rb_introType').value = '';
+  document.getElementById('rb_introPreview').style.display = 'none';
+  document.getElementById('rb_category').value = '';
+  document.getElementById('rb_categoryCustom').value = '';
+  document.getElementById('rb_categoryCustom').style.display = 'none';
+  document.getElementById('rb_objection').value = '';
+  document.getElementById('rb_script').value = '';
+  document.getElementById('rb_memo').value = '';
+  document.getElementById('rb_callOwner').value = '';
+  setRebuttalEditMode(null);
+  renderRebuttals();
+}
+function updateCallOwnerOptions(){
+  const dl = document.getElementById('rb_callOwnerList');
+  if(!dl) return;
+  const names = new Set();
+  if(currentUser && currentUser.manager_name) names.add(currentUser.manager_name);
+  (typeof allContracts !== 'undefined' ? allContracts : []).forEach(function(c){ if(c.manager_name) names.add(c.manager_name); });
+  (typeof allReservations !== 'undefined' ? allReservations : []).forEach(function(r){ if(r.manager_name) names.add(r.manager_name); });
+  allRebuttals.forEach(function(r){ if(canManageRebuttal(r) && r.call_owner) names.add(r.call_owner); });
+  dl.innerHTML = Array.from(names).sort().map(function(n){ return '<option value="'+escAttr(n)+'"></option>'; }).join('');
 }
 
 async function loadRebuttals(){
@@ -4144,6 +4279,7 @@ async function loadRebuttals(){
   }
   allRebuttals = data || [];
   updateRebuttalFilterOptions();
+  updateCallOwnerOptions();
   renderRebuttals();
 }
 
@@ -4191,17 +4327,26 @@ function renderRebuttals(){
     const memoHtml = r.memo
       ? '<div style="font-size:11.5px;color:var(--muted);margin-top:6px;">💡 '+r.memo+'</div>'
       : '';
-    const canDelete = (currentUser.role === 'master') || (r.manager_name === currentUser.manager_name);
+    const canDelete = canManageRebuttal(r);
     const deleteBtnHtml = canDelete
-      ? '<button class="secondary" style="font-size:11.5px;padding:5px 10px;" onclick="deleteRebuttal(\''+String(r.id)+'\')">삭제</button>'
+      ? '<button class="secondary" style="font-size:11.5px;padding:5px 10px;" onclick="startEditRebuttal(\''+String(r.id)+'\')">수정</button>'
+        + '<button class="secondary" style="font-size:11.5px;padding:5px 10px;" onclick="deleteRebuttal(\''+String(r.id)+'\')">삭제</button>'
+      : '';
+    // 누구의 콜인지 / 등록자는 등록한 본인과 마스터에게만 표시
+    const whoHtml = canDelete
+      ? ' · 🔒 ' + (r.call_owner ? escapeHtml(r.call_owner)+'님 콜' : '콜 주인 미지정') + ' <span style="opacity:.75;">(등록 ' + escapeHtml(r.manager_name||'-') + ')</span>'
+      : '';
+    const editingBadge = (editingRebuttalId !== null && String(editingRebuttalId) === String(r.id))
+      ? '<span style="font-size:11px;background:var(--amber-bg, #FCEBC7);border-radius:10px;padding:2px 9px;margin-left:6px;">수정 중</span>'
       : '';
     return '<div class="card" style="margin-bottom:10px;">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
       + '<div>'
       + '<span style="font-size:11px;background:var(--navy);color:#fff;border-radius:10px;padding:2px 9px;margin-right:6px;">'+(r.intro_type||'미지정')+'</span>'
-      + '<span style="font-size:11px;background:#EFEDE6;color:var(--ink);border-radius:10px;padding:2px 9px;">'+r.category+'</span>'
+      + '<span style="font-size:11px;background:#EFEDE6;color:var(--ink);border-radius:10px;padding:2px 9px;">'+escapeHtml(r.category)+'</span>'
+      + editingBadge
       + '</div>'
-      + '<div style="font-size:11px;color:var(--muted);white-space:nowrap;">'+dateStr+' · '+(r.manager_name||'-')+'</div>'
+      + '<div style="font-size:11px;color:var(--muted);text-align:right;">'+dateStr+whoHtml+'</div>'
       + '</div>'
       + '<div style="margin-top:8px;">' + objectionHtml
       + '<div style="font-size:14px;line-height:1.6;white-space:pre-line;">'+r.rebuttal_script+'</div>'
@@ -4230,6 +4375,7 @@ async function deleteRebuttal(id){
   if(!confirm('이 멘트를 삭제할까요?')) return;
   const { error } = await sb.from('objection_rebuttals').delete().eq('id', id);
   if(error){ alert('삭제 실패: ' + error.message); return; }
+  if(editingRebuttalId !== null && String(editingRebuttalId) === String(id)) cancelEditRebuttal();
   await loadRebuttals();
 }
 
