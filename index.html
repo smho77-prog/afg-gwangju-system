@@ -173,6 +173,14 @@
   .cm-table th { position:sticky; top:0; background:#F5F3ED; z-index:1; }
   .cm-table tbody tr { cursor:pointer; }
   .cm-table tbody tr:hover { background:#F7F5EF; }
+  .cm-detail > td { background:#F7F8FB; padding:10px 12px !important; cursor:default; }
+  .cm-table tbody tr.cm-detail:hover { background:transparent; }
+  .cm-addr { font-size:12.5px; margin-bottom:8px; word-break:keep-all; }
+  .cm-hist { width:100%; border-collapse:collapse; font-size:12.5px; background:#fff; border:1px solid var(--line); border-radius:6px; margin:0; }
+  .cm-hist th { background:#F5F3ED; font-size:11.5px; position:static; }
+  .cm-hist td, .cm-hist th { padding:6px 8px; }
+  .cm-multi { white-space:nowrap; font-size:11px; background:var(--green-bg); color:var(--green); border-radius:999px; padding:1px 7px; margin-left:2px; font-weight:700; }
+  .cm-new { font-size:10px; background:var(--navy); color:#fff; border-radius:4px; padding:1px 5px; margin-left:2px; }
   .cm-region-tag { font-size:10.5px; color:var(--muted); margin-left:4px; white-space:nowrap; }
 </style>
 <style id="cv_style">
@@ -496,7 +504,7 @@
     <div id="c_dueBox" class="due-box empty">오늘 확인할 항목이 없습니다.</div>
     <div class="row">
       <div><label>담당 팀장</label><input type="text" id="c_manager" placeholder="예: 송명호"></div>
-      <div><label>고객명</label><input type="text" id="c_customer" placeholder="예: 김철수"></div>
+      <div><label>고객명</label><input type="text" id="c_customer" placeholder="예: 김철수" onchange="prefillExistingCustomer()"></div>
       <div><label>생일 (월/일)</label><input type="date" id="c_birthday"></div>
     </div>
     <div class="row">
@@ -510,8 +518,13 @@
     </div>
     <div class="row">
       <div><label>보험료(월납, 원)</label><input type="number" id="c_premium" placeholder="예: 55000"></div>
-      <div><label>고객 지역 (시·도)</label><select id="c_region"><option value="">선택 안 함</option><option value="서울">서울</option><option value="경기">경기</option><option value="인천">인천</option><option value="강원">강원</option><option value="충북">충북</option><option value="충남">충남</option><option value="대전">대전</option><option value="세종">세종</option><option value="전북">전북</option><option value="광주">광주</option><option value="전남">전남</option><option value="경북">경북</option><option value="대구">대구</option><option value="경남">경남</option><option value="부산">부산</option><option value="울산">울산</option><option value="제주">제주</option></select></div>
     </div>
+    <div class="row">
+      <div style="flex:3;min-width:240px;"><label>고객 주소 (전체 복사해서 붙여넣기)</label>
+        <input type="text" id="c_address" placeholder="예: 광주광역시 광산구 수완로 00, 000동 000호" oninput="autoRegionFromAddress('c_address','c_region')"></div>
+      <div style="flex:1;"><label>시·도 (주소 입력 시 자동)</label><select id="c_region"><option value="">선택 안 함</option><option value="서울">서울</option><option value="경기">경기</option><option value="인천">인천</option><option value="강원">강원</option><option value="충북">충북</option><option value="충남">충남</option><option value="대전">대전</option><option value="세종">세종</option><option value="전북">전북</option><option value="광주">광주</option><option value="전남">전남</option><option value="경북">경북</option><option value="대구">대구</option><option value="경남">경남</option><option value="부산">부산</option><option value="울산">울산</option><option value="제주">제주</option></select></div>
+    </div>
+    <div id="c_existingHint" style="display:none;font-size:12px;color:var(--green);background:var(--green-bg);border-radius:6px;padding:6px 10px;margin:-2px 0 10px;"></div>
     <button class="act" onclick="addContract()">+ 계약 추가</button>
 
     <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
@@ -524,7 +537,7 @@
   <div class="card" id="c_previewCard" style="display:none;">
     <div class="sub">엑셀에는 생일 정보가 없어서, 필요한 분만 아래에서 직접 입력해주세요. 확인 후 일괄등록을 눌러주세요.</div>
     <table>
-      <thead><tr><th>담당</th><th>고객명</th><th>생일(직접입력)</th><th>계약일</th><th>보험사</th><th>상품명</th><th>보험료</th><th>지역</th></tr></thead>
+      <thead><tr><th>담당</th><th>고객명</th><th>생일(직접입력)</th><th>계약일</th><th>보험사</th><th>상품명</th><th>보험료</th><th>주소 / 시·도</th></tr></thead>
       <tbody id="c_previewBody"></tbody>
     </table>
     <div style="margin-top:12px;display:flex;gap:8px;">
@@ -1627,13 +1640,38 @@ let cmSelected = null;
 function regionOptionsHtml(sel){
   return '<option value="">선택 안 함</option>' + CM_REGIONS.map(k=>`<option value="${k}" ${sel===k?'selected':''}>${k}</option>`).join('');
 }
-function contractRegionEnabled(){
-  // 기존 계약이 있으면 region 칸 존재 여부로 판단 (Supabase에 칸을 추가하기 전에도 저장이 막히지 않도록)
+function contractColEnabled(col){
+  // 기존 계약이 있으면 칸 존재 여부로 판단 (Supabase에 칸을 추가하기 전에도 저장이 막히지 않도록)
   if (!allContracts.length) return true;
-  return Object.prototype.hasOwnProperty.call(allContracts[0], 'region');
+  return Object.prototype.hasOwnProperty.call(allContracts[0], col);
+}
+function contractRegionEnabled(){ return contractColEnabled('region'); }
+function autoRegionFromAddress(addrId, selId){
+  const a=document.getElementById(addrId), s=document.getElementById(selId);
+  if(!a||!s) return;
+  const k=parseRegionFromAddress(a.value);
+  if(k) s.value=k;
+}
+function prefillExistingCustomer(){
+  const name=document.getElementById('c_customer').value.trim();
+  const mgr=document.getElementById('c_manager').value.trim();
+  const hint=document.getElementById('c_existingHint');
+  if(!name){ hint.style.display='none'; return; }
+  const prev=allContracts.filter(c=>c.customer_name===name && (!mgr || c.manager_name===mgr))
+    .sort((a,b)=>(b.contract_date||'').localeCompare(a.contract_date||''));
+  if(!prev.length){ hint.style.display='none'; return; }
+  const withAddr=prev.find(c=>c.address);
+  const withRegion=prev.find(c=>c.region);
+  const addrEl=document.getElementById('c_address');
+  if(withAddr && !addrEl.value.trim()) addrEl.value=withAddr.address;
+  if(!document.getElementById('c_region').value){
+    document.getElementById('c_region').value = (withRegion&&withRegion.region) || parseRegionFromAddress(addrEl.value) || '';
+  }
+  hint.innerHTML=`✓ 기존 고객이에요 — 이전 계약 ${prev.length}건 (최근 ${new Date(prev[0].contract_date).toLocaleDateString('ko-KR')} · ${escapeHtml(prev[0].product_name||'')})${withAddr?' · 주소를 이전 계약에서 불러왔어요':''}`;
+  hint.style.display='block';
 }
 function regionErrorHint(msg){
-  if (/region/i.test(msg||'')) return msg + '\n\n→ Supabase에 region 칸이 아직 없어요. 계약관리 > 지역분포 화면의 안내대로 SQL을 한 번 실행해주세요.';
+  if (/region|address/i.test(msg||'')) return msg + '\n\n→ Supabase에 주소/지역 칸이 아직 없어요. 계약관리 > 지역분포 화면의 안내대로 SQL을 한 번 실행해주세요.';
   return msg;
 }
 function parseRegionFromAddress(addr){
@@ -1689,17 +1727,29 @@ function buildCmSvg(){
   gLand.addEventListener('click', e=>{ const k=e.target.closest('path')?.dataset.k; if(k){ cmSelected=k; renderContractMap(); } });
   svg.dataset.built='1';
 }
-function cmGroupCustomers(list){
+let cmExpanded = null;
+// 고객 단위로 묶기 (담당+고객명). 지역은 가장 최근 계약의 지역, 없으면 최근 주소에서 자동 판별
+function cmBuildCustomers(list){
   const map=new Map();
   list.forEach(c=>{
     const key=(c.manager_name||'')+'|'+(c.customer_name||'');
     let g=map.get(key);
-    if(!g){ g={name:c.customer_name, manager:c.manager_name, count:0, last:'', premium:0, ids:[]}; map.set(key,g); }
-    g.count++; g.ids.push(c.id); g.premium += Number(c.premium)||0;
-    if((c.contract_date||'')>g.last) g.last=c.contract_date||'';
+    if(!g){ g={key, name:c.customer_name, manager:c.manager_name, contracts:[]}; map.set(key,g); }
+    g.contracts.push(c);
   });
-  return [...map.values()].sort((a,b)=> b.last.localeCompare(a.last) || a.name.localeCompare(b.name,'ko'));
+  return [...map.values()].map(g=>{
+    g.contracts.sort((x,y)=>(y.contract_date||'').localeCompare(x.contract_date||''));
+    g.last=g.contracts[0].contract_date||'';
+    g.count=g.contracts.length;
+    g.premium=g.contracts.reduce((s2,c)=>s2+(Number(c.premium)||0),0);
+    const withAddr=g.contracts.find(c=>c.address);
+    g.address=withAddr?withAddr.address:'';
+    const withRegion=g.contracts.find(c=>c.region && CM_FULL[c.region]);
+    g.region=withRegion?withRegion.region:(parseRegionFromAddress(g.address)||'');
+    return g;
+  }).sort((x,y)=> y.last.localeCompare(x.last) || (x.name||'').localeCompare(y.name||'','ko'));
 }
+function cmToggle(key){ cmExpanded = (cmExpanded===key) ? null : key; renderContractMap(); }
 function renderContractMap(){
   buildCmSvg();
   const isMaster = currentUser && currentUser.role === 'master';
@@ -1711,54 +1761,70 @@ function renderContractMap(){
   if (managers.includes(cur)) sel.value = cur;
 
   const notice = document.getElementById('cm_notice');
-  if (!contractRegionEnabled()) {
+  if (!contractRegionEnabled() || !contractColEnabled('address')) {
     notice.innerHTML = `<div style="background:var(--amber-bg);border:1px solid #E6D2AE;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:10px;line-height:1.6;">
-      <b>처음 한 번만 설정이 필요해요.</b> Supabase → SQL Editor에서 아래 한 줄을 실행한 뒤 새로고침해주세요.<br>
-      <code style="background:#fff;padding:2px 6px;border-radius:4px;user-select:all;">alter table contracts add column if not exists region text;</code></div>`;
+      <b>처음 한 번만 설정이 필요해요.</b> Supabase → SQL Editor에서 아래 두 줄을 실행한 뒤 새로고침해주세요.
+      <code style="display:block;background:#fff;padding:6px 8px;border-radius:4px;margin-top:4px;user-select:all;white-space:pre;">alter table contracts add column if not exists region text;\nalter table contracts add column if not exists address text;</code></div>`;
   } else notice.innerHTML = '';
 
   let rows = allContracts;
   if (isMaster && sel.value !== '__all__') rows = rows.filter(c=>c.manager_name===sel.value);
-
+  const customers = cmBuildCustomers(rows);
   const byRegion = {}; CM_REGIONS.forEach(k=>byRegion[k]=[]);
   const none = [];
-  rows.forEach(c=>{ if (c.region && byRegion[c.region]) byRegion[c.region].push(c); else none.push(c); });
-  const custCount = {}; CM_REGIONS.forEach(k=>custCount[k]=cmGroupCustomers(byRegion[k]).length);
-  const maxC = Math.max(1, ...Object.values(custCount));
+  customers.forEach(g=>{ if (g.region && byRegion[g.region]) byRegion[g.region].push(g); else none.push(g); });
+  const maxC = Math.max(1, ...CM_REGIONS.map(k=>byRegion[k].length));
 
   CM_REGIONS.forEach(k=>{
-    const n=custCount[k], v = n ? 0.18 + 0.82*(n/maxC) : 0;
+    const n=byRegion[k].length, v = n ? 0.18 + 0.82*(n/maxC) : 0;
     const p=document.getElementById('cm_p_'+k);
-    p.setAttribute('fill', cmColor(v)); p.classList.toggle('sel', cmSelected===k);
+    p.setAttribute('fill', cmColor(v));
     const dark = v > 0.5 && !CM_LABEL_OFFSET[k];
-    ['cm_lb_','cm_ct_'].forEach(pre=>document.getElementById(pre+k).setAttribute('class', (pre==='cm_lb_'?'lb ':'ct ') + (dark?'dark':'light')));
+    document.getElementById('cm_lb_'+k).setAttribute('class','lb '+(dark?'dark':'light'));
+    document.getElementById('cm_ct_'+k).setAttribute('class','ct '+(dark?'dark':'light'));
     document.getElementById('cm_ct_'+k).textContent = n;
   });
 
-  if (!cmSelected || (cmSelected!=='__none__' && !custCount[cmSelected])) {
-    const best = CM_REGIONS.filter(k=>custCount[k]).sort((a,b)=>custCount[b]-custCount[a])[0];
-    if (best) { cmSelected = best; } else if (cmSelected!=='__none__') cmSelected = none.length ? '__none__' : null;
-    CM_REGIONS.forEach(k=>document.getElementById('cm_p_'+k).classList.toggle('sel', cmSelected===k));
+  if (!cmSelected || (cmSelected==='__none__' && !none.length) || (cmSelected!=='__none__' && !byRegion[cmSelected].length)) {
+    const best = CM_REGIONS.filter(k=>byRegion[k].length).sort((a,b)=>byRegion[b].length-byRegion[a].length)[0];
+    cmSelected = best || (none.length ? '__none__' : null);
   }
+  CM_REGIONS.forEach(k=>document.getElementById('cm_p_'+k).classList.toggle('sel', cmSelected===k));
 
-  const allCust = cmGroupCustomers(rows).length;
   document.getElementById('cm_summary').innerHTML =
-    `<span class="cm-chip">고객 <b>${allCust}</b>명</span><span class="cm-chip">계약 <b>${rows.length}</b>건</span>` +
-    (none.length ? `<span class="cm-chip warn ${cmSelected==='__none__'?'on':''}" onclick="cmSelected='__none__';renderContractMap();" title="눌러서 목록 보기">📍 지역 미입력 <b>${none.length}</b>건</span>` : '');
+    `<span class="cm-chip">고객 <b>${customers.length}</b>명</span><span class="cm-chip">계약 <b>${rows.length}</b>건</span>` +
+    (none.length ? `<span class="cm-chip warn ${cmSelected==='__none__'?'on':''}" onclick="cmSelected='__none__';renderContractMap();" title="눌러서 목록 보기">📍 지역 미입력 <b>${none.length}</b>명</span>` : '');
 
   const title = document.getElementById('cm_title'), body = document.getElementById('cm_body');
   if (!cmSelected) { title.innerHTML=''; body.innerHTML='<tr><td colspan="5" style="color:var(--muted);">아직 등록된 계약이 없어요.</td></tr>'; return; }
-  const list = cmSelected==='__none__' ? none : byRegion[cmSelected];
-  const groups = cmGroupCustomers(list);
-  const prem = groups.reduce((s,g)=>s+g.premium,0);
-  title.innerHTML = cmSelected==='__none__'
-    ? `📍 지역 미입력 · 고객 ${groups.length}명 <small>— 이름을 누르면 수정 화면으로 이동해요</small>`
-    : `📍 ${CM_FULL[cmSelected]} · 고객 ${groups.length}명 <small>· 계약 ${list.length}건${prem?` · 월보험료 ${prem.toLocaleString('ko-KR')}원`:''}</small>`;
-  body.innerHTML = groups.length ? groups.map(g=>`<tr onclick="cmOpenCustomer(${g.ids[0]}, ${cmSelected==='__none__'})">
-      <td style="font-weight:600;">${escapeHtml(g.name)}</td><td>${escapeHtml(g.manager||'')}</td>
-      <td>${g.count}건</td><td>${g.last?new Date(g.last).toLocaleDateString('ko-KR'):''}</td>
-      <td style="color:var(--muted);font-size:11px;white-space:nowrap;">${cmSelected==='__none__'?'지역 입력 ›':'보기 ›'}</td></tr>`).join('')
-    : '<tr><td colspan="5" style="color:var(--muted);">이 지역 고객이 없어요.</td></tr>';
+  const groups = cmSelected==='__none__' ? none : byRegion[cmSelected];
+  const cCount = groups.reduce((s2,g)=>s2+g.count,0);
+  const prem = groups.reduce((s2,g)=>s2+g.premium,0);
+  title.innerHTML = (cmSelected==='__none__'
+    ? `📍 지역 미입력 · 고객 ${groups.length}명`
+    : `📍 ${CM_FULL[cmSelected]} · 고객 ${groups.length}명 <small>· 계약 ${cCount}건${prem?` · 월보험료 ${prem.toLocaleString('ko-KR')}원`:''}</small>`)
+    + `<div style="font-size:11.5px;font-weight:400;color:var(--muted);margin-top:2px;">고객을 누르면 이전 계약까지 모두 펼쳐져요</div>`;
+  if (!groups.length) { body.innerHTML='<tr><td colspan="5" style="color:var(--muted);">이 지역 고객이 없어요.</td></tr>'; return; }
+  body.innerHTML = groups.map(g=>{
+    const open = cmExpanded===g.key;
+    let html = `<tr data-key="${escAttr(g.key)}" onclick="cmToggle(this.dataset.key)" style="${open?'background:#EEF1F7;':''}">
+      <td style="font-weight:600;">${open?'▾':'▸'} ${escapeHtml(g.name||'')}</td><td>${escapeHtml(g.manager||'')}</td>
+      <td>${g.count>1?`<span class="cm-multi">${g.count}건</span>`:g.count+'건'}</td><td>${g.last?new Date(g.last).toLocaleDateString('ko-KR'):''}</td>
+      <td style="color:var(--muted);font-size:11px;white-space:nowrap;">${open?'접기':'펼치기'}</td></tr>`;
+    if (open) {
+      html += `<tr class="cm-detail"><td colspan="5">
+        <div class="cm-addr">🏠 ${g.address?escapeHtml(g.address):'<span style="color:var(--amber);">주소 미입력 — 아래 [수정]에서 주소를 붙여넣어 주세요</span>'}</div>
+        <table class="cm-hist"><thead><tr><th>계약일</th><th>상품 / 보험사</th><th>보험료</th><th></th></tr></thead><tbody>
+        ${g.contracts.map((c,i)=>`<tr><td>${new Date(c.contract_date).toLocaleDateString('ko-KR')}${i===0?' <span class="cm-new">최근</span>':''}</td>
+          <td>${escapeHtml(c.product_name||'')}${c.insurer?' / '+escapeHtml(c.insurer):''}</td>
+          <td>${c.premium?Number(c.premium).toLocaleString('ko-KR')+'원':''}</td>
+          <td style="text-align:right;"><button class="small secondary" onclick="event.stopPropagation();cmOpenCustomer(${c.id}, true)">수정</button></td></tr>`).join('')}
+        </tbody></table>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px;">총 ${g.count}건 · 월보험료 합계 ${g.premium.toLocaleString('ko-KR')}원</div>
+      </td></tr>`;
+    }
+    return html;
+  }).join('');
 }
 function cmOpenCustomer(id, edit){
   const c = allContracts.find(x=>x.id===id); if(!c) return;
@@ -1940,8 +2006,10 @@ function renderContractEditRow(c){
       <input type="text" id="ce_product_${c.id}" value="${escAttr(c.product_name||'')}">
     </td>
     <td><input type="number" id="ce_premium_${c.id}" value="${c.premium||''}"></td>
-    <td colspan="4" style="color:var(--muted);font-size:11px;">
-      <label style="font-size:10px;color:var(--muted);margin:0;">지역(시·도)</label>
+    <td colspan="4" style="color:var(--muted);font-size:11px;min-width:170px;">
+      <label style="font-size:10px;color:var(--muted);margin:0;">주소</label>
+      <input type="text" id="ce_address_${c.id}" value="${escAttr(c.address||'')}" placeholder="주소 전체 붙여넣기" oninput="autoRegionFromAddress('ce_address_${c.id}','ce_region_${c.id}')" style="margin-bottom:4px;">
+      <label style="font-size:10px;color:var(--muted);margin:0;">시·도</label>
       <select id="ce_region_${c.id}">${regionOptionsHtml(c.region)}</select>
       <div style="margin-top:4px;">체크는 저장 후 가능</div>
     </td>
@@ -1968,7 +2036,8 @@ async function saveEditContract(id){
     insurer: insurer || null,
     product_name: product,
     premium: premium ? Number(premium) : null,
-    ...(contractRegionEnabled() ? { region: (document.getElementById('ce_region_'+id).value || null) } : {})
+    ...(contractRegionEnabled() ? { region: (document.getElementById('ce_region_'+id).value || parseRegionFromAddress(document.getElementById('ce_address_'+id).value) || null) } : {}),
+    ...(contractColEnabled('address') ? { address: (document.getElementById('ce_address_'+id).value.trim() || null) } : {})
   }).eq('id', id);
   if(error){ alert('수정 실패: '+regionErrorHint(error.message)); return; }
   editingContractId = null;
@@ -1995,12 +2064,15 @@ async function addContract(){
   const insurer=insurerManual || document.getElementById('c_insurer').value;
   const premium=document.getElementById('c_premium').value;
   const region=document.getElementById('c_region').value;
+  const address=document.getElementById('c_address').value.trim();
   if(!manager||!customer||!date){alert('담당 팀장, 고객명, 계약일은 필수입니다.');return;}
   const payload={manager_name:manager,customer_name:customer,customer_birthday:birthday||null,contract_date:date,product_name:product,insurer:insurer||null,premium:premium?Number(premium):null};
-  if(contractRegionEnabled()) payload.region=region||null;
+  if(contractRegionEnabled()) payload.region=region||parseRegionFromAddress(address)||null;
+  if(contractColEnabled('address')) payload.address=address||null;
   const {error}=await sb.from('contracts').insert([payload]);
   if(error){alert('저장 실패: '+regionErrorHint(error.message));return;}
-  ['c_customer','c_birthday','c_date','c_product','c_insurer','c_insurer_manual','c_premium','c_region'].forEach(id=>document.getElementById(id).value='');
+  ['c_customer','c_birthday','c_date','c_product','c_insurer','c_insurer_manual','c_premium','c_region','c_address'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('c_existingHint').style.display='none';
   await loadContracts();
 }
 
@@ -2058,7 +2130,8 @@ function handleContractExcelUpload(event){
         product: String(findCol(row, ['상품명','상품'])).trim(),
         premium: parsePremium(findCol(row, ['보험료'])),
         policy_no: String(findCol(row, ['증권번호'])).trim() || null,
-        region: parseRegionFromAddress(String(findCol(row, ['지역','시도','시·도','주소','계약자주소','고객주소','주소1','자택주소'])))
+        address: String(findCol(row, ['주소','계약자주소','고객주소','주소1','자택주소','계약자 주소'])).trim(),
+        region: parseRegionFromAddress(String(findCol(row, ['지역','시도','시·도','주소','계약자주소','고객주소','주소1','자택주소','계약자 주소'])))
       })).filter(r => r.manager && r.customer && r.date);
 
       if (pendingContractImport.length === 0) {
@@ -2088,7 +2161,8 @@ function renderContractImportPreview(){
       <td>${escapeHtml(r.insurer)}</td>
       <td>${escapeHtml(r.product)}</td>
       <td>${r.premium ? Number(r.premium).toLocaleString('ko-KR')+'원' : ''}</td>
-      <td><select id="pi_region_${idx}" style="min-width:80px;">${regionOptionsHtml(r.region)}</select></td>
+      <td><input type="text" id="pi_address_${idx}" value="${escAttr(r.address||'')}" placeholder="주소" style="min-width:150px;margin-bottom:4px;" oninput="autoRegionFromAddress('pi_address_${idx}','pi_region_${idx}')">
+        <select id="pi_region_${idx}" style="min-width:80px;">${regionOptionsHtml(r.region)}</select></td>
     </tr>
   `).join('');
 }
@@ -2106,6 +2180,8 @@ async function commitContractImport(){
     if (el && el.value) r.birthday = el.value;
     const rg = document.getElementById('pi_region_' + idx);
     if (rg) r.region = rg.value || '';
+    const ad = document.getElementById('pi_address_' + idx);
+    if (ad) r.address = ad.value.trim();
   });
 
   const policyNos = pendingContractImport.map(r => r.policy_no).filter(Boolean);
@@ -2126,7 +2202,8 @@ async function commitContractImport(){
       product_name: r.product,
       premium: r.premium,
       policy_no: r.policy_no,
-      ...(contractRegionEnabled() ? { region: r.region || null } : {})
+      ...(contractRegionEnabled() ? { region: r.region || parseRegionFromAddress(r.address) || null } : {}),
+      ...(contractColEnabled('address') ? { address: r.address || null } : {})
     }));
   const skipped = pendingContractImport.length - toInsert.length;
 
