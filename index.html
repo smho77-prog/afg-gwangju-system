@@ -552,6 +552,11 @@
     <div class="filter-row">
       <label style="margin:0;">보기:</label>
       <select id="c_filterManager" onchange="renderContracts()"><option value="__all__">전체 팀장</option></select>
+      <span style="display:inline-flex;align-items:center;gap:4px;">
+        <button type="button" class="small secondary" onclick="shiftContractMonth(1)" title="이전 달">◀</button>
+        <select id="c_filterMonth" onchange="renderContracts()"></select>
+        <button type="button" class="small secondary" onclick="shiftContractMonth(-1)" title="다음 달">▶</button>
+      </span>
       <input type="text" id="c_search" placeholder="고객명 검색" oninput="renderContracts()">
       <label style="display:flex;align-items:center;gap:6px;margin:0;">
         <input type="checkbox" id="c_groupByDate" onchange="renderContracts()"> 계약일별로 보기
@@ -1856,6 +1861,7 @@ function cmOpenCustomer(id, edit){
   const c = allContracts.find(x=>x.id===id); if(!c) return;
   setContractView('list');
   document.getElementById('c_filterManager').value = '__all__';
+  if (document.getElementById('c_filterMonth')) document.getElementById('c_filterMonth').value = '__all__';
   document.getElementById('c_search').value = c.customer_name || '';
   editingContractId = edit ? id : null;
   renderContracts();
@@ -1874,11 +1880,35 @@ async function loadContracts(){
   if (currentUser.role !== 'master') rows = rows.filter(c => c.manager_name === currentUser.manager_name);
   allContracts = rows;
   updateManagerFilterOptions('c_filterManager', allContracts.map(c=>c.manager_name));
+  updateContractMonthOptions();
   updateContractInsurerOptions();
   renderDueBox();
   renderContracts();
   if (contractView === 'map') renderContractMap();
   updateOccupationList();
+}
+// ===== 월별 보기 =====
+function currentYM(){ const n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0'); }
+function ymLabel(ym){ return Number(ym.slice(0,4))+'년 '+Number(ym.slice(5,7))+'월'; }
+function updateContractMonthOptions(){
+  const sel=document.getElementById('c_filterMonth'); if(!sel) return;
+  const prev=sel.value;
+  const set=new Set(allContracts.filter(c=>c.contract_date).map(c=>String(c.contract_date).slice(0,7)));
+  set.add(currentYM());
+  const months=Array.from(set).sort().reverse();
+  sel.innerHTML = months.map(m=>`<option value="${m}">${ymLabel(m)}</option>`).join('') + '<option value="__all__">전체 월</option>';
+  sel.value = (prev && (prev==='__all__' || set.has(prev))) ? prev : currentYM();
+}
+function shiftContractMonth(step){
+  // step: +1 = 이전 달(목록 아래쪽), -1 = 다음 달
+  const sel=document.getElementById('c_filterMonth'); if(!sel) return;
+  const opts=Array.from(sel.options).map(o=>o.value).filter(v=>v!=='__all__');
+  if(!opts.length) return;
+  let i=opts.indexOf(sel.value);
+  if(i<0) i = step>0 ? -1 : opts.length;
+  const ni=Math.min(opts.length-1, Math.max(0, i+step));
+  sel.value=opts[ni];
+  renderContracts();
 }
 function updateOccupationList(){
   const dl=document.getElementById('c_occupationList'); if(!dl) return;
@@ -1938,20 +1968,19 @@ function contractSeqBadge(c){
   const isLast = info.seq === info.total;
   return `<span title="${info.month}월 ${info.seq}번째 계약 (이달 총 ${info.total}건)" style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;margin-right:6px;border-radius:11px;font-size:11.5px;font-weight:700;vertical-align:middle;${isLast?'background:var(--navy);color:#fff;':'background:#E4E1D8;color:var(--ink);'}">${info.seq}</span>`;
 }
-function renderContractMonthSummary(rows){
+function renderContractMonthSummary(rows, ym, searching){
   const box = document.getElementById('c_monthSummary');
   if(!box) return;
-  const now = new Date();
-  const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  const counts = {};
-  rows.forEach(c=>{
-    if(c.contract_date && String(c.contract_date).startsWith(ym)){
-      counts[c.manager_name] = (counts[c.manager_name]||0) + 1;
-    }
-  });
+  const isAll = (ym==='__all__');
+  const target = isAll ? rows : rows.filter(c=>c.contract_date && String(c.contract_date).startsWith(ym));
+  const title = isAll ? '전체 기간' : ymLabel(ym);
+  const counts = {}; let total=0;
+  target.forEach(c=>{ counts[c.manager_name]=(counts[c.manager_name]||0)+1; total += Number(c.premium)||0; });
   const names = Object.keys(counts).sort();
-  if(!names.length){ box.innerHTML = `📊 ${now.getMonth()+1}월 계약: 아직 없음`; return; }
-  box.innerHTML = `📊 ${now.getMonth()+1}월 누적 계약 — ` + names.map(n=>`<b>${escapeHtml(n)}</b> ${counts[n]}건`).join(' · ');
+  const note = searching ? ' <span style="color:var(--muted);font-size:11px;">(고객명 검색 중에는 전체 월에서 찾습니다)</span>' : '';
+  if(!names.length){ box.innerHTML = `📊 ${title} 계약: 아직 없음` + note; return; }
+  box.innerHTML = `📊 ${title} 계약 <b>${target.length}건</b> · 보험료 합계 <b>${total.toLocaleString('ko-KR')}원</b>`
+    + `<div style="margin-top:4px;">` + names.map(n=>`<b>${escapeHtml(n)}</b> ${counts[n]}건`).join(' · ') + `</div>` + note;
 }
 function renderContractRow(c){
   if (editingContractId === c.id) return renderContractEditRow(c);
@@ -1983,13 +2012,34 @@ function renderContracts(){
   const groupByDate = document.getElementById('c_groupByDate') && document.getElementById('c_groupByDate').checked;
   let rows=allContracts;
   buildContractSeqMap();
+  const monthSel = document.getElementById('c_filterMonth');
+  const ym = monthSel && monthSel.value ? monthSel.value : currentYM();
   if(filterManager!=='__all__') rows=rows.filter(c=>c.manager_name===filterManager);
-  renderContractMonthSummary(rows);
-  if(search) rows=rows.filter(c=>(c.customer_name||'').toLowerCase().includes(search));
-  if(rows.length===0){ tbody.innerHTML='<tr><td colspan="10" style="color:var(--muted);">해당 계약이 없습니다</td></tr>'; return; }
+  renderContractMonthSummary(rows, ym, !!search);
+  if(search){
+    rows=rows.filter(c=>(c.customer_name||'').toLowerCase().includes(search));   // 검색은 전체 월에서
+  } else if(ym!=='__all__'){
+    rows=rows.filter(c=>c.contract_date && String(c.contract_date).startsWith(ym));
+  }
+  if(rows.length===0){
+    const msg = (!search && ym!=='__all__') ? `${ymLabel(ym)} 계약이 없습니다 (◀ 버튼으로 이전 달을 볼 수 있어요)` : '해당 계약이 없습니다';
+    tbody.innerHTML=`<tr><td colspan="10" style="color:var(--muted);">${msg}</td></tr>`; return;
+  }
 
   if(!groupByDate){
-    tbody.innerHTML = rows.map(c=>renderContractRow(c)).join('');
+    if(ym==='__all__' || search){
+      // 여러 달이 섞일 때는 월 구분줄을 넣어 헷갈리지 않게
+      const byMonth={};
+      rows.forEach(c=>{ const m=String(c.contract_date||'').slice(0,7)||'날짜없음'; (byMonth[m]=byMonth[m]||[]).push(c); });
+      tbody.innerHTML = Object.keys(byMonth).sort().reverse().map(m=>{
+        const list=byMonth[m];
+        const sum=list.reduce((a,c)=>a+(Number(c.premium)||0),0);
+        return `<tr style="background:var(--navy);color:#fff;"><td colspan="10" style="font-weight:700;color:#fff;">📆 ${m==='날짜없음'?m:ymLabel(m)} — ${list.length}건 · 보험료 합계 ${sum.toLocaleString('ko-KR')}원</td></tr>`
+          + list.map(c=>renderContractRow(c)).join('');
+      }).join('');
+    } else {
+      tbody.innerHTML = rows.map(c=>renderContractRow(c)).join('');
+    }
     return;
   }
 
