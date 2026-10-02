@@ -5720,11 +5720,11 @@ var CVCore = (function () {
       if (sa !== 'unknown') {
         if (rb === 0 && ra > 0) kind = 'new';
         else if (ra > rb) kind = 'up';
-        else if (ra === rb && ra === 1 && after > before + 0.0001) kind = 'up';
+        else if (ra === rb && before != null && after > before + 0.0001) kind = 'up';   // 같은 상태(부족→부족, 충분→충분)여도 금액이 늘면 표시
         else if (ra < rb) kind = 'down';
         else if (before != null && after < before - 0.0001) kind = 'down';   // 같은 상태여도 금액이 줄면 표시
       }
-      rows.push({ k: it.k, label: it.label, group: it.group, yn: !!it.yn, tag: it.tag || '', rec: rc, before: before, after: after, sb: sb, sa: sa, kind: kind, amtOnly: kind === 'down' && RANK[sa] === RANK[sb] });
+      rows.push({ k: it.k, label: it.label, group: it.group, yn: !!it.yn, tag: it.tag || '', rec: rc, before: before, after: after, sb: sb, sa: sa, kind: kind, amtOnly: (kind === 'down' || kind === 'up') && RANK[sa] === RANK[sb] });
     });
     return { rows: rows, before: cb, after: ca, dropCount: drop.length, replCount: repl.length };
   }
@@ -6257,14 +6257,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     var tot = which === 'b' ? x.before : x.after, st = which === 'b' ? x.sb : x.sa, w;
     var mx = Math.max(x.before || 0, x.after || 0);
     if (st === 'unknown') w = 0;
-    else if (x.amtOnly) w = mx > 0 ? Math.round((tot || 0) / mx * 100) : 0;   // 같은 상태에서 금액만 줄면 전·후를 같은 눈금으로 비교
+    else if (x.amtOnly) w = mx > 0 ? Math.round((tot || 0) / mx * 100) : 0;   // 같은 상태에서 금액만 늘거나 줄면 전·후를 같은 눈금으로 비교
     else if (x.yn) w = tot > 0 ? 100 : 0;
     else w = x.rec > 0 ? Math.min(100, Math.round((tot || 0) / x.rec * 100)) : 0;
     var txt = st === 'unknown' ? '미확인' : (tot > 0 ? C.fmtMan(tot) : '없음');
     return '<div><div class="tr"><i class="' + st + '" style="width:' + w + '%"></i></div><div class="tx ' + (st === 'none' || st === 'unknown' ? st : '') + '">' + txt + '</div></div>';
   }
   function cmpRow(x) {
-    return '<div class="rw"><div class="nm">' + esc(x.label) + '<small>' + (x.yn ? esc(x.tag) : '권장 ' + C.fmtMan(x.rec)) + (x.amtOnly ? ' · 금액이 줄어요' : '') + '</small></div>' + cmpBar(x, 'b') + '<div class="ar">→</div>' + cmpBar(x, 'a') +
+    return '<div class="rw"><div class="nm">' + esc(x.label) + '<small>' + (x.yn ? esc(x.tag) : '권장 ' + C.fmtMan(x.rec)) + (x.amtOnly ? (x.kind === 'up' ? ' · 금액이 늘어요' : ' · 금액이 줄어요') : '') + '</small></div>' + cmpBar(x, 'b') + '<div class="ar">→</div>' + cmpBar(x, 'a') +
       '<div class="st"><span class="pl ' + x.sa + '">' + ST_TXT[x.sa] + '</span></div></div>';
   }
   function stkRow(label, o) {
@@ -6291,7 +6291,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       return '<div class="blk"><div class="bh ' + cls + '"><span>' + title + ' (' + list.length + '개)</span><small>' + sub + '</small></div>' + list.map(cmpRow).join('') + '</div>';
     };
     h += block('new', '새로 생기는 보장', '기존에 없던 보장이 채워져요', news);
-    h += block('up', '더 든든해지는 보장', '부족했던 보장이 늘어나요', ups);
+    h += block('up', '더 든든해지는 보장', '보장 금액이 늘어나요', ups);
     h += block('down', '줄어드는 보장 — 꼭 확인해 주세요', '정리하면 함께 줄어들거나 없어지는 보장', downs);
     if (!news.length && !ups.length && !downs.length) h += '<div class="empty">정리 전과 후를 비교할 변화가 아직 없어요.</div>';
     h += '<div class="foot"><p>※ 정리 후 보장은 유지하는 계약과 새로 가입하는 보험의 가입금액을 합산한 예상 값이며, 보험사 인수심사 결과와 약관에 따라 달라질 수 있습니다. 최소 권장금액은 상담용 기준입니다.</p>';
