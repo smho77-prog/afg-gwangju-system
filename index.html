@@ -437,7 +437,7 @@
 <header id="mainHeader" style="display:none;">
   <h1>🏢 AFG 광주센터 통합전산</h1>
   <nav>
-    <button class="tabbtn active" data-tab="reserve" onclick="switchTab('reserve')">📅 예약관리</button>
+    <button class="tabbtn active" data-tab="reserve" onclick="switchTab('reserve')">📅 예약관리<span id="r_todayCount"></span></button>
     <button class="tabbtn" data-tab="contract" onclick="switchTab('contract')">📄 계약관리</button>
     <button class="tabbtn" data-tab="insurer" onclick="switchTab('insurer')">📞 보험사연락처</button>
     <button class="tabbtn" data-tab="callcenter" onclick="switchTab('callcenter')">☎️ 콜센터</button>
@@ -1488,7 +1488,15 @@ function updateManagerFilterOptions(selectId, names) {
   sel.innerHTML = '<option value="__all__">전체 팀장</option>' + uniq.map(n=>`<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('');
   if (uniq.includes(current)) sel.value = current;
 }
+function updateTodayReservationCount() {
+  const el = document.getElementById('r_todayCount');
+  if (!el) return;
+  const t = new Date(), ymd = d => d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate();
+  const n = allReservations.filter(r => !r.done && ymd(new Date(r.scheduled_at)) === ymd(t)).length;
+  el.textContent = ' (' + n + '건)';
+}
 function renderReservations() {
+  updateTodayReservationCount();
   const tbody = document.getElementById('r_body');
   const filterManager = document.getElementById('r_filterManager').value;
   const hideDone = document.getElementById('r_hideDone').checked;
