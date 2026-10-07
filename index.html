@@ -1499,13 +1499,24 @@ function renderReservations() {
   if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);">해당 예약이 없습니다</td></tr>'; return; }
   const now = new Date();
 
+  // 정렬: 앞으로 해야 할 예약(가까운 순) → 지난 예약(최근 순)
   if (!groupByDate) {
-    tbody.innerHTML = rows.map(r => renderReservationRow(r, now)).join('');
+    const upcoming = rows.filter(r => new Date(r.scheduled_at) >= now).sort((a,b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+    const past = rows.filter(r => new Date(r.scheduled_at) < now).sort((a,b) => new Date(b.scheduled_at) - new Date(a.scheduled_at));
+    tbody.innerHTML = [...upcoming, ...past].map(r => renderReservationRow(r, now)).join('');
     return;
   }
 
-  // 예정일별로 묶어서 보기 (예정시각 오름차순, 각 날짜 끝에 건수 합계)
-  const sorted = [...rows].sort((a,b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+  // 예정일별로 묶어서 보기: 오늘 이후 날짜(가까운 순) → 지난 날짜(최근 순), 같은 날 안에서는 시간 오름차순, 각 날짜 끝에 건수 합계
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayStart = r => { const d = new Date(r.scheduled_at); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+  const sorted = [...rows].sort((a,b) => {
+    const da = dayStart(a), db = dayStart(b);
+    const aUp = da >= todayStart.getTime(), bUp = db >= todayStart.getTime();
+    if (aUp !== bUp) return aUp ? -1 : 1;
+    if (da !== db) return aUp ? da - db : db - da;
+    return new Date(a.scheduled_at) - new Date(b.scheduled_at);
+  });
   let html = '';
   let curDate = null, count = 0;
   const flushGroup = () => {
