@@ -36,6 +36,23 @@
   .sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
 
   #connStatus { font-size: 12px; padding: 7px 10px; border-radius: 6px; margin: 12px 16px 0; }
+  /* 상태줄: 왼쪽 연결상태 + 오른쪽 날씨/표준시간 */
+  #statusRow { display:flex; align-items:center; justify-content:space-between; gap:8px 14px; flex-wrap:wrap;
+    margin:12px 16px 0; background:rgba(255,255,255,.1); border-radius:6px; padding:0 10px 0 0; }
+  #statusRow #connStatus { margin:0; background:transparent; }
+  #liveInfo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:12px; color:#E7EAF0; padding:5px 0 5px 10px; }
+  #liveInfo .li-sep { width:1px; height:14px; background:rgba(255,255,255,.2); }
+  #liveInfo select { width:auto; background:rgba(255,255,255,.08); color:#E7EAF0; border:1px solid rgba(255,255,255,.2);
+    border-radius:5px; padding:2px 4px; font-size:11.5px; cursor:pointer; }
+  #liveInfo select option { color:#1B1B1B; }
+  #liveWeather { white-space:nowrap; }
+  #liveWeather .lw-temp { font-weight:700; color:#fff; }
+  #liveWeather .lw-sub { color:#C7CEDF; font-size:11px; }
+  #liveClock { white-space:nowrap; font-variant-numeric:tabular-nums; }
+  #liveClock b { color:#fff; font-size:13px; letter-spacing:.3px; }
+  #liveClock .lc-sync { color:#9FCBAE; font-size:10.5px; margin-left:4px; }
+  #liveClock .lc-sync.warn { color:#E3AFA6; }
+  @media (max-width:640px){ #statusRow{ padding:0 8px 4px 0; } #liveInfo{ padding-left:10px; gap:8px; } #liveInfo .li-sep{ display:none; } #liveWeather{ white-space:normal; } }
   .st-checking { background: rgba(255,255,255,.1); color: #C7CEDF; }
   .st-ok { background: rgba(255,255,255,.1); color: #9FCBAE; }
   .st-error { background: rgba(255,255,255,.1); color: #E3AFA6; }
@@ -439,7 +456,15 @@
     <button class="tabbtn" data-tab="rebuttal" onclick="switchTab('rebuttal')">💬 나는 이렇게 반론했어요</button>
     <button class="tabbtn" data-tab="practice" onclick="switchTab('practice')">🎯 반론대처 연습</button>
   </nav>
-  <div id="connStatus" class="st-checking">연결 확인 중...</div>
+  <div id="statusRow">
+    <div id="connStatus" class="st-checking">연결 확인 중...</div>
+    <div id="liveInfo">
+      <select id="lwRegion" title="날씨 지역 선택" onchange="lwChangeRegion(this.value)"></select>
+      <span id="liveWeather">🌤️ 날씨 불러오는 중...</span>
+      <span class="li-sep"></span>
+      <span id="liveClock" title="서버 표준시각 기준(휴대폰 시계와 동일한 한국표준시)">🕒 --:--:--</span>
+    </div>
+  </div>
   <div id="userBar" style="font-size:11px;padding:6px 0 10px;color:#C7CEDF;"></div>
   <button id="notifBtn" class="secondary" style="font-size:11px;padding:5px 10px;margin-bottom:10px;" onclick="enableNotifications()">🔔 브라우저 알림 켜기</button>
 </header>
@@ -6698,6 +6723,100 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   init();
 })();
 
+</script>
+
+<script>
+/* ===== 상단 상태줄: 지역 날씨 + 한국표준시(KST) 시계 ===== */
+(function(){
+  var REGIONS = [
+    ['광주',35.1595,126.8526],['나주',35.0160,126.7108],['목포',34.8118,126.3922],['순천',34.9506,127.4872],['여수',34.7604,127.6622],
+    ['서울',37.5665,126.9780],['부산',35.1796,129.0756],['대구',35.8714,128.6014],['인천',37.4563,126.7052],['대전',36.3504,127.3845],
+    ['울산',35.5384,129.3114],['세종',36.4800,127.2890],['수원',37.2636,127.0286],['의정부',37.7381,127.0337],['춘천',37.8813,127.7298],
+    ['청주',36.6424,127.4890],['천안',36.8151,127.1139],['전주',35.8242,127.1480],['창원',35.2280,128.6811],['포항',36.0190,129.3435],
+    ['강릉',37.7519,128.8761],['제주',33.4996,126.5312]
+  ];
+  var WMO = {0:['☀️','맑음'],1:['🌤️','대체로 맑음'],2:['⛅','구름 조금'],3:['☁️','흐림'],45:['🌫️','안개'],48:['🌫️','짙은 안개'],
+    51:['🌦️','약한 이슬비'],53:['🌦️','이슬비'],55:['🌧️','강한 이슬비'],56:['🌧️','어는 이슬비'],57:['🌧️','어는 이슬비'],
+    61:['🌧️','약한 비'],63:['🌧️','비'],65:['🌧️','강한 비'],66:['🌧️','어는 비'],67:['🌧️','어는 비'],
+    71:['🌨️','약한 눈'],73:['🌨️','눈'],75:['❄️','강한 눈'],77:['🌨️','싸락눈'],80:['🌦️','소나기'],81:['🌧️','소나기'],82:['⛈️','강한 소나기'],
+    85:['🌨️','눈 소나기'],86:['❄️','강한 눈 소나기'],95:['⛈️','뇌우'],96:['⛈️','우박 동반 뇌우'],99:['⛈️','우박 동반 뇌우']};
+  var KEY='afg_weather_region';
+  var sel=document.getElementById('lwRegion');
+  var wEl=document.getElementById('liveWeather');
+  var cEl=document.getElementById('liveClock');
+  if(!sel||!wEl||!cEl) return;
+
+  var cur='광주';
+  try{ var saved=localStorage.getItem(KEY); if(saved && REGIONS.some(function(r){return r[0]===saved;})) cur=saved; }catch(e){}
+  REGIONS.forEach(function(r){ var o=document.createElement('option'); o.value=r[0]; o.textContent='📍'+r[0]; if(r[0]===cur) o.selected=true; sel.appendChild(o); });
+
+  var reqId=0;
+  function loadWeather(){
+    var r=REGIONS.find(function(x){return x[0]===cur;})||REGIONS[0];
+    var my=++reqId;
+    var url='https://api.open-meteo.com/v1/forecast?latitude='+r[1]+'&longitude='+r[2]+
+      '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m'+
+      '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FSeoul&forecast_days=1&wind_speed_unit=ms';
+    fetch(url,{cache:'no-store'}).then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
+    .then(function(d){
+      if(my!==reqId) return;
+      var c=d.current||{}, dl=d.daily||{};
+      var w=WMO[c.weather_code]||['🌡️','날씨'];
+      var t=(typeof c.temperature_2m==='number')?Math.round(c.temperature_2m):'-';
+      var feel=(typeof c.apparent_temperature==='number')?Math.round(c.apparent_temperature):'-';
+      var hi=(dl.temperature_2m_max&&dl.temperature_2m_max[0]!=null)?Math.round(dl.temperature_2m_max[0]):'-';
+      var lo=(dl.temperature_2m_min&&dl.temperature_2m_min[0]!=null)?Math.round(dl.temperature_2m_min[0]):'-';
+      var pop=(dl.precipitation_probability_max&&dl.precipitation_probability_max[0]!=null)?dl.precipitation_probability_max[0]:null;
+      var hum=(typeof c.relative_humidity_2m==='number')?c.relative_humidity_2m:null;
+      wEl.innerHTML=w[0]+' '+w[1]+' <span class="lw-temp">'+t+'°C</span>'+
+        ' <span class="lw-sub">(체감 '+feel+'° · 최고 '+hi+'° / 최저 '+lo+'°'+
+        (pop!=null?' · 강수확률 '+pop+'%':'')+(hum!=null?' · 습도 '+hum+'%':'')+')</span>';
+      var now=new Date(Date.now()+offset);
+      wEl.title=r[0]+' 날씨 · 제공: Open-Meteo(기상 모델 실시간 값) · '+now.toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit'})+' 갱신';
+    })
+    .catch(function(err){
+      if(my!==reqId) return;
+      wEl.innerHTML='🌡️ <span class="lw-sub">날씨 정보를 불러오지 못했어요</span>';
+      wEl.title='오류: '+(err&&err.message?err.message:err);
+    });
+  }
+  window.lwChangeRegion=function(v){ cur=v; try{localStorage.setItem(KEY,v);}catch(e){} wEl.innerHTML='🌤️ 불러오는 중...'; loadWeather(); };
+
+  // --- 표준시각: 서버(Date 헤더) 기준으로 PC 시계 오차 보정 ---
+  var offset=0, synced=false;
+  function syncTime(){
+    var t0=Date.now();
+    fetch(location.href.split('#')[0]+(location.href.indexOf('?')>-1?'&':'?')+'_t='+t0,{method:'HEAD',cache:'no-store'})
+    .then(function(res){
+      var t1=Date.now(), h=res.headers.get('date');
+      if(!h) throw new Error('no date');
+      var server=new Date(h).getTime();
+      if(isNaN(server)) throw new Error('bad date');
+      // Date 헤더는 초 단위라 평균 0.5초 절삭 → +500ms, 왕복 지연의 절반 보정
+      offset=server+500-(t0+(t1-t0)/2);
+      synced=true; tick();
+    }).catch(function(){ synced=false; tick(); });
+  }
+  var DAYS=['일','월','화','수','목','금','토'];
+  function tick(){
+    var d=new Date(Date.now()+offset);
+    var parts={};
+    new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,weekday:'short'})
+      .formatToParts(d).forEach(function(p){parts[p.type]=p.value;});
+    var hh=parts.hour==='24'?'00':parts.hour;
+    var wd={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6}[parts.weekday];
+    var diff=Math.round(offset/1000);
+    var syncTxt=synced?(Math.abs(diff)>=2?'PC시계 '+(diff>0?diff+'초 느림':(-diff)+'초 빠름')+' · 보정됨':'표준시 ✓'):'PC시계 기준';
+    cEl.innerHTML='🕒 '+parts.month+'.'+parts.day+'('+DAYS[wd]+') <b>'+hh+':'+parts.minute+':'+parts.second+'</b>'+
+      '<span class="lc-sync'+(synced?'':' warn')+'">'+syncTxt+'</span>';
+  }
+  // 초가 바뀌는 순간에 맞춰 갱신
+  function loop(){ tick(); var ms=1000-((Date.now()+offset)%1000); setTimeout(loop, ms<20?ms+1000:ms); }
+
+  loadWeather(); syncTime(); loop();
+  setInterval(loadWeather, 30*60*1000);   // 날씨 30분마다
+  setInterval(syncTime, 10*60*1000);      // 시각 10분마다 재보정
+})();
 </script>
 </body>
 </html>
