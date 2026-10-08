@@ -1589,6 +1589,11 @@
         <div><label>성별</label><select id="prop_gender" onchange="propRender()"><option value="">미정</option><option value="남">남</option><option value="여">여</option></select></div>
         <div><label>전략 기준 월</label><input type="month" id="prop_month" onchange="propRender()"></div>
       </div>
+      <div class="row">
+        <div><label>생년월일 (선택, 8자리)</label><input type="text" id="prop_birth" inputmode="numeric" maxlength="10" placeholder="예: 19710917" oninput="propBirthInput()"></div>
+        <div><label>현재 월 보험료 (만원, 선택)</label><input type="number" id="prop_premium" min="0" step="0.5" placeholder="예: 20" oninput="propRender()"></div>
+        <div><label>호칭</label><select id="prop_honor" onchange="propRender()"><option value="">자동 (50세↑ 선생님)</option><option value="선생님">선생님</option><option value="고객님">고객님</option></select></div>
+      </div>
       <div id="prop_ageInfo" style="font-size:12px;color:var(--muted);"></div>
     </div>
     <div id="prop_memoBox"></div>
@@ -1615,7 +1620,7 @@
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
         <div style="font-weight:700;">광고 컨셉 목록</div>
-        <div style="display:flex;gap:6px;"><button class="act small" onclick="propEditNew('concept')">+ 새 컨셉</button><button class="secondary small" onclick="propEditCommon()">공통 반론 편집</button></div>
+        <div style="display:flex;gap:6px;"><button class="act small" onclick="propEditNew('concept')">+ 새 컨셉</button><button class="secondary small" onclick="propEditCommon()">공통 도입멘트·반론 편집</button><button class="secondary small" onclick="propSeedDefaults()">📥 기본 멘트 넣기 (퍼미션·상품광고)</button></div>
       </div>
       <div id="prop_conceptList"></div>
     </div>
@@ -2012,7 +2017,7 @@ function dbRowHtml(r, mode, now){
     <td>${Number(r.touch_count) || 0}</td>
     <td style="font-size:12px;">${last ? dbFmt(last) : '-'}</td>
     <td>${third}</td>
-    <td style="white-space:nowrap;line-height:2;"><button class="act small" onclick="dbOpenTouch(${r.id})">터치 기록</button>${(r.partner_memo || r.db_type === '상품광고3') ? ` <button class="secondary small" onclick="propOpenFromCustomer(${r.id})">제안 준비</button>` : ''}${canDel ? ` <button class="danger small" onclick="dbDelete(${r.id})">삭제</button>` : ''}</td>
+    <td style="white-space:nowrap;line-height:2;"><button class="act small" onclick="dbOpenTouch(${r.id})">터치 기록</button>${(r.partner_memo || /상품광고|퍼미션/.test(r.db_type || '')) ? ` <button class="secondary small" onclick="propOpenFromCustomer(${r.id})">제안 준비</button>` : ''}${canDel ? ` <button class="danger small" onclick="dbDelete(${r.id})">삭제</button>` : ''}</td>
   </tr>`;
 }
 
@@ -2334,9 +2339,11 @@ create table if not exists ad_concepts (
   objections jsonb not null default '[]'::jsonb,
   active boolean not null default true,
   sort_order integer not null default 0,
+  use_common boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+alter table ad_concepts add column if not exists use_common boolean not null default true;
 -- 3) 컨셉별 연결 상품 (가입 연령 범위)
 create table if not exists concept_products (
   id bigint generated always as identity primary key,
@@ -2458,7 +2465,7 @@ function propFillConceptSelect(){
 function propFillCustomerSelect(){
   const sel = document.getElementById('prop_customer');
   const cur = sel.value;
-  const rows = (dbRows || []).filter(r => r.db_type === '상품광고3' && DB_CLOSED.indexOf(r.status) < 0)
+  const rows = (dbRows || []).filter(r => /상품광고|퍼미션/.test(r.db_type || '') && DB_CLOSED.indexOf(r.status) < 0)
     .sort((a, b) => (dbTs(b.distributed_at) || 0) - (dbTs(a.distributed_at) || 0)).slice(0, 300);
   sel.innerHTML = '<option value="">직접 입력</option>' + rows.map(r =>
     `<option value="${r.id}">${escapeHtml(r.customer_name || '(이름없음)')} · ${escapeHtml(r.status)} · 터치${Number(r.touch_count) || 0}</option>`).join('');
@@ -2489,6 +2496,7 @@ function propApplyPrefill(pf){
   propFillCustomerSelect();
   document.getElementById('prop_customer').value = String(r.id);
   document.getElementById('prop_name').value = r.customer_name || '';
+  document.getElementById('prop_birth').value = String(r.birth || '').replace(/[^0-9]/g, '');
   const a = propBirthToAge(r.birth);
   document.getElementById('prop_age').value = a ? a.insAge : '';
   const g = String(r.gender || '').trim();
@@ -2496,6 +2504,15 @@ function propApplyPrefill(pf){
   propMemoText = r.partner_memo || '';
   const best = propDetectConcept(propMemoText);
   if (best) document.getElementById('prop_concept').value = String(best.concept.id);
+  else if (/퍼미션/.test(r.db_type || '')) {
+    const pc = propRealConcepts().find(c => c.active !== false && /퍼미션/.test(c.name));
+    if (pc) document.getElementById('prop_concept').value = String(pc.id);
+  }
+  propRender();
+}
+function propBirthInput(){
+  const a = propBirthToAge(document.getElementById('prop_birth').value);
+  if (a) document.getElementById('prop_age').value = a.insAge;
   propRender();
 }
 function propDetectConcept(memo){
@@ -2515,37 +2532,57 @@ function propCtx(){
   const gender = document.getElementById('prop_gender').value;
   const name = (document.getElementById('prop_name').value || '').trim();
   const cid = Number(document.getElementById('prop_concept').value) || 0;
+  const birth = (document.getElementById('prop_birth').value || '').replace(/[^0-9]/g, '');
+  const prem = parseFloat(document.getElementById('prop_premium').value);
+  const honor = document.getElementById('prop_honor').value;
   return { age: isNaN(age) ? null : age, gender: gender, name: name, cid: cid,
+           birth: birth.length === 8 ? birth : '', premium: isNaN(prem) || prem <= 0 ? null : prem,
+           honor: honor || ((!isNaN(age) && age >= 50) ? '선생님' : '고객님'),
            concept: propConcepts.find(c => c.id === cid) || null,
            month: document.getElementById('prop_month').value || propMonthNow() };
 }
 function propRenderText(raw, ctx, rec){
   const lines = String(raw || '').split('\n');
   const out = [];
+  const hasPrem = ctx.premium !== null && ctx.premium !== undefined;
+  const hasBirth = !!ctx.birth;
   lines.forEach(line => {
     let t = line;
-    const m = t.match(/^\[(남|여|(\d+)이하|(\d+)이상)\]\s*/);
+    const m = t.match(/^\[(남|여|(\d+)이하|(\d+)이상|보험료있음|보험료없음|생년있음|생년없음)\]\s*/);
     if (m) {
       let ok = true;
       if (m[1] === '남' || m[1] === '여') ok = (ctx.gender === m[1]);
       else if (m[2]) ok = (ctx.age !== null && ctx.age <= Number(m[2]));
       else if (m[3]) ok = (ctx.age !== null && ctx.age >= Number(m[3]));
+      else if (m[1] === '보험료있음') ok = hasPrem;
+      else if (m[1] === '보험료없음') ok = !hasPrem;
+      else if (m[1] === '생년있음') ok = hasBirth;
+      else if (m[1] === '생년없음') ok = !hasBirth;
       if (!ok) return;
       t = t.slice(m[0].length);
     }
     out.push(t);
   });
+  const b = ctx.birth;
+  const summaryLine = ctx.concept && ctx.concept.summary ? String(ctx.concept.summary).split('\n')[0].trim() : '';
   const vars = {
     '고객명': ctx.name || '고객',
-    '호칭': '고객님',
+    '호칭': ctx.honor || '고객님',
+    '고객호칭': (ctx.name ? ctx.name + ' ' : '') + (ctx.honor || '고객님'),
     '나이': ctx.age !== null ? String(ctx.age) : '',
     '연령대': ctx.age !== null ? (Math.floor(ctx.age / 10) * 10) + '대' : '',
+    '연령대문구': ctx.age !== null ? (Math.floor(ctx.age / 10) * 10) + '대 되시면' : '나이가 드시면',
     '성별': ctx.gender === '남' ? '남성' : (ctx.gender === '여' ? '여성' : ''),
     '컨셉': ctx.concept ? ctx.concept.name : '',
     '회사': rec && rec.company ? rec.company : '',
-    '상품': rec && rec.product_name ? rec.product_name : ''
+    '상품': rec && rec.product_name ? rec.product_name : '',
+    '팀장명': (currentUser && currentUser.manager_name) || '',
+    '월보험료': hasPrem ? (ctx.premium + '만원') : '',
+    '생년월일': b ? (Number(b.slice(2, 4)) + '년 ' + Number(b.slice(4, 6)) + '월 ' + Number(b.slice(6, 8)) + '일') : '',
+    '생년월일6': b ? b.slice(2) : '',
+    '광고내용': summaryLine || '보장'
   };
-  return out.join('\n').replace(/\{(고객명|호칭|나이|연령대|성별|컨셉|회사|상품)\}/g, (all, k) => vars[k]);
+  return out.join('\n').replace(/\{(고객명|고객호칭|호칭|나이|연령대문구|연령대|성별|컨셉|회사|상품|팀장명|월보험료|생년월일6|생년월일|광고내용)\}/g, (all, k) => vars[k]);
 }
 function propHtmlText(t){ return escapeHtml(t).replace(/\n/g, '<br>'); }
 
@@ -2573,7 +2610,14 @@ function propAgeText(p){
 }
 
 /* ---------- 팀장용 화면 ---------- */
-function propEffIntro(c){ const u = propUser[c.id]; return (u && u.intro_script != null && u.intro_script !== '') ? { text: u.intro_script, mine: true } : { text: c.intro_script || '', mine: false }; }
+function propEffIntro(c){
+  const u = propUser[c.id];
+  if (u && u.intro_script != null && u.intro_script !== '') return { text: u.intro_script, mine: true };
+  if (c.intro_script) return { text: c.intro_script, mine: false };
+  const cm = propCommon();
+  if (cm && c.use_common !== false && cm.intro_script) return { text: cm.intro_script, mine: false, common: true };
+  return { text: '', mine: false };
+}
 function propEffObjs(c){ const u = propUser[c.id]; return (u && Array.isArray(u.objections)) ? { list: u.objections, mine: true } : { list: Array.isArray(c.objections) ? c.objections : [], mine: false }; }
 function propCopy(key){
   const t = propCopyBuf[key] || '';
@@ -2595,7 +2639,7 @@ function propRender(){
   const ctx = propCtx();
   const out = document.getElementById('prop_output');
   const memoBox = document.getElementById('prop_memoBox');
-  const ai = propBirthToAge(((dbRows || []).find(r => String(r.id) === document.getElementById('prop_customer').value) || {}).birth);
+  const ai = propBirthToAge(document.getElementById('prop_birth').value);
   document.getElementById('prop_ageInfo').textContent = ai ? `※ 생년월일 기준 만 ${ai.manAge}세 / 보험나이 ${ai.insAge}세 (보험나이로 입력됨)` : '※ 나이를 입력하면 가입 가능 연령으로 걸러서 추천합니다.';
   propCopyBuf = {};
   // 협력사 메모 + 컨셉 추천
@@ -2640,7 +2684,7 @@ function propRender(){
   let introHtml;
   if (propEdit && propEdit.type === 'intro' && propEdit.cid === c.id) {
     introHtml = `<textarea id="prop_e_intro" rows="7" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;">${escapeHtml(ie.text)}</textarea>
-      <div style="font-size:11.5px;color:var(--muted);margin:4px 0;">변수: {고객명} {호칭} {나이} {연령대} {성별} {컨셉} {회사} {상품} · 줄 맨 앞에 [남] [여] [49이하] [50이상]을 붙이면 해당 고객일 때만 보입니다.</div>
+      <div style="font-size:11.5px;color:var(--muted);margin:4px 0;">변수: {고객명} {고객호칭} {호칭} {팀장명} {나이} {연령대} {연령대문구} {성별} {컨셉} {광고내용} {회사} {상품} {월보험료} {생년월일} {생년월일6} · 줄 맨 앞에 [남] [여] [49이하] [50이상] [보험료있음] [보험료없음] [생년있음] [생년없음]을 붙이면 해당할 때만 보입니다.</div>
       <button class="act small" onclick="propSaveIntro(${c.id})">내 멘트로 저장</button> <button class="secondary small" onclick="propCancelEdit()">취소</button>`;
   } else {
     introHtml = `<div style="font-size:14.5px;line-height:1.8;">${introText ? propHtmlText(introText) : '<span style="color:var(--muted);">등록된 도입멘트가 없습니다.</span>'}</div>
@@ -2692,8 +2736,8 @@ function propRender(){
       ${c.summary ? `<div style="margin-top:10px;font-size:13px;line-height:1.7;background:#F7F5EE;border-radius:8px;padding:8px 10px;white-space:pre-wrap;"><b>광고 핵심 내용</b>\n${escapeHtml(c.summary)}</div>` : ''}
       ${files.length ? `<div style="margin-top:8px;font-size:12px;">📎 참고 자료: ${files.map(f => `<a href="#" onclick="propOpenFile(${f.id});return false;" style="color:var(--navy);">${escapeHtml(f.memo || f.file_name)}</a>`).join(' · ')}</div>` : ''}</div>
     <div class="card"><div style="font-weight:700;margin-bottom:6px;">① 추천 회사·플랜</div>${recHtml}</div>
-    <div class="card"><div style="font-weight:700;margin-bottom:6px;">② 도입멘트${ie.mine ? ' <span class="badge badge-bday">내가 수정함</span>' : ''}</div>${introHtml}</div>
-    <div class="card"><div style="font-weight:700;">③ 예상 거절·반론 대응</div>${objSection(c, '이 컨셉 전용 반론')}${objSection(common, '공통 반론')}</div>
+    <div class="card"><div style="font-weight:700;margin-bottom:6px;">② 도입멘트${ie.mine ? ' <span class="badge badge-bday">내가 수정함</span>' : (ie.common ? ' <span class="badge" style="background:#EFEDE6;">공통 도입멘트</span>' : '')}</div>${introHtml}</div>
+    <div class="card"><div style="font-weight:700;">③ 예상 거절·반론 대응</div>${objSection(c, c.use_common === false ? '반론 대응' : '이 컨셉 전용 반론')}${c.use_common === false ? '' : objSection(common, '공통 반론')}</div>
   </div>`;
 }
 
@@ -2796,10 +2840,10 @@ function propRenderConceptList(){
       <div style="font-size:11.5px;color:var(--muted);">상품 ${propProducts.filter(p => p.concept_id === c.id).length}개 · 반론 ${(c.objections || []).length}개 · 자료 ${propFiles.filter(f => f.concept_id === c.id).length}개</div></div>
       <div style="display:flex;gap:6px;"><button class="secondary small" onclick="propEditConcept(${c.id})">편집</button><button class="danger small" onclick="propDeleteConcept(${c.id})">삭제</button></div></div>`).join('')
     : '<div class="sub" style="margin:0;">등록된 컨셉이 없습니다. “+ 새 컨셉”으로 시작하세요.</div>')
-    + `<div style="font-size:11.5px;color:var(--muted);margin-top:8px;">공통 반론: ${common ? (common.objections || []).length + '개 등록됨' : '아직 없음'}</div>`;
+    + `<div style="font-size:11.5px;color:var(--muted);margin-top:8px;">공통 도입멘트: ${common && common.intro_script ? '등록됨' : '없음'} · 공통 반론: ${common ? (common.objections || []).length + '개 등록됨' : '아직 없음'}</div>`;
 }
 function propEditNew(kind){
-  propEditor = { id: null, kind: kind, name: '', keywords: '', summary: '', intro_script: '', objections: [{ title: '', reply: '' }], active: true, sort_order: 0 };
+  propEditor = { id: null, kind: kind, name: '', keywords: '', summary: '', intro_script: '', objections: [{ title: '', reply: '' }], active: true, sort_order: 0, use_common: true };
   propRenderEditor();
   document.getElementById('prop_editor').scrollIntoView({ behavior: 'smooth' });
 }
@@ -2807,7 +2851,7 @@ function propEditConcept(id){
   const c = propConcepts.find(x => x.id === id);
   if (!c) return;
   propEditor = { id: c.id, kind: c.kind || 'concept', name: c.name, keywords: c.keywords || '', summary: c.summary || '', intro_script: c.intro_script || '',
-    objections: (c.objections || []).map(o => ({ title: o.title, reply: o.reply })), active: c.active !== false, sort_order: c.sort_order || 0 };
+    objections: (c.objections || []).map(o => ({ title: o.title, reply: o.reply })), active: c.active !== false, sort_order: c.sort_order || 0, use_common: c.use_common !== false };
   if (!propEditor.objections.length) propEditor.objections.push({ title: '', reply: '' });
   propRenderEditor();
   document.getElementById('prop_editor').scrollIntoView({ behavior: 'smooth' });
@@ -2832,7 +2876,10 @@ async function propDeleteConcept(id){
 function propSyncEditor(){
   if (!propEditor) return;
   const g = id => { const el = document.getElementById(id); return el ? el.value : null; };
-  if (propEditor.kind !== 'common') {
+  if (propEditor.kind === 'common') {
+    propEditor.intro_script = g('prop_c_intro') !== null ? g('prop_c_intro') : propEditor.intro_script;
+  } else {
+    const uc = document.getElementById('prop_c_usecommon'); if (uc) propEditor.use_common = uc.checked;
     propEditor.name = g('prop_c_name') !== null ? g('prop_c_name') : propEditor.name;
     propEditor.keywords = g('prop_c_kw') !== null ? g('prop_c_kw') : propEditor.keywords;
     propEditor.summary = g('prop_c_sum') !== null ? g('prop_c_sum') : propEditor.summary;
@@ -2853,21 +2900,129 @@ async function propSaveConcept(){
   if (e.kind !== 'common' && !e.name.trim()) { alert('컨셉명을 입력해주세요.'); return; }
   const objs = e.objections.map(o => ({ title: o.title.trim(), reply: o.reply.trim() })).filter(o => o.title && o.reply);
   const row = { kind: e.kind, name: e.kind === 'common' ? '공통 반론' : e.name.trim(), keywords: e.keywords.trim() || null, summary: e.summary.trim() || null,
-    intro_script: e.intro_script.trim() || null, objections: objs, active: e.active, sort_order: e.sort_order, updated_at: new Date().toISOString() };
+    intro_script: e.intro_script.trim() || null, objections: objs, active: e.active, sort_order: e.sort_order, use_common: e.use_common !== false, updated_at: new Date().toISOString() };
+  let needAlter = false;
+  const doWrite = async (r) => e.id ? await sb.from('ad_concepts').update(r).eq('id', e.id) : await sb.from('ad_concepts').insert([r]).select();
+  let res = await doWrite(row);
+  if (res.error && /use_common/.test(res.error.message || '')) { needAlter = true; delete row.use_common; res = await doWrite(row); }
+  if (res.error) { alert('저장 실패: ' + res.error.message); return; }
   if (e.id) {
-    const { error } = await sb.from('ad_concepts').update(row).eq('id', e.id);
-    if (error) { alert('저장 실패: ' + error.message); return; }
     const i = propConcepts.findIndex(c => c.id === e.id);
     if (i >= 0) propConcepts[i] = Object.assign({}, propConcepts[i], row);
   } else {
-    const { data, error } = await sb.from('ad_concepts').insert([row]).select();
-    if (error) { alert('저장 실패: ' + error.message); return; }
+    const data = res.data;
     if (!data || !data[0]) { alert('저장은 되었지만 새 번호를 받지 못했습니다. 새로고침 후 다시 열어주세요.'); return; }
     propConcepts.push(data[0]);
     e.id = data[0].id;
   }
+  if (needAlter) alert('저장은 되었지만 “공통 사용” 설정은 저장되지 않았습니다. 제안 준비 탭 SQL 안내(맨 위 SQL)를 Supabase에서 한 번 실행해주세요.');
   propFillConceptSelect(); propRenderConceptList(); propRenderEditor();
   alert(e.kind === 'common' ? '공통 반론을 저장했습니다.' : '저장했습니다. 아래에서 연결 상품과 참고 자료를 추가할 수 있습니다.');
+}
+
+/* ---------- 기본 멘트(퍼미션 / 상품광고 공통) — 마스터가 버튼으로 한 번에 넣기 ---------- */
+const PROP_SEED_AD_INTRO = [
+  '여보세요, {고객호칭} 안녕하세요. {컨셉} 광고에서 {광고내용} 내용 보시고 문의 남겨주셔서 연락드렸습니다.',
+  '저는 상담 도와드릴 어센틱금융 {팀장명} 팀장이라고 하고요. {컨셉} 관련해서 상담드릴텐데, 보험료 외에 평소 많이 신경 쓰이셨거나 궁금하셨던 부분이 있으셨을까요?',
+  '그러시면 말씀하신 이 보장내용이 고객님께서 이미 가지고 계시거나 중복되어 있을 수 있거든요. 중복으로 보험료를 더 내실 필요는 없으시니까요, 제가 먼저 고객님 기존 보장부터 확인해드리고 말씀드리는게 어떠세요?'
+].join('\n');
+const PROP_SEED_AD_OBJ = [
+  { title: '그냥 보험료만 확인해보려고 했어요', reply: [
+    '네 {호칭}, 보험료가 가장 궁금하셨던 거 맞아요. 보험료는 제가 바로 안내해드릴게요.',
+    '다만 이 보장이 이미 가입하신 내용과 겹치면 같은 보장에 보험료를 두 번 내시게 될 수 있어요. 그래서 기존 보장을 1~2분만 먼저 보고, 꼭 필요한 부분만 정확한 보험료로 말씀드리는 게 {호칭}께 이득이에요.',
+    '지금 가입해 두신 보험 중에 {컨셉}과 비슷한 보장이 있으신지만 먼저 여쭤볼게요.' ].join('\n') },
+  { title: '그냥 안할래요 / 필요없을 것 같아요', reply: [
+    '필요 없다고 느끼실 수 있어요. 광고만 봐서는 내 보험에 도움이 되는지 알기 어려우니까요.',
+    '혹시 이미 비슷한 보험이 있으셔서 그러신 건가요, 아니면 지금은 생각이 없으셔서일까요?',
+    '(이미 있다고 하면) 그럼 더 잘됐어요. 그 보장이 충분한지만 확인해드리고 겹치는 건 정리해드릴게요.',
+    '(생각이 없다고 하면) 지금 당장 가입하시라는 게 아니라, 연령이 올라가면 가입 조건이나 보험료가 달라질 수 있어서 현재 조건만 알아두시라는 거예요.' ].join('\n') },
+  { title: '지금 바빠요', reply: [
+    '아이고 바쁘실 때 연락드렸네요, 죄송합니다 {호칭}.',
+    '5분 안에 끝나게 정리해서 다시 연락드릴게요. 오늘 오후와 내일 오전 중에 언제가 편하세요?',
+    '(시간 확정되면 DB관리에 “예약”으로 시간 기록)' ].join('\n') },
+  { title: '가족과 상의해볼게요', reply: [
+    '네 {호칭}, 가족과 상의하시는 게 맞아요. 상의하실 때 비교할 자료가 있으면 훨씬 수월하세요.',
+    '보장 내용과 보험료를 정리해서 문자로 보내드릴게요.',
+    '혹시 상의하실 때 가장 걸리실 것 같은 부분이 어떤 건가요? 그 부분을 미리 말씀해주시면 같이 정리해서 보내드릴게요.',
+    '가족분과 함께 통화 가능한 시간도 알려주시면 그때 맞춰서 다시 연락드릴게요.' ].join('\n') },
+  { title: '보험료가 부담스러워요', reply: [
+    '네 {호칭}, 보험료는 가장 현실적인 고민이에요.',
+    '그래서 오히려 기존 보험에서 겹치거나 꼭 필요하지 않은 부분을 먼저 정리해보면, 보험료를 더 늘리지 않고 조정할 수 있는지 볼 수 있어요.',
+    '한 달에 어느 정도까지가 편안하신지 말씀해주시면, 그 범위 안에서 우선순위 높은 보장부터 말씀드릴게요.' ].join('\n') },
+  { title: '나중에 필요하면 연락할게요', reply: [
+    '네, 그렇게 하셔도 돼요. 다만 나중에 필요하다고 느끼실 때는 건강 상태가 달라져서 가입 조건이 달라지는 경우가 있어요.',
+    '그래서 지금 기존 보장만 가볍게 확인해두시는 분들이 많아요. 5분이면 되는데 지금 간단히 확인해볼까요?',
+    '지금이 어려우시면 제 번호를 문자로 남겨드릴게요. 언제쯤 다시 연락드리면 좋을까요?' ].join('\n') }
+];
+const PROP_SEED_PERM_INTRO = [
+  '여보세요, {고객호칭} 안녕하세요. 보험점검 담당하고 있는 {팀장명}입니다.',
+  '최근에 저희 상담원을 통해서 보험료 점검에 동의해주신 것 확인하고 연락드렸어요.',
+  '{호칭}처럼 {연령대문구} 바쁘게 지내시다 보니, 가입해두신 보험이 정작 필요 없는 부분까지 계속 보험료만 나가는 경우가 정말 많더라고요.',
+  '[보험료있음] 지금 월 {월보험료} 정도 내고 계신데, 혹시 과하게 내고 계시거나 필요한 보장이 빠져 있는 건 아닌지 무료로 점검해드리려고 합니다.',
+  '[보험료없음] 지금 내고 계신 보험료가 혹시 과하거나 필요한 보장이 빠져 있는 건 아닌지 무료로 점검해드리려고 합니다.',
+  '점검해서 손해 볼 일은 없으니 편하게 봐주시면 되고, 제가 간단히 몇 가지만 확인하고 바로 정리해서 마무리해드릴게요. 괜찮으시죠?',
+  '네, {고객호칭} 맞으신 거죠?',
+  '[생년있음] 네, 그리고 {생년월일}생이시고요. 본인 여부 확인하고 안내해 드릴 건데, {고객호칭} {생년월일6} 그다음에는 어떻게 되세요?',
+  '[생년없음] 네, 본인 여부 확인하고 안내해 드릴게요. 생년월일 먼저 말씀해주시겠어요?'
+].join('\n');
+const PROP_SEED_PERM_OBJ = [
+  { title: '괜찮아요 / 됐어요', reply: [
+    '네 {호칭}, 괜찮으시다는 말씀 충분히 이해돼요. 보험은 한 번 가입하고 나면 따로 들여다볼 일이 잘 없으니까요.',
+    '그래서 새로 가입하시라는 게 아니라, 이미 내고 계신 보험료가 제대로 쓰이고 있는지만 보는 거예요. 잘 되어 있으면 “지금 그대로 괜찮다”고 확인해드리고 끝나요.',
+    '몇 분이면 되는데, 가입하신 보장 몇 가지만 같이 확인해보고 판단하셔도 될까요?' ].join('\n') },
+  { title: '관리하는 사람 있어요 / 필요없을 것 같아요', reply: [
+    '아, 담당해주시는 분이 계시군요. 든든하시겠어요.',
+    '담당자분을 바꾸시라는 게 아니라, 현재 보험이 한 번 더 점검되어 있는지 확인해드리는 거예요. 이미 잘 관리받고 계시면 저는 그대로 괜찮다고 확인만 해드리면 되고, 놓친 부분이 있으면 그때 말씀드릴게요.',
+    '혹시 마지막으로 보험 점검 받으신 게 언제쯤이세요?' ].join('\n') },
+  { title: '지금 바빠요', reply: [
+    '아이고 바쁘실 때 전화드렸네요, 죄송합니다 {호칭}.',
+    '5분이면 끝나도록 준비해서 다시 연락드릴게요. 오늘 오후와 내일 오전 중에 언제가 편하세요?',
+    '(시간 확정되면 DB관리에 “예약”으로 시간 기록)' ].join('\n') },
+  { title: '괜찮다고 했는데 또 전화했네요?', reply: [
+    '불편하게 해드렸다면 정말 죄송합니다 {호칭}.',
+    '최근 보험료 점검에 동의해주신 이력이 확인되어서 안내 차원에서 연락드렸어요.',
+    '원치 않으시면 말씀해주세요. 바로 반영하겠습니다. 다만 점검은 무료이고 5분 정도면 끝나서, 괜찮으시면 간단히만 확인해도 될까요?',
+    '(재차 거절하시면 정중히 마무리하고 DB관리에 “상담거절”로 기록)' ].join('\n') },
+  { title: '그래서 왜 이렇게 해주는 거예요?', reply: [
+    '충분히 궁금하실 수 있어요. 솔직하게 말씀드리면, 저희는 보험 상담을 하는 회사라서 점검을 해드리다 보면 보장 보완이 필요하신 분은 상담을 이어가시고, 점검만 받고 끝내시는 분도 많아요.',
+    '점검은 무료이고, 상담을 이어가더라도 선택은 {호칭}이 하시는 거예요. 필요 없으시면 “지금 그대로 괜찮다”고 정리해드리고 끝납니다.' ].join('\n') },
+  { title: '주민번호까지 알려주긴 싫은데요', reply: [
+    '개인정보라 조심스러우신 거 당연해요 {호칭}.',
+    '본인 확인 용도로만 쓰고, 말씀하시기 부담스러운 부분은 건너뛰어도 괜찮아요. 가능한 범위에서부터 점검해드릴게요.',
+    '우선 지금 가입해 두신 보험이 어떤 게 있는지부터 편하게 말씀해주시겠어요?' ].join('\n') }
+];
+async function propSeedDefaults(){
+  const common = propCommon();
+  const perm = propRealConcepts().find(c => /퍼미션/.test(c.name));
+  const hasCommon = common && (common.intro_script || (common.objections || []).length);
+  const msgs = [];
+  if (hasCommon) msgs.push('· 공통(상품광고) 멘트는 이미 내용이 있어 그대로 둡니다. (고치려면 “공통 도입멘트·반론 편집”)');
+  else msgs.push('· 공통(상품광고) 도입멘트 + 반론 ' + PROP_SEED_AD_OBJ.length + '개를 넣습니다.');
+  if (perm && (perm.intro_script || (perm.objections || []).length)) msgs.push('· 퍼미션 컨셉은 이미 내용이 있어 그대로 둡니다.');
+  else msgs.push('· “퍼미션 (보험료 점검)” 컨셉(도입멘트 + 반론 ' + PROP_SEED_PERM_OBJ.length + '개)을 넣습니다.');
+  if (hasCommon && perm && (perm.intro_script || (perm.objections || []).length)) { alert(msgs.join('\n')); return; }
+  if (!confirm(msgs.join('\n') + '\n\n진행할까요?')) return;
+  const now = new Date().toISOString();
+  let needAlter = false;
+  const write = async (id, row) => {
+    const doIt = async (r) => id ? await sb.from('ad_concepts').update(r).eq('id', id) : await sb.from('ad_concepts').insert([r]).select();
+    let res = await doIt(row);
+    if (res.error && /use_common/.test(res.error.message || '')) { needAlter = true; delete row.use_common; res = await doIt(row); }
+    return res;
+  };
+  if (!hasCommon) {
+    const row = { kind: 'common', name: '공통 반론', intro_script: PROP_SEED_AD_INTRO, objections: PROP_SEED_AD_OBJ, active: true, sort_order: 0, use_common: true, updated_at: now };
+    const res = await write(common ? common.id : null, row);
+    if (res.error) { alert('저장 실패: ' + res.error.message); return; }
+  }
+  if (!(perm && (perm.intro_script || (perm.objections || []).length))) {
+    const row = { kind: 'concept', name: '퍼미션 (보험료 점검)', keywords: '퍼미션', intro_script: PROP_SEED_PERM_INTRO, objections: PROP_SEED_PERM_OBJ,
+      active: true, sort_order: -1, use_common: false, updated_at: now };
+    const res = await write(perm ? perm.id : null, row);
+    if (res.error) { alert('저장 실패: ' + res.error.message); return; }
+  }
+  await propLoadAll(); propFillConceptSelect(); propRenderConceptList(); propRenderEditor();
+  alert('기본 멘트를 넣었습니다.' + (needAlter ? '\n\n※ “공통 사용” 설정 칸이 아직 없어서 퍼미션에도 상품광고 공통 반론이 함께 보입니다. 제안 준비 탭 SQL의 맨 아래 alter 문(use_common)을 Supabase에서 실행한 뒤 퍼미션 컨셉 편집에서 “공통 도입멘트·공통 반론도 함께 사용” 체크를 해제해주세요.' : ''));
 }
 
 function propRenderEditor(){
@@ -2887,9 +3042,16 @@ function propRenderEditor(){
       <label>협력사메모 매칭 키워드 (쉼표로 구분)</label><input type="text" id="prop_c_kw" value="${escAttr(e.keywords)}" placeholder="예: 입원비, 다빈도, 입원일당" style="margin-bottom:8px;">
       <label>광고 핵심 내용 (광고 원문의 수치·문구 그대로)</label><textarea id="prop_c_sum" rows="3" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;margin-bottom:8px;">${escapeHtml(e.summary)}</textarea>
       <label>도입멘트 기본안</label><textarea id="prop_c_intro" rows="6" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;">${escapeHtml(e.intro_script)}</textarea>
-      <div style="font-size:11.5px;color:var(--muted);margin:4px 0 10px;">변수: {고객명} {호칭} {나이} {연령대} {성별} {컨셉} {회사} {상품} · 줄 맨 앞에 [남] [여] [49이하] [50이상]을 붙이면 해당 고객일 때만 그 줄이 보입니다. 예) [50이상] 오랜 시간 가족 위해 애쓰셨죠.</div>`;
+      <div style="font-size:11.5px;color:var(--muted);margin:4px 0 10px;">변수: {고객명} {고객호칭} {호칭} {팀장명} {나이} {연령대} {연령대문구} {성별} {컨셉} {광고내용}(핵심 내용 첫 줄) {회사} {상품} {월보험료} {생년월일} {생년월일6} · 줄 맨 앞에 [남] [여] [49이하] [50이상] [보험료있음] [보험료없음] [생년있음] [생년없음]을 붙이면 해당할 때만 그 줄이 보입니다. 예) [50이상] 오랜 시간 가족 위해 애쓰셨죠.</div>`;
   }
-  h += `<div style="font-weight:700;margin:6px 0;">${isCommon ? '공통 반론 목록' : '이 컨셉 전용 반론'}</div>${objRows}
+  if (isCommon) {
+    h += `<label>공통 도입멘트 (모든 컨셉에서 컨셉별 도입멘트가 비어 있으면 이 멘트를 쓰고, 상품·플랜 이름만 바뀝니다)</label>
+      <textarea id="prop_c_intro" rows="9" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;">${escapeHtml(e.intro_script)}</textarea>
+      <div style="font-size:11.5px;color:var(--muted);margin:4px 0 10px;">변수: {고객명} {고객호칭} {호칭} {팀장명} {컨셉} {광고내용} {나이} {연령대문구} {월보험료} {생년월일} {생년월일6} · 줄 맨 앞 [남] [여] [49이하] [50이상] [보험료있음] [보험료없음] [생년있음] [생년없음]</div>`;
+  } else {
+    h += `<label style="display:flex;align-items:center;gap:6px;margin:6px 0;"><input type="checkbox" id="prop_c_usecommon" style="width:auto;" ${e.use_common ? 'checked' : ''}> 공통 도입멘트·공통 반론도 함께 사용 (퍼미션처럼 따로 쓰는 컨셉은 체크 해제)</label>`;
+  }
+  h += `<div style="font-weight:700;margin:6px 0;">${isCommon ? '공통 반론 목록' : (e.use_common ? '이 컨셉 전용 반론' : '반론 목록')}</div>${objRows}
     <button class="secondary small" onclick="propAddObjRow()">+ 반론 추가</button>
     <div style="margin-top:12px;display:flex;gap:8px;"><button class="act" onclick="propSaveConcept()">저장</button><button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="propCancelEditor()">닫기</button></div>`;
   if (!isCommon && e.id) {
