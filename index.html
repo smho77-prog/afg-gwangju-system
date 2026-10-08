@@ -476,6 +476,7 @@
       <button class="tabbtn active" data-tab="reserve" onclick="switchTab('reserve')">📅 예약관리<span id="r_todayCount"></span></button>
       <button class="tabbtn" data-tab="contract" onclick="switchTab('contract')">📄 계약관리</button>
       <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
+      <button class="tabbtn" data-tab="dbmgmt" onclick="switchTab('dbmgmt')">🗃️ DB관리</button>
     </div>
   </div>
   <div class="sg" data-group="tools">
@@ -1421,6 +1422,133 @@
   </div>
 </div>
 
+<!-- ===== DB관리 (누수 관리) ===== -->
+<div class="panel" id="panel-dbmgmt">
+  <div class="card" style="padding:14px 18px;">
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;" id="db_subtabs">
+      <button class="act small" data-v="dash" onclick="dbSetView('dash')">📊 현황판</button>
+      <button class="secondary small" data-v="leak" onclick="dbSetView('leak')">🚨 누수 목록 <span id="db_leakBadge"></span></button>
+      <button class="secondary small" data-v="list" onclick="dbSetView('list')">📋 고객 목록</button>
+      <button class="secondary small" data-v="upload" onclick="dbSetView('upload')">📥 엑셀 업로드</button>
+      <button class="secondary small" data-v="add" onclick="dbSetView('add')">✍️ 수기 등록</button>
+    </div>
+    <div class="sub" style="margin:10px 0 0;">
+      <b>누수 기준</b> — 상담거절·계약완료는 종결 건으로 보고 제외합니다. 진행 건 중 ① 터치 <span id="db_cfgMin">3</span>회 미만(분배 <span id="db_cfgGrace">1</span>일 경과) ② 상담예약일이 지났는데 그 이후 터치가 없음 ③ 재터치 지연(부재 <span id="db_cfgAbs">3</span>일 / 가망고객·단순통화 <span id="db_cfgPro">7</span>일 이상 무터치)
+    </div>
+  </div>
+
+  <div id="db_setupBox" class="card" style="display:none;border-color:var(--amber);background:var(--amber-bg);">
+    <div style="font-weight:700;margin-bottom:6px;">⚠ DB관리 테이블을 불러오지 못했습니다</div>
+    <div id="db_setupMsg" style="font-size:12.5px;margin-bottom:8px;"></div>
+    <div style="font-size:12.5px;margin-bottom:6px;">처음 사용하는 경우 Supabase SQL Editor에 아래 SQL을 붙여넣어 실행한 뒤 새로고침 해주세요.</div>
+    <pre id="db_sqlText" style="white-space:pre-wrap;font-size:11.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:260px;overflow:auto;margin:0 0 8px;"></pre>
+    <button class="secondary small" onclick="dbCopySql()">SQL 복사</button>
+  </div>
+
+  <!-- 필터 (현황판/누수/목록 공통) -->
+  <div class="card" id="db_filterCard" style="padding:12px 18px;">
+    <div class="filter-row" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+      <span id="db_mgrWrap"><label style="margin:0 6px 0 0;">팀장</label><select id="db_fMgr" style="width:auto;" onchange="dbRender()"><option value="__all__">전체 팀장</option></select></span>
+      <span><label style="margin:0 6px 0 0;">분배월</label><select id="db_fMonth" style="width:auto;" onchange="dbRender()"><option value="__all__">전체</option></select></span>
+      <span><label style="margin:0 6px 0 0;">DB유형</label><select id="db_fType" style="width:auto;" onchange="dbRender()"><option value="__all__">전체</option></select></span>
+      <button class="secondary small" onclick="dbReload()">🔄 새로고침</button>
+      <span id="db_loadInfo" style="font-size:12px;color:var(--muted);"></span>
+    </div>
+  </div>
+
+  <div id="db_viewDash"></div>
+
+  <div id="db_viewLeak" style="display:none;">
+    <div class="card">
+      <div id="db_leakSummary" style="font-size:13px;margin-bottom:8px;"></div>
+      <div style="overflow-x:auto;"><table style="min-width:760px;">
+        <colgroup><col style="width:9%"><col style="width:14%"><col style="width:15%"><col style="width:10%"><col style="width:7%"><col style="width:13%"><col style="width:22%"><col style="width:10%"></colgroup>
+        <thead><tr><th>팀장</th><th>고객 / 연락처</th><th>DB유형</th><th>상태</th><th>터치</th><th>마지막 터치</th><th>누수 사유</th><th></th></tr></thead>
+        <tbody id="db_leakBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div id="db_viewList" style="display:none;">
+    <div class="card">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;">
+        <input type="text" id="db_search" placeholder="고객명 / 연락처 뒷자리 / 고객코드 검색" style="max-width:260px;" oninput="dbRenderList()">
+        <select id="db_fStatus" style="width:auto;" onchange="dbRenderList()"><option value="__all__">전체 상태</option></select>
+        <label style="display:flex;align-items:center;gap:6px;margin:0;"><input type="checkbox" id="db_showClosed" style="width:auto;" onchange="dbRenderList()"> 종결(거절·계약완료) 포함</label>
+      </div>
+      <div id="db_listSummary" style="font-size:12px;color:var(--muted);margin-bottom:4px;"></div>
+      <div style="overflow-x:auto;"><table style="min-width:760px;">
+        <colgroup><col style="width:9%"><col style="width:14%"><col style="width:15%"><col style="width:10%"><col style="width:7%"><col style="width:13%"><col style="width:22%"><col style="width:10%"></colgroup>
+        <thead><tr><th>팀장</th><th>고객 / 연락처</th><th>DB유형</th><th>상태</th><th>터치</th><th>마지막 터치</th><th>메모(최근)</th><th></th></tr></thead>
+        <tbody id="db_listBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div id="db_viewUpload" style="display:none;">
+    <div class="card">
+      <label>회사 전산에서 내려받은 DB 엑셀 업로드</label>
+      <div class="sub" style="margin-bottom:8px;">고객코드 기준으로 처리합니다. 새 고객은 추가하고, 이미 있는 고객은 상담상태·터치횟수·예약일시·계약건수·메모를 최신 값으로 갱신합니다. 매일 같은 파일 형식으로 올리시면 됩니다. (회사 전산 데이터가 기준이므로, 수기로 기록한 터치보다 엑셀 값이 우선합니다.)</div>
+      <input type="file" id="db_excelFile" accept=".xlsx,.xls,.csv" onchange="dbHandleExcel(event)">
+      <div id="db_excelStatus" style="font-size:12.5px;color:var(--muted);margin-top:8px;"></div>
+    </div>
+    <div class="card" id="db_previewCard" style="display:none;">
+      <div id="db_previewSummary" style="font-size:13px;line-height:1.7;margin-bottom:10px;"></div>
+      <div style="overflow-x:auto;"><table style="min-width:640px;">
+        <thead><tr><th style="width:12%">팀장</th><th style="width:16%">DB유형</th><th style="width:14%">고객</th><th style="width:12%">상태</th><th style="width:8%">터치</th><th style="width:18%">분배일시</th><th style="width:10%">구분</th></tr></thead>
+        <tbody id="db_previewBody"></tbody>
+      </table></div>
+      <div id="db_previewMore" style="font-size:11.5px;color:var(--muted);margin-top:4px;"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="act" id="db_commitBtn" onclick="dbCommitExcel()">업로드 반영</button>
+        <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="dbCancelExcel()">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="db_viewAdd" style="display:none;">
+    <div class="card">
+      <div class="sub">회사 전산에 아직 안 올라온 고객이나 직접 받은 DB를 기록합니다. (고객코드는 자동으로 M-로 시작하는 번호가 부여됩니다)</div>
+      <div class="row">
+        <div><label>담당 팀장</label><input type="text" id="db_a_mgr" list="db_mgrList" placeholder="예: 송명호"><datalist id="db_mgrList"></datalist></div>
+        <div><label>DB유형</label><select id="db_a_type"><option>상품광고3</option><option>상품광고2</option><option>상품광고1</option><option>퍼미션</option><option>TV광고</option><option>신규</option><option>기타</option></select></div>
+        <div><label>상담유형</label><input type="text" id="db_a_ctype" placeholder="예: 암보험"></div>
+      </div>
+      <div class="row">
+        <div><label>고객명</label><input type="text" id="db_a_name" placeholder="고객명"></div>
+        <div><label>연락처</label><input type="text" id="db_a_phone" placeholder="010-0000-0000"></div>
+        <div><label>분배일</label><input type="date" id="db_a_date"></div>
+      </div>
+      <div class="row">
+        <div><label>상담상태</label><select id="db_a_status"></select></div>
+        <div><label>터치횟수</label><input type="number" id="db_a_touch" min="0" value="0"></div>
+        <div><label>상담예약일시 (예약일 때만)</label><input type="datetime-local" id="db_a_resv"></div>
+      </div>
+      <label>메모</label>
+      <input type="text" id="db_a_memo" placeholder="상담 메모 (선택)" style="margin-bottom:12px;">
+      <button class="act" onclick="dbAddManual()">+ 고객 등록</button>
+    </div>
+  </div>
+
+  <!-- 터치 기록 팝업 -->
+  <div id="db_modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#fff;border-radius:12px;max-width:420px;width:100%;padding:18px 20px;max-height:92vh;overflow:auto;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:2px;" id="db_mTitle"></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;" id="db_mSub"></div>
+      <label>메모 (선택)</label>
+      <input type="text" id="db_mMemo" placeholder="통화 내용 한 줄" style="margin-bottom:10px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">상담 결과를 누르면 바로 저장되고 터치횟수가 +1 됩니다.</div>
+      <div id="db_mBtns" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <div id="db_mResvRow" style="display:none;margin-top:10px;">
+        <label>상담예약일시</label>
+        <input type="datetime-local" id="db_mResv" style="margin-bottom:8px;">
+        <button class="act" onclick="dbSaveTouch('상담예약')">예약으로 저장</button>
+      </div>
+      <div style="margin-top:12px;text-align:right;"><button class="secondary small" onclick="dbCloseModal()">닫기</button></div>
+    </div>
+  </div>
+</div>
+
 </main>
 </div><!-- /appLayout -->
 
@@ -1531,6 +1659,7 @@ function switchTab(name) {
   window.scrollTo(0, 0);
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   if (name === 'performance') renderPerformance();
+  if (name === 'dbmgmt') dbOpenTab();
   if (name === 'salary') setupSalaryAutoCalc();
   if (name === 'kcd') renderKcdResults();
   if (name === 'newsscrap') loadScrapedNews();
@@ -1538,6 +1667,558 @@ function switchTab(name) {
   if (name === 'practice') initPracticeSetup();
   if (name === 'hospmap') loadHospMap();
   if (name === 'cancertl') loadCancerTimeline();
+}
+
+/* ============================================================
+   DB관리 (누수 관리) — db_customers 테이블
+   · 상담거절·계약완료 = 종결 건 → 누수/재터치 대상에서 제외
+============================================================ */
+const DB_STATUSES = ['부재','가망고객','상담예약','단순통화','상담거절','계약완료'];
+const DB_CLOSED = ['상담거절','계약완료'];
+const DB_CFG = { minTouch: 3, graceDays: 1, absentDays: 3, prospectDays: 7, simpleDays: 7 };
+const DB_SQL = `create table if not exists db_customers (
+  id bigint generated always as identity primary key,
+  customer_code text not null unique,
+  manager_name text not null,
+  db_type text,
+  consult_type text,
+  distributed_at timestamptz,
+  status text not null default '부재',
+  customer_name text,
+  phone text,
+  region text,
+  reserve_at timestamptz,
+  touch_count integer not null default 0,
+  contract_count integer not null default 0,
+  last_status_at timestamptz,
+  last_touch_at timestamptz,
+  memo text,
+  source text not null default 'excel',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists db_customers_mgr_idx on db_customers (manager_name);
+create index if not exists db_customers_dist_idx on db_customers (distributed_at);
+create index if not exists db_customers_status_idx on db_customers (status);
+grant select, insert, update, delete on db_customers to anon, authenticated;`;
+
+let dbRows = [];
+let dbLoaded = false;
+let dbLoadError = '';
+let dbView = 'dash';
+let dbPending = null;
+let dbTouchId = null;
+
+function dbPad(n){ return String(n).padStart(2,'0'); }
+function dbTs(v){ if(!v) return null; const d = new Date(v); return isNaN(d.getTime()) ? null : d; }
+function dbFmt(d){ return d ? `${dbPad(d.getMonth()+1)}-${dbPad(d.getDate())} ${dbPad(d.getHours())}:${dbPad(d.getMinutes())}` : '-'; }
+function dbStamp(d){ return `${d.getFullYear()}-${dbPad(d.getMonth()+1)}-${dbPad(d.getDate())} ${dbPad(d.getHours())}:${dbPad(d.getMinutes())}:${dbPad(d.getSeconds())}`; }
+function dbMonthOf(v){ const d = dbTs(v); return d ? `${d.getFullYear()}-${dbPad(d.getMonth()+1)}` : ''; }
+
+async function loadDbCustomers(){
+  dbLoadError = '';
+  try{
+    if (!sb) throw new Error('DB 연결이 아직 준비되지 않았습니다.');
+    let all = [], from = 0;
+    const size = 1000;
+    while (true){
+      let q = sb.from('db_customers').select('*').order('id', { ascending: true }).range(from, from + size - 1);
+      if (currentUser.role !== 'master') q = q.eq('manager_name', currentUser.manager_name);
+      const { data, error } = await q;
+      if (error) throw error;
+      const got = data || [];
+      all = all.concat(got);
+      if (got.length < size) break;
+      from += size;
+      if (from > 300000) break;
+    }
+    dbRows = all;
+    dbLoaded = true;
+  }catch(e){
+    dbRows = [];
+    dbLoaded = false;
+    dbLoadError = (e && e.message) ? e.message : String(e);
+  }
+}
+
+/* 한 건의 누수 여부 판정 (종결 건은 항상 제외) */
+function dbAnalyze(r, now){
+  const status = r.status || '';
+  if (DB_CLOSED.indexOf(status) >= 0) return { closed: true, reasons: [], touches: Number(r.touch_count)||0, lastT: dbTs(r.last_touch_at) };
+  const reasons = [];
+  const dist = dbTs(r.distributed_at);
+  const lastT = dbTs(r.last_touch_at) || dbTs(r.last_status_at) || dist;
+  const touches = Number(r.touch_count) || 0;
+  const sinceDist = dist ? (now - dist) / 86400000 : 999;
+  const sinceTouch = lastT ? (now - lastT) / 86400000 : 999;
+  if (touches < DB_CFG.minTouch && sinceDist >= DB_CFG.graceDays) {
+    reasons.push({ code: 'low', label: `터치 ${touches}회 (${DB_CFG.minTouch}회 미만)` });
+  }
+  if (status === '상담예약') {
+    const ra = dbTs(r.reserve_at);
+    if (!ra) reasons.push({ code: 'resv', label: '예약일시 없음' });
+    else if (ra < now) {
+      if (lastT && lastT >= ra) {
+        // 예약일 이후에 터치는 했지만 상태가 그대로 → 재터치 기준일만 확인
+        if (sinceTouch >= DB_CFG.prospectDays) reasons.push({ code: 'retouch', label: `재터치 지연 (${Math.floor(sinceTouch)}일 무터치)` });
+      } else {
+        reasons.push({ code: 'resv', label: `예약일 경과·무터치 (${dbFmt(ra)})` });
+      }
+    }
+  } else {
+    const lim = status === '부재' ? DB_CFG.absentDays : (status === '단순통화' ? DB_CFG.simpleDays : DB_CFG.prospectDays);
+    if (sinceTouch >= lim) reasons.push({ code: 'retouch', label: `재터치 지연 (${Math.floor(sinceTouch)}일 무터치)` });
+  }
+  return { closed: false, reasons: reasons, touches: touches, lastT: lastT, sinceTouch: sinceTouch };
+}
+
+function dbFiltered(){
+  const m = document.getElementById('db_fMgr').value;
+  const mo = document.getElementById('db_fMonth').value;
+  const t = document.getElementById('db_fType').value;
+  return dbRows.filter(r =>
+    (m === '__all__' || r.manager_name === m) &&
+    (mo === '__all__' || dbMonthOf(r.distributed_at) === mo) &&
+    (t === '__all__' || (r.db_type || '') === t));
+}
+
+function dbFillSelect(id, values, allLabel){
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  const uniq = Array.from(new Set(values.filter(Boolean)));
+  sel.innerHTML = `<option value="__all__">${allLabel}</option>` + uniq.map(v => `<option value="${escAttr(v)}">${escapeHtml(v)}</option>`).join('');
+  sel.value = uniq.indexOf(cur) >= 0 ? cur : '__all__';
+}
+function dbRefreshFilters(){
+  const mgrs = dbRows.map(r => r.manager_name).sort();
+  dbFillSelect('db_fMgr', mgrs, '전체 팀장');
+  dbFillSelect('db_fMonth', dbRows.map(r => dbMonthOf(r.distributed_at)).sort().reverse(), '전체');
+  dbFillSelect('db_fType', dbRows.map(r => r.db_type || '').sort(), '전체');
+  document.getElementById('db_mgrWrap').style.display = currentUser.role === 'master' ? '' : 'none';
+  document.getElementById('db_mgrList').innerHTML = Array.from(new Set(mgrs)).map(n => `<option value="${escAttr(n)}">`).join('');
+  const sSel = document.getElementById('db_fStatus');
+  if (sSel.options.length <= 1) sSel.innerHTML = '<option value="__all__">전체 상태</option>' + DB_STATUSES.map(s => `<option value="${s}">${s}</option>`).join('');
+  const aSel = document.getElementById('db_a_status');
+  if (!aSel.options.length) aSel.innerHTML = DB_STATUSES.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+async function dbOpenTab(){
+  document.getElementById('db_cfgMin').textContent = DB_CFG.minTouch;
+  document.getElementById('db_cfgGrace').textContent = DB_CFG.graceDays;
+  document.getElementById('db_cfgAbs').textContent = DB_CFG.absentDays;
+  document.getElementById('db_cfgPro').textContent = DB_CFG.prospectDays;
+  const a = document.getElementById('db_a_mgr');
+  if (a && currentUser && currentUser.role !== 'master') { a.value = currentUser.manager_name; a.readOnly = true; a.style.background = '#EFEDE6'; }
+  const dd = document.getElementById('db_a_date');
+  if (dd && !dd.value) { const n = new Date(); dd.value = `${n.getFullYear()}-${dbPad(n.getMonth()+1)}-${dbPad(n.getDate())}`; }
+  document.getElementById('db_loadInfo').textContent = '불러오는 중...';
+  await loadDbCustomers();
+  dbRefreshFilters();
+  dbRender();
+}
+async function dbReload(){ await dbOpenTab(); }
+
+function dbSetView(v){
+  dbView = v;
+  document.querySelectorAll('#db_subtabs button').forEach(b => {
+    const on = b.dataset.v === v;
+    b.className = (on ? 'act' : 'secondary') + ' small';
+  });
+  ['dash','leak','list','upload','add'].forEach(k => {
+    const el = document.getElementById('db_view' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el) el.style.display = (k === v) ? '' : 'none';
+  });
+  document.getElementById('db_filterCard').style.display = (v === 'dash' || v === 'leak' || v === 'list') ? '' : 'none';
+  dbRender();
+}
+
+function dbRender(){
+  const setup = document.getElementById('db_setupBox');
+  if (dbLoadError) {
+    setup.style.display = '';
+    document.getElementById('db_setupMsg').textContent = '오류 내용: ' + dbLoadError;
+    document.getElementById('db_sqlText').textContent = DB_SQL;
+    document.getElementById('db_loadInfo').textContent = '';
+  } else {
+    setup.style.display = 'none';
+    document.getElementById('db_loadInfo').textContent = dbLoaded ? `전체 ${dbRows.length.toLocaleString('ko-KR')}건 불러옴` : '';
+  }
+  const badge = document.getElementById('db_leakBadge');
+  const now = new Date();
+  const rows = dbFiltered();
+  let leakN = 0;
+  rows.forEach(r => { if (dbAnalyze(r, now).reasons.length) leakN++; });
+  badge.textContent = leakN ? `(${leakN})` : '';
+  if (dbView === 'dash') dbRenderDash(rows, now);
+  if (dbView === 'leak') dbRenderLeak(rows, now);
+  if (dbView === 'list') dbRenderList();
+}
+function dbCopySql(){
+  try { navigator.clipboard.writeText(DB_SQL).then(() => alert('SQL을 복사했습니다.'), () => alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.')); }
+  catch(e) { alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.'); }
+}
+
+/* ---------- 현황판 ---------- */
+function dbAgg(rows, now){
+  const a = { total: rows.length, active: 0, refuse: 0, done: 0, leak: 0, low: 0, resv: 0, retouch: 0, touchSum: 0 };
+  rows.forEach(r => {
+    const x = dbAnalyze(r, now);
+    if (r.status === '상담거절') a.refuse++;
+    else if (r.status === '계약완료') a.done++;
+    if (x.closed) return;
+    a.active++;
+    a.touchSum += x.touches;
+    if (x.reasons.length) a.leak++;
+    x.reasons.forEach(s => { a[s.code]++; });
+  });
+  return a;
+}
+function dbPct(n, d){ return d ? (n / d * 100).toFixed(1) + '%' : '-'; }
+function dbRenderDash(rows, now){
+  const el = document.getElementById('db_viewDash');
+  if (!rows.length) { el.innerHTML = `<div class="card"><div class="sub" style="margin:0;">${dbLoaded ? '표시할 DB가 없습니다. “엑셀 업로드” 또는 “수기 등록”으로 먼저 등록해주세요.' : '아직 불러온 데이터가 없습니다.'}</div></div>`; return; }
+  const t = dbAgg(rows, now);
+  const kpi = (label, val, sub, color) => `<div style="flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:11.5px;color:var(--muted);">${label}</div><div style="font-size:22px;font-weight:800;color:${color||'var(--ink)'};">${val}</div><div style="font-size:11px;color:var(--muted);">${sub||''}</div></div>`;
+  let html = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">` +
+    kpi('총 분배', t.total.toLocaleString('ko-KR') + '건', '') +
+    kpi('진행 중', t.active.toLocaleString('ko-KR') + '건', '거절·계약완료 제외') +
+    kpi('🚨 누수', t.leak.toLocaleString('ko-KR') + '건', `진행 중의 ${dbPct(t.leak, t.active)}`, t.leak ? 'var(--red)' : 'var(--green)') +
+    kpi('상담거절', t.refuse.toLocaleString('ko-KR') + '건', '종결(더 이상 터치 안 함)') +
+    kpi('계약완료', t.done.toLocaleString('ko-KR') + '건', `계약완료율 ${dbPct(t.done, t.total)}`, 'var(--green)') + `</div>`;
+
+  const groupTable = (title, keyFn, clickable) => {
+    const map = {};
+    rows.forEach(r => { const k = keyFn(r) || '(미분류)'; (map[k] = map[k] || []).push(r); });
+    const keys = Object.keys(map).sort((a, b) => map[b].length - map[a].length);
+    const body = keys.map(k => {
+      const g = dbAgg(map[k], now);
+      const nm = clickable ? `<a href="#" style="color:var(--navy);font-weight:700;" onclick="dbPickManager('${escAttr(k).replace(/'/g,"\\'")}');return false;">${escapeHtml(k)}</a>` : escapeHtml(k);
+      return `<tr><td>${nm}</td><td>${g.total}</td><td>${g.active}</td><td>${g.refuse}</td><td>${g.done}</td>
+        <td style="font-weight:700;color:${g.leak ? 'var(--red)' : 'var(--green)'};">${g.leak}</td>
+        <td style="font-size:11.5px;color:var(--muted);">${g.low} / ${g.resv} / ${g.retouch}</td>
+        <td>${g.active ? (g.touchSum / g.active).toFixed(1) : '-'}</td><td>${dbPct(g.done, g.total)}</td></tr>`;
+    }).join('');
+    return `<div class="card"><div style="font-weight:700;margin-bottom:6px;">${title}</div><div style="overflow-x:auto;"><table style="min-width:640px;">
+      <thead><tr><th style="width:15%">구분</th><th>분배</th><th>진행</th><th>거절</th><th>계약</th><th>누수</th><th style="width:16%">터치부족/예약경과/재터치</th><th>평균터치<br><span style="font-weight:400">(진행건)</span></th><th>계약완료율</th></tr></thead>
+      <tbody>${body}</tbody></table></div></div>`;
+  };
+  if (currentUser.role === 'master') html += groupTable('팀장별 현황 (이름을 누르면 해당 팀장 누수 목록)', r => r.manager_name, true);
+  html += groupTable('DB유형별 현황', r => r.db_type, false);
+  html += `<div class="sub" style="margin:0;">누수 건수는 한 고객이 여러 사유에 해당해도 1건으로 셉니다. 오른쪽의 터치부족/예약경과/재터치 숫자는 사유별 합계라 누수 건수보다 클 수 있습니다.</div>`;
+  el.innerHTML = html;
+}
+function dbPickManager(name){
+  const sel = document.getElementById('db_fMgr');
+  sel.value = name;
+  dbSetView('leak');
+}
+
+/* ---------- 목록 공통 행 ---------- */
+function dbStatusTag(s){
+  const c = s === '상담거절' ? ['#EFEDE6','var(--muted)'] : s === '계약완료' ? ['var(--green-bg)','var(--green)'] :
+            s === '상담예약' ? ['#E6EEF9','#2F5FA8'] : s === '가망고객' ? ['var(--amber-bg)','var(--amber)'] : ['var(--red-bg)','var(--red)'];
+  return `<span class="badge" style="background:${c[0]};color:${c[1]};">${escapeHtml(s || '-')}</span>`;
+}
+function dbRowHtml(r, mode, now){
+  const x = dbAnalyze(r, now);
+  const last = dbTs(r.last_touch_at) || dbTs(r.last_status_at);
+  const lastMemo = (r.memo || '').split('\n')[0];
+  const third = mode === 'leak'
+    ? x.reasons.map(s => `<span class="badge" style="background:var(--red-bg);color:var(--red);display:inline-block;margin:0 3px 3px 0;">${escapeHtml(s.label)}</span>`).join('')
+    : `<span style="font-size:11.5px;color:var(--muted);">${escapeHtml(lastMemo.length > 40 ? lastMemo.slice(0, 40) + '…' : lastMemo)}</span>`;
+  const canDel = r.source === 'manual';
+  return `<tr>
+    <td>${escapeHtml(r.manager_name)}</td>
+    <td><b>${escapeHtml(r.customer_name || '-')}</b><div style="font-size:11px;color:var(--muted);">${escapeHtml(r.phone || '')}</div></td>
+    <td>${escapeHtml(r.db_type || '-')}<div style="font-size:11px;color:var(--muted);">${escapeHtml(r.consult_type || '')}${r.distributed_at ? ' · ' + dbFmt(dbTs(r.distributed_at)).slice(0, 5) : ''}</div></td>
+    <td>${dbStatusTag(r.status)}${r.status === '상담예약' && r.reserve_at ? `<div style="font-size:11px;color:var(--muted);">${dbFmt(dbTs(r.reserve_at))}</div>` : ''}</td>
+    <td>${Number(r.touch_count) || 0}</td>
+    <td style="font-size:12px;">${last ? dbFmt(last) : '-'}</td>
+    <td>${third}</td>
+    <td style="white-space:nowrap;"><button class="act small" onclick="dbOpenTouch(${r.id})">터치 기록</button>${canDel ? ` <button class="danger small" onclick="dbDelete(${r.id})">삭제</button>` : ''}</td>
+  </tr>`;
+}
+
+/* ---------- 누수 목록 ---------- */
+function dbRenderLeak(rows, now){
+  const list = [];
+  rows.forEach(r => { const x = dbAnalyze(r, now); if (x.reasons.length) list.push({ r: r, x: x }); });
+  list.sort((a, b) => (b.x.reasons.length - a.x.reasons.length) || ((b.x.sinceTouch || 0) - (a.x.sinceTouch || 0)));
+  const LIM = 300;
+  const cnt = { low: 0, resv: 0, retouch: 0 };
+  list.forEach(o => o.x.reasons.forEach(s => cnt[s.code]++));
+  document.getElementById('db_leakSummary').innerHTML = list.length
+    ? `🚨 누수 <b style="color:var(--red);">${list.length}건</b> — 터치부족 ${cnt.low} · 예약일경과 ${cnt.resv} · 재터치지연 ${cnt.retouch}${list.length > LIM ? ` <span style="color:var(--muted);">(상위 ${LIM}건만 표시)</span>` : ''}`
+    : '✅ 현재 조건에 해당하는 누수 건이 없습니다.';
+  document.getElementById('db_leakBody').innerHTML = list.slice(0, LIM).map(o => dbRowHtml(o.r, 'leak', now)).join('');
+}
+
+/* ---------- 고객 목록 ---------- */
+function dbRenderList(){
+  const now = new Date();
+  let rows = dbFiltered();
+  const q = (document.getElementById('db_search').value || '').trim().toLowerCase();
+  const st = document.getElementById('db_fStatus').value;
+  const showClosed = document.getElementById('db_showClosed').checked;
+  if (!showClosed) rows = rows.filter(r => DB_CLOSED.indexOf(r.status) < 0);
+  if (st !== '__all__') rows = rows.filter(r => r.status === st);
+  if (q) rows = rows.filter(r => ((r.customer_name || '') + ' ' + (r.phone || '') + ' ' + (r.customer_code || '')).toLowerCase().indexOf(q) >= 0);
+  rows = rows.slice().sort((a, b) => (dbTs(b.distributed_at) || 0) - (dbTs(a.distributed_at) || 0));
+  const LIM = 300;
+  document.getElementById('db_listSummary').textContent = `${rows.length.toLocaleString('ko-KR')}건` + (rows.length > LIM ? ` (최근 분배순 ${LIM}건만 표시 — 검색·필터로 좁혀주세요)` : '');
+  document.getElementById('db_listBody').innerHTML = rows.slice(0, LIM).map(r => dbRowHtml(r, 'list', now)).join('');
+}
+
+/* ---------- 터치 기록 ---------- */
+function dbOpenTouch(id){
+  const r = dbRows.find(x => x.id === id);
+  if (!r) return;
+  dbTouchId = id;
+  document.getElementById('db_mTitle').textContent = `${r.customer_name || '(이름없음)'} · ${r.db_type || ''}`;
+  document.getElementById('db_mSub').textContent = `현재 ${r.status} · 터치 ${Number(r.touch_count) || 0}회 · ${r.manager_name}`;
+  document.getElementById('db_mMemo').value = '';
+  document.getElementById('db_mResvRow').style.display = 'none';
+  const base = new Date(); base.setDate(base.getDate() + 1); base.setHours(10, 0, 0, 0);
+  document.getElementById('db_mResv').value = `${base.getFullYear()}-${dbPad(base.getMonth()+1)}-${dbPad(base.getDate())}T10:00`;
+  document.getElementById('db_mBtns').innerHTML = DB_STATUSES.map(s => {
+    const act = s === '상담예약' ? `dbShowResv()` : `dbSaveTouch('${s}')`;
+    const cls = s === '상담거절' ? 'danger' : (s === '계약완료' ? 'act' : 'secondary');
+    return `<button class="${cls}" style="padding:9px 14px;border-radius:8px;font-size:13px;" onclick="${act}">${s}</button>`;
+  }).join('');
+  document.getElementById('db_modal').style.display = 'flex';
+}
+function dbShowResv(){ document.getElementById('db_mResvRow').style.display = ''; }
+function dbCloseModal(){ document.getElementById('db_modal').style.display = 'none'; dbTouchId = null; }
+async function dbSaveTouch(status){
+  const r = dbRows.find(x => x.id === dbTouchId);
+  if (!r) return;
+  const now = new Date();
+  const upd = {
+    status: status,
+    touch_count: (Number(r.touch_count) || 0) + 1,
+    last_touch_at: now.toISOString(),
+    updated_at: now.toISOString()
+  };
+  if (status !== r.status) upd.last_status_at = now.toISOString();
+  if (status === '상담예약') {
+    const v = document.getElementById('db_mResv').value;
+    if (!v) { alert('상담예약일시를 입력해주세요.'); return; }
+    const d = new Date(v);
+    if (isNaN(d.getTime())) { alert('상담예약일시 형식이 올바르지 않습니다.'); return; }
+    upd.reserve_at = d.toISOString();
+  }
+  if (status === '계약완료' && r.status !== '계약완료') upd.contract_count = (Number(r.contract_count) || 0) + 1;
+  const memoText = (document.getElementById('db_mMemo').value || '').trim() || status;
+  upd.memo = `[${dbStamp(now)}] ${memoText}` + (r.memo ? '\n' + r.memo : '');
+  const { error } = await sb.from('db_customers').update(upd).eq('id', r.id);
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  Object.assign(r, upd);
+  dbCloseModal();
+  dbRender();
+}
+async function dbDelete(id){
+  const r = dbRows.find(x => x.id === id);
+  if (!r) return;
+  if (!confirm(`${r.customer_name || '이 고객'} 건을 삭제할까요? (수기 등록 건만 삭제 가능)`)) return;
+  const { error } = await sb.from('db_customers').delete().eq('id', id).eq('source', 'manual');
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  dbRows = dbRows.filter(x => x.id !== id);
+  dbRefreshFilters();
+  dbRender();
+}
+
+/* ---------- 수기 등록 ---------- */
+async function dbAddManual(){
+  const mgr = (document.getElementById('db_a_mgr').value || '').trim();
+  const name = (document.getElementById('db_a_name').value || '').trim();
+  if (!mgr) { alert('담당 팀장을 입력해주세요.'); return; }
+  if (!name) { alert('고객명을 입력해주세요.'); return; }
+  if (currentUser.role !== 'master' && mgr !== currentUser.manager_name) { alert('본인 담당 건만 등록할 수 있습니다.'); return; }
+  const status = document.getElementById('db_a_status').value || '부재';
+  const dateV = document.getElementById('db_a_date').value;
+  const now = new Date();
+  const row = {
+    customer_code: 'M-' + now.getTime().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
+    manager_name: mgr,
+    db_type: document.getElementById('db_a_type').value || null,
+    consult_type: (document.getElementById('db_a_ctype').value || '').trim() || null,
+    distributed_at: dateV ? new Date(dateV + 'T09:00:00+09:00').toISOString() : now.toISOString(),
+    status: status,
+    customer_name: name,
+    phone: (document.getElementById('db_a_phone').value || '').trim() || null,
+    touch_count: Math.max(0, parseInt(document.getElementById('db_a_touch').value, 10) || 0),
+    contract_count: status === '계약완료' ? 1 : 0,
+    last_status_at: now.toISOString(),
+    last_touch_at: now.toISOString(),
+    memo: (document.getElementById('db_a_memo').value || '').trim() ? `[${dbStamp(now)}] ${document.getElementById('db_a_memo').value.trim()}` : null,
+    source: 'manual'
+  };
+  if (status === '상담예약') {
+    const v = document.getElementById('db_a_resv').value;
+    if (!v) { alert('상담예약이면 예약일시를 입력해주세요.'); return; }
+    row.reserve_at = new Date(v).toISOString();
+  }
+  const { error } = await sb.from('db_customers').insert([row]);
+  if (error) { alert('등록 실패: ' + error.message + '\n(처음이라면 현황판 화면의 SQL을 먼저 실행해주세요)'); return; }
+  ['db_a_name','db_a_phone','db_a_ctype','db_a_memo'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('db_a_touch').value = '0';
+  await dbReload();
+  alert('등록했습니다.');
+}
+
+/* ---------- 엑셀 업로드 ---------- */
+function dbToIso(v){
+  if (v === '' || v === undefined || v === null) return null;
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    return `${v.getFullYear()}-${dbPad(v.getMonth()+1)}-${dbPad(v.getDate())}T${dbPad(v.getHours())}:${dbPad(v.getMinutes())}:${dbPad(v.getSeconds())}+09:00`;
+  }
+  if (typeof v === 'number') {
+    const p = XLSX.SSF.parse_date_code(v);
+    if (!p) return null;
+    return `${p.y}-${dbPad(p.m)}-${dbPad(p.d)}T${dbPad(p.H)}:${dbPad(p.M)}:${dbPad(Math.floor(p.S))}+09:00`;
+  }
+  const m = String(v).trim().match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  return `${m[1]}-${dbPad(m[2])}-${dbPad(m[3])}T${dbPad(m[4] || 0)}:${m[5] || '00'}:${dbPad(m[6] || 0)}+09:00`;
+}
+function dbLastFromMemo(memo){
+  if (!memo) return null;
+  const re = /\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})\]/g;
+  let m, best = null;
+  while ((m = re.exec(memo)) !== null) {
+    const d = new Date(`${m[1]}T${m[2]}+09:00`);
+    if (!isNaN(d.getTime()) && (!best || d > best)) best = d;
+  }
+  return best;
+}
+function dbMapExcelRow(row){
+  const code = String(findCol(row, ['고객코드'])).trim();
+  const mgr = String(findCol(row, ['담당자명','담당자','담당팀장'])).trim();
+  if (!code || !mgr) return null;
+  const memo = String(findCol(row, ['메모'])).trim();
+  const statusAt = dbToIso(findCol(row, ['최근 상담상태 변경일','최근상담상태변경일']));
+  const memoLast = dbLastFromMemo(memo);
+  const sDate = statusAt ? new Date(statusAt) : null;
+  let lastTouch = null;
+  if (memoLast && sDate) lastTouch = memoLast > sDate ? memoLast : sDate;
+  else lastTouch = memoLast || sDate;
+  const tc = Number(findCol(row, ['터치횟수','터치 횟수']));
+  const cc = Number(findCol(row, ['계약건수']));
+  const region = [findCol(row, ['지역1']), findCol(row, ['지역2'])].map(x => String(x).trim()).filter(Boolean).join(' ');
+  return {
+    customer_code: code,
+    manager_name: mgr,
+    db_type: String(findCol(row, ['DB구분'])).trim() || null,
+    consult_type: String(findCol(row, ['상담유형'])).trim() || null,
+    distributed_at: dbToIso(findCol(row, ['분배일시','분배일'])),
+    status: String(findCol(row, ['상담상태'])).trim() || '미분류',
+    customer_name: String(findCol(row, ['고객명','성명'])).trim() || null,
+    phone: String(findCol(row, ['연락처'])).trim() || null,
+    region: region || null,
+    reserve_at: dbToIso(findCol(row, ['상담예약일시'])),
+    touch_count: isNaN(tc) ? 0 : tc,
+    contract_count: isNaN(cc) ? 0 : cc,
+    last_status_at: statusAt,
+    last_touch_at: lastTouch ? lastTouch.toISOString() : null,
+    memo: memo || null,
+    source: 'excel'
+  };
+}
+function dbHandleExcel(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const st = document.getElementById('db_excelStatus');
+  st.textContent = '읽는 중...';
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    try{
+      if (!dbLoaded) await loadDbCustomers();
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (!rows.length) { st.textContent = '❌ 데이터가 없는 파일입니다.'; return; }
+      const headers = Object.keys(rows[0]).map(h => h.trim());
+      const must = ['고객코드','담당자명','상담상태'];
+      const missing = must.filter(h => headers.indexOf(h) < 0);
+      if (missing.length) { st.textContent = '❌ 필수 컬럼을 찾지 못했습니다: ' + missing.join(', ') + ' (회사 전산 DB 엑셀 원본인지 확인해주세요)'; return; }
+      const byCode = new Map();
+      let invalid = 0, dup = 0;
+      rows.forEach(r => {
+        const m = dbMapExcelRow(r);
+        if (!m) { invalid++; return; }
+        if (byCode.has(m.customer_code)) dup++;
+        byCode.set(m.customer_code, m);
+      });
+      let list = Array.from(byCode.values());
+      let otherMgr = 0;
+      if (currentUser.role !== 'master') {
+        const mine = list.filter(x => x.manager_name === currentUser.manager_name);
+        otherMgr = list.length - mine.length;
+        list = mine;
+      }
+      if (!list.length) { st.textContent = '❌ 반영할 수 있는 행이 없습니다.' + (otherMgr ? ` (다른 담당자 ${otherMgr}건은 제외됨)` : ''); return; }
+      const exist = new Map(dbRows.map(r => [r.customer_code, r]));
+      list.forEach(x => { x._new = !exist.has(x.customer_code); });
+      dbPending = { list: list, invalid: invalid, dup: dup, otherMgr: otherMgr, total: rows.length };
+      st.textContent = `✓ ${rows.length}행을 읽었습니다. 아래 내용을 확인한 뒤 “업로드 반영”을 눌러주세요.`;
+      dbRenderPreview();
+    }catch(err){
+      console.error(err);
+      st.textContent = '❌ 파일을 읽는 중 오류: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function dbRenderPreview(){
+  const p = dbPending;
+  const card = document.getElementById('db_previewCard');
+  card.style.display = '';
+  const nNew = p.list.filter(x => x._new).length;
+  const byMgr = {}, bySt = {};
+  p.list.forEach(x => { byMgr[x.manager_name] = (byMgr[x.manager_name] || 0) + 1; bySt[x.status] = (bySt[x.status] || 0) + 1; });
+  const chips = o => Object.keys(o).map(k => `<span class="badge" style="background:#EFEDE6;margin-right:4px;">${escapeHtml(k)} ${o[k]}</span>`).join('');
+  document.getElementById('db_previewSummary').innerHTML =
+    `반영 대상 <b>${p.list.length}건</b> (신규 <b style="color:var(--green);">${nNew}</b> · 갱신 <b>${p.list.length - nNew}</b>)` +
+    `<br>팀장별: ${chips(byMgr)}<br>상태별: ${chips(bySt)}` +
+    ((p.invalid || p.dup || p.otherMgr) ? `<br><span style="color:var(--amber);font-size:12px;">제외/정리: 고객코드·담당자 없음 ${p.invalid}행 · 파일 내 중복 ${p.dup}행(마지막 값 사용)${p.otherMgr ? ` · 다른 담당자 ${p.otherMgr}건(본인 건만 반영)` : ''}</span>` : '');
+  const SHOW = 30;
+  document.getElementById('db_previewBody').innerHTML = p.list.slice(0, SHOW).map(x => `<tr>
+    <td>${escapeHtml(x.manager_name)}</td><td>${escapeHtml(x.db_type || '')}</td><td>${escapeHtml(x.customer_name || '')}</td>
+    <td>${dbStatusTag(x.status)}</td><td>${x.touch_count}</td><td style="font-size:12px;">${x.distributed_at ? escapeHtml(x.distributed_at.slice(0, 16).replace('T', ' ')) : ''}</td>
+    <td>${x._new ? '<span class="badge badge-done">신규</span>' : '<span class="badge" style="background:#EFEDE6;">갱신</span>'}</td></tr>`).join('');
+  document.getElementById('db_previewMore').textContent = p.list.length > SHOW ? `… 외 ${p.list.length - SHOW}건 (미리보기는 ${SHOW}건만 표시)` : '';
+}
+function dbCancelExcel(){
+  dbPending = null;
+  document.getElementById('db_previewCard').style.display = 'none';
+  document.getElementById('db_excelFile').value = '';
+  document.getElementById('db_excelStatus').textContent = '';
+}
+async function dbCommitExcel(){
+  if (!dbPending) return;
+  const btn = document.getElementById('db_commitBtn');
+  btn.disabled = true;
+  const st = document.getElementById('db_excelStatus');
+  try{
+    const nowIso = new Date().toISOString();
+    const payload = dbPending.list.map(x => { const o = Object.assign({}, x, { updated_at: nowIso }); delete o._new; return o; });
+    const CH = 300;
+    for (let i = 0; i < payload.length; i += CH) {
+      st.textContent = `저장 중... ${Math.min(i + CH, payload.length)} / ${payload.length}`;
+      const { error } = await sb.from('db_customers').upsert(payload.slice(i, i + CH), { onConflict: 'customer_code' });
+      if (error) throw error;
+    }
+    const n = payload.length;
+    dbCancelExcel();
+    st.textContent = `✓ ${n}건 반영 완료`;
+    await dbReload();
+  }catch(e){
+    console.error(e);
+    st.textContent = '❌ 저장 실패: ' + (e.message || e) + ' (처음이라면 현황판 화면의 SQL을 먼저 실행해주세요)';
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 /* ============================================================
