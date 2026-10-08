@@ -1225,7 +1225,7 @@
 <!-- ===== 기사 스크랩 ===== -->
 <div class="panel" id="panel-newsscrap">
   <div class="card">
-    <div class="sub">구글 뉴스에서 보험 관련 기사 후보를 가져와요. 마음에 드는 기사만 "스크랩"하면 팀장님들 모두 보는 목록에 저장됩니다. (완전 자동 저장이 아니라, 후보 중에서 직접 골라 저장하는 방식이에요)</div>
+    <div class="sub">구글 뉴스에서 보험 관련 기사 후보를 가져와요. 마음에 드는 기사만 "스크랩"하면 팀장님들 모두 보는 목록에 저장됩니다. (평일 아침 8시에 후보가 자동으로 준비돼요. 저장은 후보 중에서 직접 골라서 해요)</div>
     <button class="act" onclick="loadNewsCandidates()">🔄 오늘의 후보 기사 가져오기</button>
     <span id="ns_candMsg" style="font-size:12.5px;color:var(--muted);margin-left:10px;"></span>
     <div id="ns_candList" style="margin-top:14px;"></div>
@@ -1457,7 +1457,7 @@ function switchTab(name) {
   if (name === 'performance') renderPerformance();
   if (name === 'salary') setupSalaryAutoCalc();
   if (name === 'kcd') renderKcdResults();
-  if (name === 'newsscrap') loadScrapedNews();
+  if (name === 'newsscrap') loadScrapedNews().then(loadAutoNewsCandidates);
   if (name === 'rebuttal') loadRebuttals();
   if (name === 'practice') initPracticeSetup();
   if (name === 'hospmap') loadHospMap();
@@ -4521,6 +4521,19 @@ async function loadNewsCandidates(){
   }catch(e){
     msgEl.textContent = '가져오기 실패: ' + e.message + ' (잠시 후 다시 시도해주세요)';
   }
+}
+
+// 평일 아침 자동 수집된 후보(news_candidates)를 탭 열 때 보여준다. 없으면 기존처럼 버튼으로 가져온다.
+async function loadAutoNewsCandidates(){
+  if(lastNewsCandidates.length) return; // 이미 화면에 후보가 있으면 덮어쓰지 않음
+  const msgEl = document.getElementById('ns_candMsg');
+  try{
+    const { data, error } = await sb.from('news_candidates').select('fetch_date,items,fetched_at').order('fetch_date', { ascending: false }).limit(1);
+    if(error || !data || !data.length || !Array.isArray(data[0].items) || !data[0].items.length) return;
+    lastNewsCandidates = data[0].items;
+    msgEl.textContent = lastNewsCandidates.length + '건 · 자동 수집 ' + new Date(data[0].fetched_at).toLocaleString('ko-KR', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
+    renderNewsCandidates();
+  }catch(e){ /* 자동 수집분이 없어도 수동 버튼은 그대로 동작 */ }
 }
 
 function renderNewsCandidates(){
