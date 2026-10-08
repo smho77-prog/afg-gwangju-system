@@ -1883,6 +1883,7 @@ function dbRenderDash(rows, now){
     kpi('총 분배', t.total.toLocaleString('ko-KR') + '건', '') +
     kpi('진행 중', t.active.toLocaleString('ko-KR') + '건', '거절·계약완료 제외') +
     kpi('🚨 누수', t.leak.toLocaleString('ko-KR') + '건', `진행 중의 ${dbPct(t.leak, t.active)}`, t.leak ? 'var(--red)' : 'var(--green)') +
+    kpi('3회 미만 터치율', dbPct(t.low, t.active), `진행 ${t.active}건 중 ${t.low}건`, t.low ? 'var(--amber)' : 'var(--green)') +
     kpi('상담거절', t.refuse.toLocaleString('ko-KR') + '건', '종결(더 이상 터치 안 함)') +
     kpi('계약완료', t.done.toLocaleString('ko-KR') + '건', `계약완료율 ${dbPct(t.done, t.total)}`, 'var(--green)') + `</div>`;
 
@@ -1895,16 +1896,17 @@ function dbRenderDash(rows, now){
       const nm = clickable ? `<a href="#" style="color:var(--navy);font-weight:700;" onclick="dbPickManager('${escAttr(k).replace(/'/g,"\\'")}');return false;">${escapeHtml(k)}</a>` : escapeHtml(k);
       return `<tr><td>${nm}</td><td>${g.total}</td><td>${g.active}</td><td>${g.refuse}</td><td>${g.done}</td>
         <td style="font-weight:700;color:${g.leak ? 'var(--red)' : 'var(--green)'};">${g.leak}</td>
+        <td style="font-weight:700;color:${g.low ? 'var(--amber)' : 'var(--green)'};">${dbPct(g.low, g.active)}<div style="font-size:11px;font-weight:400;color:var(--muted);">${g.low}건 / 진행 ${g.active}건</div></td>
         <td style="font-size:11.5px;color:var(--muted);">${g.low} / ${g.resv} / ${g.retouch}</td>
         <td>${g.active ? (g.touchSum / g.active).toFixed(1) : '-'}</td><td>${dbPct(g.done, g.total)}</td></tr>`;
     }).join('');
-    return `<div class="card"><div style="font-weight:700;margin-bottom:6px;">${title}</div><div style="overflow-x:auto;"><table style="min-width:640px;">
-      <thead><tr><th style="width:15%">구분</th><th>분배</th><th>진행</th><th>거절</th><th>계약</th><th>누수</th><th style="width:16%">터치부족/예약경과/재터치</th><th>평균터치<br><span style="font-weight:400">(진행건)</span></th><th>계약완료율</th></tr></thead>
+    return `<div class="card"><div style="font-weight:700;margin-bottom:6px;">${title}</div><div style="overflow-x:auto;"><table style="min-width:760px;">
+      <thead><tr><th style="width:12%">구분</th><th>분배</th><th>진행</th><th>거절</th><th>계약</th><th>누수</th><th style="width:13%">3회 미만<br>터치율</th><th style="width:13%">터치부족/예약경과/재터치</th><th>평균터치<br><span style="font-weight:400">(진행건)</span></th><th>계약완료율</th></tr></thead>
       <tbody>${body}</tbody></table></div></div>`;
   };
   if (currentUser.role === 'master') html += groupTable('팀장별 현황 (이름을 누르면 해당 팀장 누수 목록)', r => r.manager_name, true);
   html += groupTable('DB유형별 현황', r => r.db_type, false);
-  html += `<div class="sub" style="margin:0;">누수 건수는 한 고객이 여러 사유에 해당해도 1건으로 셉니다. 오른쪽의 터치부족/예약경과/재터치 숫자는 사유별 합계라 누수 건수보다 클 수 있습니다.</div>`;
+  html += `<div class="sub" style="margin:0;">3회 미만 터치율 = 진행 중(거절·계약완료 제외) 고객 중 터치가 3회 미만인 비율입니다(분배 1일 경과분). 누수 건수는 한 고객이 여러 사유에 해당해도 1건으로 셉니다. 오른쪽의 터치부족/예약경과/재터치 숫자는 사유별 합계라 누수 건수보다 클 수 있습니다.</div>`;
   el.innerHTML = html;
 }
 function dbPickManager(name){
