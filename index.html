@@ -23,18 +23,24 @@
   header h1 { margin: 0 0 10px 0; font-size: 18px; }
   /* ===== 왼쪽 세로 메뉴 ===== */
   #appLayout { display: none; align-items: flex-start; }
-  #sideMenu { width: 216px; flex: 0 0 216px; position: sticky; top: 0; align-self: flex-start; max-height: 100vh; overflow-y: auto;
-    background: var(--navy2); color: #E7EAF0; padding: 10px 8px 24px; scrollbar-width: thin; }
-  #sideMenu .sg { margin-bottom: 4px; }
-  #sideMenu .sg-head { width: 100%; display: flex; align-items: center; justify-content: space-between; background: transparent; border: 0;
-    color: #9FB0CF; font-size: 11px; font-weight: 700; letter-spacing: .3px; padding: 9px 10px 5px; cursor: pointer; text-align: left; }
-  #sideMenu .sg-head .arr { font-size: 9px; transition: transform .15s; }
+  #sideMenu { width: 226px; flex: 0 0 226px; position: sticky; top: 0; align-self: flex-start; max-height: 100vh; overflow-y: auto;
+    background: #FFFFFF; color: #222; padding: 10px 10px 24px; scrollbar-width: thin; border-right: 1px solid var(--line); }
+  #sideMenu .sg { margin-bottom: 10px; --gc:#3B5B8F; --gbg:#E8EEF8; }
+  #sideMenu .sg[data-group="manage"] { --gc:#B8741F; --gbg:#FBEFDC; }
+  #sideMenu .sg[data-group="tools"]  { --gc:#1F7A6D; --gbg:#DFF2EE; }
+  #sideMenu .sg[data-group="edu"]    { --gc:#7B4FA3; --gbg:#EEE5F7; }
+  #sideMenu .sg[data-group="info"]   { --gc:#2F6DB5; --gbg:#E1ECF9; }
+  #sideMenu .sg-head { width: 100%; display: flex; align-items: center; justify-content: space-between; background: var(--gc); border: 0;
+    color: #fff; font-size: 15px; font-weight: 800; letter-spacing: .2px; padding: 10px 12px; border-radius: 8px; cursor: pointer; text-align: left; }
+  #sideMenu .sg-head:hover { filter: brightness(1.08); }
+  #sideMenu .sg-head .arr { font-size: 11px; transition: transform .15s; opacity: .9; }
   #sideMenu .sg.collapsed .sg-head .arr { transform: rotate(-90deg); }
   #sideMenu .sg.collapsed .sg-items { display: none; }
+  #sideMenu .sg-items { margin: 4px 0 0 6px; padding-left: 6px; border-left: 3px solid var(--gbg); }
   #sideMenu .tabbtn { display: block; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 7px;
-    color: #E7EAF0; padding: 8px 10px; font-size: 13px; cursor: pointer; line-height: 1.35; }
-  #sideMenu .tabbtn:hover { background: rgba(255,255,255,.08); }
-  #sideMenu .tabbtn.active { background: var(--paper); color: var(--navy); font-weight: 700; }
+    color: #2A2F3A; padding: 8px 10px; font-size: 14px; cursor: pointer; line-height: 1.35; }
+  #sideMenu .tabbtn:hover { background: var(--gbg); }
+  #sideMenu .tabbtn.active { background: var(--gbg); color: var(--gc); font-weight: 800; box-shadow: inset 3px 0 0 var(--gc); }
   @media print {
     body.prop-printing #mainHeader, body.prop-printing #sideMenu, body.prop-printing #sideOverlay, body.prop-printing #prop_inputCard,
     body.prop-printing #prop_memoBox, body.prop-printing #prop_setupBox, body.prop-printing #panel-proposal > .card,
