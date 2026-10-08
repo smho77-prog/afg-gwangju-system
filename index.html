@@ -35,6 +35,13 @@
     color: #E7EAF0; padding: 8px 10px; font-size: 13px; cursor: pointer; line-height: 1.35; }
   #sideMenu .tabbtn:hover { background: rgba(255,255,255,.08); }
   #sideMenu .tabbtn.active { background: var(--paper); color: var(--navy); font-weight: 700; }
+  @media print {
+    body.prop-printing #mainHeader, body.prop-printing #sideMenu, body.prop-printing #sideOverlay, body.prop-printing #prop_inputCard,
+    body.prop-printing #prop_memoBox, body.prop-printing #prop_setupBox, body.prop-printing #panel-proposal > .card,
+    body.prop-printing #prop_printArea button { display: none !important; }
+    body.prop-printing #appLayout { display: block !important; }
+    body.prop-printing main { max-width: none; padding: 0; }
+  }
   #menuToggle { display: none; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); color: #fff;
     border-radius: 6px; font-size: 16px; line-height: 1; padding: 5px 9px; cursor: pointer; margin-right: 8px; }
   #sideOverlay { display: none; }
@@ -482,6 +489,7 @@
   <div class="sg" data-group="tools">
     <button class="sg-head" onclick="toggleSideGroup('tools')"><span>🧰 상담 도구</span><span class="arr">▼</span></button>
     <div class="sg-items">
+      <button class="tabbtn" data-tab="proposal" onclick="switchTab('proposal')">🎯 제안 준비 (상품광고3)</button>
       <button class="tabbtn" data-tab="underwriting" onclick="switchTab('underwriting')">🔍 인수기준 검색</button>
       <button class="tabbtn" data-tab="kcd" onclick="switchTab('kcd')">🩺 질병분류코드 검색</button>
       <button class="tabbtn" data-tab="surgery" onclick="switchTab('surgery')">🏥 수술등급 검색</button>
@@ -1549,6 +1557,72 @@
   </div>
 </div>
 
+<!-- ===== 제안 준비 (상품광고3) ===== -->
+<div class="panel" id="panel-proposal">
+  <div class="card" style="padding:14px 18px;">
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;" id="prop_subtabs">
+      <button class="act small" data-v="prep" onclick="propSetView('prep')">🎯 제안 준비</button>
+      <button class="secondary small" data-v="manage" id="prop_manageBtn" style="display:none;" onclick="propSetView('manage')">🛠 컨셉·전략 관리 (마스터)</button>
+    </div>
+    <div class="sub" style="margin:10px 0 0;">광고 컨셉과 고객 연령·성별을 넣으면 <b>추천 회사·플랜(이번 달 전략 우선 → 인수 가능 회사)</b>, <b>도입멘트</b>, <b>예상 반론 대응</b>을 한 화면에 보여줍니다. 멘트는 내 스타일로 고쳐 저장할 수 있습니다(나에게만 적용).</div>
+  </div>
+
+  <div id="prop_setupBox" class="card" style="display:none;border-color:var(--amber);background:var(--amber-bg);">
+    <div style="font-weight:700;margin-bottom:6px;">⚠ 제안 준비용 테이블을 불러오지 못했습니다</div>
+    <div id="prop_setupMsg" style="font-size:12.5px;margin-bottom:8px;"></div>
+    <div style="font-size:12.5px;margin-bottom:6px;">처음 사용하는 경우 Supabase SQL Editor에 아래 SQL을 붙여넣어 실행한 뒤 새로고침 해주세요.</div>
+    <pre id="prop_sqlText" style="white-space:pre-wrap;font-size:11.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:260px;overflow:auto;margin:0 0 8px;"></pre>
+    <button class="secondary small" onclick="propCopySql()">SQL 복사</button>
+  </div>
+
+  <div id="prop_viewPrep">
+    <div class="card" id="prop_inputCard">
+      <div class="row">
+        <div style="flex:2;min-width:200px;"><label>DB관리 고객에서 불러오기 (선택)</label>
+          <select id="prop_customer" onchange="propPickCustomer(this.value)"><option value="">직접 입력</option></select></div>
+        <div style="flex:2;min-width:200px;"><label>광고 컨셉</label>
+          <select id="prop_concept" onchange="propRender()"><option value="">컨셉 선택</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>고객 이름 (선택)</label><input type="text" id="prop_name" placeholder="예: 김영희" oninput="propRender()"></div>
+        <div><label>나이 (보험나이)</label><input type="number" id="prop_age" min="0" max="110" placeholder="예: 52" oninput="propRender()"></div>
+        <div><label>성별</label><select id="prop_gender" onchange="propRender()"><option value="">미정</option><option value="남">남</option><option value="여">여</option></select></div>
+        <div><label>전략 기준 월</label><input type="month" id="prop_month" onchange="propRender()"></div>
+      </div>
+      <div id="prop_ageInfo" style="font-size:12px;color:var(--muted);"></div>
+    </div>
+    <div id="prop_memoBox"></div>
+    <div id="prop_output"></div>
+  </div>
+
+  <div id="prop_viewManage" style="display:none;">
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:6px;">이번 달 전략 회사·상품</div>
+      <div class="sub">여기 등록한 회사가 추천에서 1순위로 올라옵니다. 상품명을 비워두면 그 회사의 모든 상품이 전략으로 취급됩니다. 숫자가 작을수록 우선순위가 높습니다.</div>
+      <div class="row">
+        <div style="flex:0 0 150px;"><label>기준 월</label><input type="month" id="prop_smonth" onchange="propRenderStrategy()"></div>
+      </div>
+      <div class="row">
+        <div><label>회사</label><input type="text" id="prop_s_company" placeholder="예: 메리츠화재"></div>
+        <div><label>상품(선택)</label><input type="text" id="prop_s_product" placeholder="예: 치단비 관련상품"></div>
+        <div style="flex:0 0 90px;"><label>우선순위</label><input type="number" id="prop_s_pri" min="1" value="1"></div>
+        <div><label>메모(선택)</label><input type="text" id="prop_s_note" placeholder="예: 절판 이슈"></div>
+      </div>
+      <button class="act small" onclick="propAddStrategy()">+ 전략 추가</button>
+      <div style="overflow-x:auto;"><table style="min-width:520px;"><thead><tr><th style="width:12%">순위</th><th>회사</th><th>상품</th><th>메모</th><th style="width:12%"></th></tr></thead><tbody id="prop_strategyBody"></tbody></table></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+        <div style="font-weight:700;">광고 컨셉 목록</div>
+        <div style="display:flex;gap:6px;"><button class="act small" onclick="propEditNew('concept')">+ 새 컨셉</button><button class="secondary small" onclick="propEditCommon()">공통 반론 편집</button></div>
+      </div>
+      <div id="prop_conceptList"></div>
+    </div>
+    <div id="prop_editor"></div>
+  </div>
+</div>
+
 </main>
 </div><!-- /appLayout -->
 
@@ -1660,6 +1734,7 @@ function switchTab(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   if (name === 'performance') renderPerformance();
   if (name === 'dbmgmt') dbOpenTab();
+  if (name === 'proposal') propOpenTab();
   if (name === 'salary') setupSalaryAutoCalc();
   if (name === 'kcd') renderKcdResults();
   if (name === 'newsscrap') loadScrapedNews();
@@ -1937,7 +2012,7 @@ function dbRowHtml(r, mode, now){
     <td>${Number(r.touch_count) || 0}</td>
     <td style="font-size:12px;">${last ? dbFmt(last) : '-'}</td>
     <td>${third}</td>
-    <td style="white-space:nowrap;"><button class="act small" onclick="dbOpenTouch(${r.id})">터치 기록</button>${canDel ? ` <button class="danger small" onclick="dbDelete(${r.id})">삭제</button>` : ''}</td>
+    <td style="white-space:nowrap;line-height:2;"><button class="act small" onclick="dbOpenTouch(${r.id})">터치 기록</button>${(r.partner_memo || r.db_type === '상품광고3') ? ` <button class="secondary small" onclick="propOpenFromCustomer(${r.id})">제안 준비</button>` : ''}${canDel ? ` <button class="danger small" onclick="dbDelete(${r.id})">삭제</button>` : ''}</td>
   </tr>`;
 }
 
@@ -2124,6 +2199,9 @@ function dbMapExcelRow(row){
     last_status_at: statusAt,
     last_touch_at: lastTouch ? lastTouch.toISOString() : null,
     memo: memo || null,
+    partner_memo: String(findCol(row, ['협력사메모'])).trim() || null,
+    birth: (String(findCol(row, ['생년월일'])).replace(/[^0-9]/g, '') || null),
+    gender: (String(findCol(row, ['성별'])).trim() || null),
     source: 'excel'
   };
 }
@@ -2191,6 +2269,7 @@ function dbRenderPreview(){
     <td>${x._new ? '<span class="badge badge-done">신규</span>' : '<span class="badge" style="background:#EFEDE6;">갱신</span>'}</td></tr>`).join('');
   document.getElementById('db_previewMore').textContent = p.list.length > SHOW ? `… 외 ${p.list.length - SHOW}건 (미리보기는 ${SHOW}건만 표시)` : '';
 }
+function dbStripNewCols(o){ const c = Object.assign({}, o); delete c.partner_memo; delete c.birth; delete c.gender; return c; }
 function dbCancelExcel(){
   dbPending = null;
   document.getElementById('db_previewCard').style.display = 'none';
@@ -2206,14 +2285,25 @@ async function dbCommitExcel(){
     const nowIso = new Date().toISOString();
     const payload = dbPending.list.map(x => { const o = Object.assign({}, x, { updated_at: nowIso }); delete o._new; return o; });
     const CH = 300;
+    let strip = false;
     for (let i = 0; i < payload.length; i += CH) {
       st.textContent = `저장 중... ${Math.min(i + CH, payload.length)} / ${payload.length}`;
-      const { error } = await sb.from('db_customers').upsert(payload.slice(i, i + CH), { onConflict: 'customer_code' });
+      let chunk = payload.slice(i, i + CH);
+      if (strip) chunk = chunk.map(dbStripNewCols);
+      let { error } = await sb.from('db_customers').upsert(chunk, { onConflict: 'customer_code' });
+      if (error && !strip && /partner_memo|birth|gender|column/i.test(error.message || '')) {
+        // 제안 도구용 컬럼(SQL)이 아직 없으면 기존 항목만 저장
+        strip = true;
+        chunk = chunk.map(dbStripNewCols);
+        ({ error } = await sb.from('db_customers').upsert(chunk, { onConflict: 'customer_code' }));
+      }
       if (error) throw error;
     }
     const n = payload.length;
     dbCancelExcel();
-    st.textContent = `✓ ${n}건 반영 완료`;
+    st.textContent = strip
+      ? `✓ ${n}건 반영 완료 (단, 협력사메모·생년월일·성별은 저장되지 않았습니다 — 제안 준비 탭의 SQL을 먼저 실행해주세요)`
+      : `✓ ${n}건 반영 완료`;
     await dbReload();
   }catch(e){
     console.error(e);
@@ -2221,6 +2311,642 @@ async function dbCommitExcel(){
   }finally{
     btn.disabled = false;
   }
+}
+
+/* ============================================================
+   제안 준비 (상품광고3) — ad_concepts / concept_products / monthly_strategy /
+   concept_files / concept_user_scripts
+   · 자료(컨셉·상품·전략)는 마스터가 등록, 멘트는 팀장별로 본인용 수정본 저장
+============================================================ */
+const PROP_SQL = `-- 1) DB관리 고객에 협력사메모/생년월일/성별 칸 추가
+alter table db_customers add column if not exists partner_memo text;
+alter table db_customers add column if not exists birth text;
+alter table db_customers add column if not exists gender text;
+
+-- 2) 광고 컨셉 (kind: concept=컨셉, common=공통 반론)
+create table if not exists ad_concepts (
+  id bigint generated always as identity primary key,
+  kind text not null default 'concept',
+  name text not null,
+  keywords text,
+  summary text,
+  intro_script text,
+  objections jsonb not null default '[]'::jsonb,
+  active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+-- 3) 컨셉별 연결 상품 (가입 연령 범위)
+create table if not exists concept_products (
+  id bigint generated always as identity primary key,
+  concept_id bigint not null references ad_concepts(id) on delete cascade,
+  company text not null,
+  product_name text,
+  age_min integer,
+  age_max integer,
+  note text,
+  created_at timestamptz not null default now()
+);
+-- 4) 월별 전략 회사·상품
+create table if not exists monthly_strategy (
+  id bigint generated always as identity primary key,
+  year_month text not null,
+  company text not null,
+  product_name text,
+  priority integer not null default 1,
+  note text,
+  created_at timestamptz not null default now()
+);
+-- 5) 컨셉 참고 자료(이미지/PDF)
+create table if not exists concept_files (
+  id bigint generated always as identity primary key,
+  concept_id bigint not null references ad_concepts(id) on delete cascade,
+  file_name text,
+  file_type text,
+  file_data text,
+  memo text,
+  uploaded_at timestamptz not null default now()
+);
+-- 6) 팀장별 내 멘트(수정본)
+create table if not exists concept_user_scripts (
+  id bigint generated always as identity primary key,
+  manager_name text not null,
+  concept_id bigint not null references ad_concepts(id) on delete cascade,
+  intro_script text,
+  objections jsonb,
+  updated_at timestamptz not null default now(),
+  unique (manager_name, concept_id)
+);
+grant select, insert, update, delete on ad_concepts, concept_products, monthly_strategy, concept_files, concept_user_scripts to anon, authenticated;`;
+
+let propConcepts = [], propProducts = [], propStrategy = [], propFiles = [], propUser = {};
+let propLoaded = false, propLoadError = '';
+let propView = 'prep';
+let propPrefill = null;       // DB관리에서 넘어온 고객 정보
+let propMemoText = '';        // 현재 선택 고객의 협력사메모
+let propEdit = null;          // 팀장 개인 수정 상태 {type:'intro'|'obj'|'objnew', cid, idx}
+let propEditor = null;        // 마스터 컨셉 편집 상태
+let propCopyBuf = {};
+
+function propMonthNow(){ const n = new Date(); return `${n.getFullYear()}-${dbPad(n.getMonth()+1)}`; }
+function propCopySql(){
+  try { navigator.clipboard.writeText(PROP_SQL).then(() => alert('SQL을 복사했습니다.'), () => alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.')); }
+  catch(e) { alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.'); }
+}
+
+async function propLoadAll(){
+  propLoadError = '';
+  try{
+    if (!sb) throw new Error('DB 연결이 아직 준비되지 않았습니다.');
+    const r1 = await sb.from('ad_concepts').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true });
+    if (r1.error) throw r1.error;
+    const r2 = await sb.from('concept_products').select('*').order('id', { ascending: true });
+    if (r2.error) throw r2.error;
+    const r3 = await sb.from('monthly_strategy').select('*').order('priority', { ascending: true });
+    if (r3.error) throw r3.error;
+    const r4 = await sb.from('concept_files').select('id,concept_id,file_name,file_type,memo,uploaded_at').order('id', { ascending: true });
+    if (r4.error) throw r4.error;
+    const r5 = await sb.from('concept_user_scripts').select('*').eq('manager_name', currentUser.manager_name);
+    if (r5.error) throw r5.error;
+    propConcepts = r1.data || []; propProducts = r2.data || []; propStrategy = r3.data || [];
+    propFiles = r4.data || [];
+    propUser = {}; (r5.data || []).forEach(u => { propUser[u.concept_id] = u; });
+    propLoaded = true;
+  }catch(e){
+    propConcepts = []; propProducts = []; propStrategy = []; propFiles = []; propUser = {};
+    propLoaded = false;
+    propLoadError = (e && e.message) ? e.message : String(e);
+  }
+}
+
+async function propOpenTab(){
+  document.getElementById('prop_manageBtn').style.display = currentUser.role === 'master' ? '' : 'none';
+  if (!document.getElementById('prop_month').value) document.getElementById('prop_month').value = propMonthNow();
+  if (!document.getElementById('prop_smonth').value) document.getElementById('prop_smonth').value = propMonthNow();
+  await propLoadAll();
+  if (!dbLoaded) { try { await loadDbCustomers(); } catch (e) {} }
+  propFillConceptSelect();
+  propFillCustomerSelect();
+  const setup = document.getElementById('prop_setupBox');
+  if (propLoadError) {
+    setup.style.display = '';
+    document.getElementById('prop_setupMsg').textContent = '오류 내용: ' + propLoadError;
+    document.getElementById('prop_sqlText').textContent = PROP_SQL;
+  } else setup.style.display = 'none';
+  if (propPrefill) { propApplyPrefill(propPrefill); propPrefill = null; }
+  propSetView(propView === 'manage' && currentUser.role === 'master' ? 'manage' : 'prep');
+}
+
+function propSetView(v){
+  propView = v;
+  document.querySelectorAll('#prop_subtabs button').forEach(b => { b.className = (b.dataset.v === v ? 'act' : 'secondary') + ' small'; });
+  document.getElementById('prop_viewPrep').style.display = v === 'prep' ? '' : 'none';
+  document.getElementById('prop_viewManage').style.display = v === 'manage' ? '' : 'none';
+  if (v === 'prep') propRender(); else { propRenderStrategy(); propRenderConceptList(); propRenderEditor(); }
+}
+
+function propRealConcepts(){ return propConcepts.filter(c => c.kind !== 'common'); }
+function propCommon(){ return propConcepts.find(c => c.kind === 'common') || null; }
+function propFillConceptSelect(){
+  const sel = document.getElementById('prop_concept');
+  const cur = sel.value;
+  const list = propRealConcepts().filter(c => c.active !== false);
+  sel.innerHTML = '<option value="">컨셉 선택</option>' + list.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  if (list.some(c => String(c.id) === cur)) sel.value = cur;
+}
+function propFillCustomerSelect(){
+  const sel = document.getElementById('prop_customer');
+  const cur = sel.value;
+  const rows = (dbRows || []).filter(r => r.db_type === '상품광고3' && DB_CLOSED.indexOf(r.status) < 0)
+    .sort((a, b) => (dbTs(b.distributed_at) || 0) - (dbTs(a.distributed_at) || 0)).slice(0, 300);
+  sel.innerHTML = '<option value="">직접 입력</option>' + rows.map(r =>
+    `<option value="${r.id}">${escapeHtml(r.customer_name || '(이름없음)')} · ${escapeHtml(r.status)} · 터치${Number(r.touch_count) || 0}</option>`).join('');
+  if (rows.some(r => String(r.id) === cur)) sel.value = cur;
+}
+
+/* ---------- DB관리 고객 → 제안 준비 ---------- */
+function propOpenFromCustomer(id){
+  const r = (dbRows || []).find(x => x.id === id);
+  if (!r) return;
+  propPrefill = { id: id };
+  switchTab('proposal');
+}
+function propPickCustomer(v){
+  if (!v) { propMemoText = ''; propRender(); return; }
+  propApplyPrefill({ id: Number(v) });
+}
+function propBirthToAge(birth){
+  const d = String(birth || '').replace(/[^0-9]/g, '');
+  if (d.length !== 8) return null;
+  const dt = new Date(Number(d.slice(0, 4)), Number(d.slice(4, 6)) - 1, Number(d.slice(6, 8)));
+  if (isNaN(dt.getTime())) return null;
+  return calcAge(dt, new Date());
+}
+function propApplyPrefill(pf){
+  const r = (dbRows || []).find(x => x.id === pf.id);
+  if (!r) return;
+  propFillCustomerSelect();
+  document.getElementById('prop_customer').value = String(r.id);
+  document.getElementById('prop_name').value = r.customer_name || '';
+  const a = propBirthToAge(r.birth);
+  document.getElementById('prop_age').value = a ? a.insAge : '';
+  const g = String(r.gender || '').trim();
+  document.getElementById('prop_gender').value = (g === '남' || g === '여') ? g : '';
+  propMemoText = r.partner_memo || '';
+  const best = propDetectConcept(propMemoText);
+  if (best) document.getElementById('prop_concept').value = String(best.concept.id);
+  propRender();
+}
+function propDetectConcept(memo){
+  if (!memo) return null;
+  let best = null;
+  propRealConcepts().filter(c => c.active !== false).forEach(c => {
+    const kws = String(c.keywords || '').split(/[,，\n]/).map(x => x.trim()).filter(Boolean);
+    const hits = kws.filter(k => memo.indexOf(k) >= 0);
+    if (hits.length && (!best || hits.length > best.hits.length)) best = { concept: c, hits: hits };
+  });
+  return best;
+}
+
+/* ---------- 멘트 처리: 조건 줄 + 변수 치환 ---------- */
+function propCtx(){
+  const age = parseInt(document.getElementById('prop_age').value, 10);
+  const gender = document.getElementById('prop_gender').value;
+  const name = (document.getElementById('prop_name').value || '').trim();
+  const cid = Number(document.getElementById('prop_concept').value) || 0;
+  return { age: isNaN(age) ? null : age, gender: gender, name: name, cid: cid,
+           concept: propConcepts.find(c => c.id === cid) || null,
+           month: document.getElementById('prop_month').value || propMonthNow() };
+}
+function propRenderText(raw, ctx, rec){
+  const lines = String(raw || '').split('\n');
+  const out = [];
+  lines.forEach(line => {
+    let t = line;
+    const m = t.match(/^\[(남|여|(\d+)이하|(\d+)이상)\]\s*/);
+    if (m) {
+      let ok = true;
+      if (m[1] === '남' || m[1] === '여') ok = (ctx.gender === m[1]);
+      else if (m[2]) ok = (ctx.age !== null && ctx.age <= Number(m[2]));
+      else if (m[3]) ok = (ctx.age !== null && ctx.age >= Number(m[3]));
+      if (!ok) return;
+      t = t.slice(m[0].length);
+    }
+    out.push(t);
+  });
+  const vars = {
+    '고객명': ctx.name || '고객',
+    '호칭': '고객님',
+    '나이': ctx.age !== null ? String(ctx.age) : '',
+    '연령대': ctx.age !== null ? (Math.floor(ctx.age / 10) * 10) + '대' : '',
+    '성별': ctx.gender === '남' ? '남성' : (ctx.gender === '여' ? '여성' : ''),
+    '컨셉': ctx.concept ? ctx.concept.name : '',
+    '회사': rec && rec.company ? rec.company : '',
+    '상품': rec && rec.product_name ? rec.product_name : ''
+  };
+  return out.join('\n').replace(/\{(고객명|호칭|나이|연령대|성별|컨셉|회사|상품)\}/g, (all, k) => vars[k]);
+}
+function propHtmlText(t){ return escapeHtml(t).replace(/\n/g, '<br>'); }
+
+/* ---------- 추천 계산 ---------- */
+function propNormCo(s){ return String(s || '').replace(/\s+/g, '').replace(/손해보험/g, '손보').replace(/화재해상보험/g, '화재').replace(/생명보험/g, '생명'); }
+function propCoMatch(a, b){ a = propNormCo(a); b = propNormCo(b); return !!a && !!b && (a === b || a.indexOf(b) >= 0 || b.indexOf(a) >= 0); }
+function propProdMatch(a, b){ a = String(a || '').replace(/\s+/g, ''); b = String(b || '').replace(/\s+/g, ''); if (!a || !b) return true; return a.indexOf(b) >= 0 || b.indexOf(a) >= 0; }
+function propRecommend(ctx){
+  const prods = propProducts.filter(p => p.concept_id === ctx.cid);
+  const strat = propStrategy.filter(s => s.year_month === ctx.month).sort((a, b) => (a.priority || 0) - (b.priority || 0));
+  const fit = p => (ctx.age === null) || ((p.age_min == null || ctx.age >= p.age_min) && (p.age_max == null || ctx.age <= p.age_max));
+  const eligible = prods.filter(fit);
+  const excluded = prods.filter(p => !fit(p));
+  const primary = [], secondary = [];
+  eligible.forEach(p => {
+    const s = strat.find(x => propCoMatch(x.company, p.company) && propProdMatch(x.product_name, p.product_name));
+    if (s) primary.push({ p: p, s: s }); else secondary.push({ p: p });
+  });
+  primary.sort((a, b) => (a.s.priority || 0) - (b.s.priority || 0));
+  return { primary: primary, secondary: secondary, excluded: excluded, total: prods.length, hasStrategy: strat.length > 0 };
+}
+function propAgeText(p){
+  if (p.age_min == null && p.age_max == null) return '가입 연령 정보 없음';
+  return `가입 연령 ${p.age_min != null ? p.age_min : ''}~${p.age_max != null ? p.age_max : ''}세`;
+}
+
+/* ---------- 팀장용 화면 ---------- */
+function propEffIntro(c){ const u = propUser[c.id]; return (u && u.intro_script != null && u.intro_script !== '') ? { text: u.intro_script, mine: true } : { text: c.intro_script || '', mine: false }; }
+function propEffObjs(c){ const u = propUser[c.id]; return (u && Array.isArray(u.objections)) ? { list: u.objections, mine: true } : { list: Array.isArray(c.objections) ? c.objections : [], mine: false }; }
+function propCopy(key){
+  const t = propCopyBuf[key] || '';
+  const done = () => alert('복사했습니다.');
+  try { navigator.clipboard.writeText(t).then(done, () => propCopyFallback(t, done)); } catch (e) { propCopyFallback(t, done); }
+}
+function propCopyFallback(t, done){
+  const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.'); }
+  document.body.removeChild(ta);
+}
+function propPrint(){
+  document.body.classList.add('prop-printing');
+  try { window.print(); } finally { setTimeout(() => document.body.classList.remove('prop-printing'), 500); }
+}
+
+function propRender(){
+  if (propView !== 'prep') return;
+  const ctx = propCtx();
+  const out = document.getElementById('prop_output');
+  const memoBox = document.getElementById('prop_memoBox');
+  const ai = propBirthToAge(((dbRows || []).find(r => String(r.id) === document.getElementById('prop_customer').value) || {}).birth);
+  document.getElementById('prop_ageInfo').textContent = ai ? `※ 생년월일 기준 만 ${ai.manAge}세 / 보험나이 ${ai.insAge}세 (보험나이로 입력됨)` : '※ 나이를 입력하면 가입 가능 연령으로 걸러서 추천합니다.';
+  propCopyBuf = {};
+  // 협력사 메모 + 컨셉 추천
+  if (propMemoText) {
+    const best = propDetectConcept(propMemoText);
+    memoBox.innerHTML = `<div class="card" style="background:#F7F5EE;"><div style="font-weight:700;margin-bottom:4px;">📌 협력사 메모 (광고에서 넘어온 고객 정보)</div>
+      <div style="font-size:12.5px;white-space:pre-wrap;line-height:1.6;">${escapeHtml(propMemoText)}</div>
+      ${best ? `<div style="margin-top:8px;font-size:12px;color:var(--green);">메모 키워드(${best.hits.map(escapeHtml).join(', ')})와 일치하는 컨셉: <b>${escapeHtml(best.concept.name)}</b>${ctx.cid === best.concept.id ? ' — 선택됨' : ` <button class="small secondary" onclick="document.getElementById('prop_concept').value='${best.concept.id}';propRender()">이 컨셉으로 보기</button>`}</div>`
+              : `<div style="margin-top:8px;font-size:12px;color:var(--muted);">일치하는 컨셉 키워드가 없습니다. 위에서 컨셉을 직접 선택해주세요.</div>`}</div>`;
+  } else memoBox.innerHTML = '';
+  if (propLoadError) { out.innerHTML = ''; return; }
+  if (!propRealConcepts().length) { out.innerHTML = `<div class="card"><div class="sub" style="margin:0;">아직 등록된 광고 컨셉이 없습니다.${currentUser.role === 'master' ? ' “컨셉·전략 관리”에서 먼저 등록해주세요.' : ' 마스터가 컨셉을 등록하면 이용할 수 있습니다.'}</div></div>`; return; }
+  if (!ctx.concept) { out.innerHTML = `<div class="card"><div class="sub" style="margin:0;">광고 컨셉을 선택하면 제안 자료가 나타납니다.</div></div>`; return; }
+  const c = ctx.concept;
+  const rec = propRecommend(ctx);
+  const top = (rec.primary[0] && rec.primary[0].p) || (rec.secondary[0] && rec.secondary[0].p) || null;
+
+  // A. 추천 회사·플랜
+  const card = (item, tag, color) => {
+    const p = item.p;
+    return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff;">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><div style="font-weight:700;font-size:15px;">${escapeHtml(p.company)}${p.product_name ? ' · ' + escapeHtml(p.product_name) : ''}</div>
+      <span class="badge" style="background:${color[0]};color:${color[1]};">${tag}</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;">${escapeHtml(propAgeText(p))}${item.s && item.s.note ? ' · ' + escapeHtml(item.s.note) : ''}${p.note ? ' · ' + escapeHtml(p.note) : ''}</div></div>`;
+  };
+  let recHtml = '';
+  if (!rec.total) recHtml = `<div class="sub" style="margin:0;">이 컨셉에 연결된 상품이 없습니다.${currentUser.role === 'master' ? ' “컨셉·전략 관리”에서 상품을 등록해주세요.' : ''}</div>`;
+  else {
+    if (rec.primary.length) recHtml += `<div style="font-size:12.5px;font-weight:700;color:var(--green);margin:4px 0;">🎯 1순위 — 이번 달 전략</div>` +
+      rec.primary.map(x => card(x, `전략 ${x.s.priority}순위`, ['var(--green-bg)', 'var(--green)'])).join('');
+    else recHtml += `<div class="sub" style="margin:0 0 6px;">${rec.hasStrategy ? '이 컨셉·연령에 해당하는 이번 달 전략 상품이 없습니다. 아래 인수 가능 회사를 보세요.' : `${escapeHtml(ctx.month)} 전략이 등록되어 있지 않습니다.`}</div>`;
+    if (rec.secondary.length) recHtml += `<div style="font-size:12.5px;font-weight:700;color:#2F5FA8;margin:8px 0 4px;">2차 — 인수 가능 회사</div>` +
+      rec.secondary.map(x => card(x, '인수 가능', ['#E6EEF9', '#2F5FA8'])).join('');
+    if (rec.excluded.length) recHtml += `<div style="font-size:11.5px;color:var(--muted);margin-top:6px;">연령 범위 밖이라 제외: ${rec.excluded.map(p => escapeHtml(p.company + (p.product_name ? ' ' + p.product_name : '') + ' (' + propAgeText(p).replace('가입 연령 ', '') + ')')).join(' / ')}</div>`;
+    recHtml += `<div style="font-size:11.5px;color:var(--muted);margin-top:8px;">※ 인수 가능은 가입 연령 기준입니다. 병력·고지 사항은 <a href="#" onclick="switchTab('underwriting');return false;" style="color:var(--navy);">인수기준 검색</a>에서 확인하세요.</div>`;
+  }
+
+  // B. 도입멘트
+  const ie = propEffIntro(c);
+  const introText = propRenderText(ie.text, ctx, top);
+  propCopyBuf.intro = introText;
+  let introHtml;
+  if (propEdit && propEdit.type === 'intro' && propEdit.cid === c.id) {
+    introHtml = `<textarea id="prop_e_intro" rows="7" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;">${escapeHtml(ie.text)}</textarea>
+      <div style="font-size:11.5px;color:var(--muted);margin:4px 0;">변수: {고객명} {호칭} {나이} {연령대} {성별} {컨셉} {회사} {상품} · 줄 맨 앞에 [남] [여] [49이하] [50이상]을 붙이면 해당 고객일 때만 보입니다.</div>
+      <button class="act small" onclick="propSaveIntro(${c.id})">내 멘트로 저장</button> <button class="secondary small" onclick="propCancelEdit()">취소</button>`;
+  } else {
+    introHtml = `<div style="font-size:14.5px;line-height:1.8;">${introText ? propHtmlText(introText) : '<span style="color:var(--muted);">등록된 도입멘트가 없습니다.</span>'}</div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"><button class="secondary small" onclick="propCopy('intro')">복사</button>
+      <button class="secondary small" onclick="propStartEdit('intro',${c.id},0)">✎ 내 스타일로 수정</button>
+      ${ie.mine ? `<button class="danger small" onclick="propResetIntro(${c.id})">기본 멘트로 되돌리기</button>` : ''}</div>`;
+  }
+
+  // C. 반론 대응
+  const objSection = (card, title) => {
+    if (!card) return '';
+    const oe = propEffObjs(card);
+    let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 6px;"><div style="font-weight:700;">${title}${oe.mine ? ' <span class="badge badge-bday">내가 수정함</span>' : ''}</div>
+      <div style="display:flex;gap:6px;"><button class="secondary small" onclick="propStartEdit('objnew',${card.id},-1)">+ 내 반론 추가</button>${oe.mine ? `<button class="danger small" onclick="propResetObjs(${card.id})">기본으로 되돌리기</button>` : ''}</div></div>`;
+    if (!oe.list.length) h += '<div class="sub" style="margin:0;">등록된 반론이 없습니다.</div>';
+    oe.list.forEach((o, i) => {
+      const key = 'o' + card.id + '_' + i;
+      const reply = propRenderText(o.reply, ctx, top);
+      propCopyBuf[key] = reply;
+      const editing = propEdit && propEdit.type === 'obj' && propEdit.cid === card.id && propEdit.idx === i;
+      h += `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff;">`;
+      if (editing) {
+        h += `<input type="text" id="prop_e_ot" value="${escAttr(o.title)}" style="margin-bottom:6px;">
+          <textarea id="prop_e_or" rows="5" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;">${escapeHtml(o.reply)}</textarea>
+          <div style="margin-top:6px;"><button class="act small" onclick="propSaveObj(${card.id},${i})">내 멘트로 저장</button> <button class="secondary small" onclick="propCancelEdit()">취소</button> <button class="danger small" onclick="propDeleteObj(${card.id},${i})">이 반론 삭제</button></div>`;
+      } else {
+        h += `<div style="font-weight:700;color:var(--red);margin-bottom:4px;">“${escapeHtml(o.title)}”</div>
+          <div style="font-size:14px;line-height:1.75;">${propHtmlText(reply)}</div>
+          <div style="margin-top:6px;display:flex;gap:6px;"><button class="secondary small" onclick="propCopy('${key}')">복사</button><button class="secondary small" onclick="propStartEdit('obj',${card.id},${i})">✎ 수정</button></div>`;
+      }
+      h += `</div>`;
+    });
+    if (propEdit && propEdit.type === 'objnew' && propEdit.cid === card.id) {
+      h += `<div style="border:1px dashed var(--navy);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff;">
+        <input type="text" id="prop_e_ot" placeholder="고객이 하는 말 (예: 지금 바빠요)" style="margin-bottom:6px;">
+        <textarea id="prop_e_or" rows="5" placeholder="대응 멘트" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;"></textarea>
+        <div style="margin-top:6px;"><button class="act small" onclick="propSaveObj(${card.id},-1)">내 반론으로 저장</button> <button class="secondary small" onclick="propCancelEdit()">취소</button></div></div>`;
+    }
+    return h;
+  };
+  const common = propCommon();
+  const files = propFiles.filter(f => f.concept_id === c.id);
+
+  out.innerHTML = `<div id="prop_printArea">
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+      <div><div style="font-size:16px;font-weight:800;">${escapeHtml(c.name)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;">${ctx.name ? escapeHtml(ctx.name) + ' · ' : ''}${ctx.age !== null ? ctx.age + '세' : '나이 미입력'}${ctx.gender ? ' · ' + ctx.gender : ''} · 전략 기준 ${escapeHtml(ctx.month)}</div></div>
+      <button class="secondary small" onclick="propPrint()">🖨 인쇄</button></div>
+      ${c.summary ? `<div style="margin-top:10px;font-size:13px;line-height:1.7;background:#F7F5EE;border-radius:8px;padding:8px 10px;white-space:pre-wrap;"><b>광고 핵심 내용</b>\n${escapeHtml(c.summary)}</div>` : ''}
+      ${files.length ? `<div style="margin-top:8px;font-size:12px;">📎 참고 자료: ${files.map(f => `<a href="#" onclick="propOpenFile(${f.id});return false;" style="color:var(--navy);">${escapeHtml(f.memo || f.file_name)}</a>`).join(' · ')}</div>` : ''}</div>
+    <div class="card"><div style="font-weight:700;margin-bottom:6px;">① 추천 회사·플랜</div>${recHtml}</div>
+    <div class="card"><div style="font-weight:700;margin-bottom:6px;">② 도입멘트${ie.mine ? ' <span class="badge badge-bday">내가 수정함</span>' : ''}</div>${introHtml}</div>
+    <div class="card"><div style="font-weight:700;">③ 예상 거절·반론 대응</div>${objSection(c, '이 컨셉 전용 반론')}${objSection(common, '공통 반론')}</div>
+  </div>`;
+}
+
+/* ---------- 팀장 개인 수정 저장 ---------- */
+function propStartEdit(type, cid, idx){ propEdit = { type: type, cid: cid, idx: idx }; propRender(); }
+function propCancelEdit(){ propEdit = null; propRender(); }
+async function propSaveUserRow(cid, patch){
+  const cur = propUser[cid] || {};
+  const row = {
+    manager_name: currentUser.manager_name, concept_id: cid,
+    intro_script: ('intro_script' in patch) ? patch.intro_script : (cur.intro_script != null ? cur.intro_script : null),
+    objections: ('objections' in patch) ? patch.objections : (cur.objections != null ? cur.objections : null),
+    updated_at: new Date().toISOString()
+  };
+  if ((row.intro_script == null || row.intro_script === '') && row.objections == null) {
+    const { error } = await sb.from('concept_user_scripts').delete().eq('manager_name', currentUser.manager_name).eq('concept_id', cid);
+    if (error) { alert('저장 실패: ' + error.message); return false; }
+    delete propUser[cid];
+    return true;
+  }
+  const { error } = await sb.from('concept_user_scripts').upsert([row], { onConflict: 'manager_name,concept_id' });
+  if (error) { alert('저장 실패: ' + error.message); return false; }
+  propUser[cid] = Object.assign({}, cur, row);
+  return true;
+}
+async function propSaveIntro(cid){
+  const t = document.getElementById('prop_e_intro').value;
+  if (!t.trim()) { alert('멘트를 입력해주세요. (기본 멘트로 돌아가려면 “기본 멘트로 되돌리기”를 누르세요)'); return; }
+  if (await propSaveUserRow(cid, { intro_script: t })) { propEdit = null; propRender(); }
+}
+async function propResetIntro(cid){
+  if (!confirm('내가 수정한 도입멘트를 지우고 기본 멘트로 되돌릴까요?')) return;
+  if (await propSaveUserRow(cid, { intro_script: null })) propRender();
+}
+async function propSaveObj(cid, idx){
+  const title = (document.getElementById('prop_e_ot').value || '').trim();
+  const reply = (document.getElementById('prop_e_or').value || '').trim();
+  if (!title || !reply) { alert('고객 말과 대응 멘트를 모두 입력해주세요.'); return; }
+  const card = propConcepts.find(c => c.id === cid);
+  const list = propEffObjs(card).list.map(o => ({ title: o.title, reply: o.reply }));
+  if (idx >= 0) list[idx] = { title: title, reply: reply }; else list.push({ title: title, reply: reply });
+  if (await propSaveUserRow(cid, { objections: list })) { propEdit = null; propRender(); }
+}
+async function propDeleteObj(cid, idx){
+  if (!confirm('이 반론을 내 목록에서 삭제할까요? (기본 목록은 그대로이고 나에게만 적용됩니다)')) return;
+  const card = propConcepts.find(c => c.id === cid);
+  const list = propEffObjs(card).list.map(o => ({ title: o.title, reply: o.reply }));
+  list.splice(idx, 1);
+  if (await propSaveUserRow(cid, { objections: list })) { propEdit = null; propRender(); }
+}
+async function propResetObjs(cid){
+  if (!confirm('내가 수정한 반론 목록을 지우고 기본 목록으로 되돌릴까요?')) return;
+  if (await propSaveUserRow(cid, { objections: null })) propRender();
+}
+async function propOpenFile(id){
+  const { data, error } = await sb.from('concept_files').select('file_name,file_type,file_data').eq('id', id);
+  if (error || !data || !data[0]) { alert('파일을 불러오지 못했습니다.'); return; }
+  const a = document.createElement('a');
+  a.href = data[0].file_data; a.download = data[0].file_name || 'file'; a.target = '_blank';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+/* ============================================================
+   마스터: 전략 / 컨셉 / 상품 / 첨부 관리
+============================================================ */
+function propRenderStrategy(){
+  const ym = document.getElementById('prop_smonth').value || propMonthNow();
+  const rows = propStrategy.filter(s => s.year_month === ym).sort((a, b) => (a.priority || 0) - (b.priority || 0));
+  document.getElementById('prop_strategyBody').innerHTML = rows.length ? rows.map(s => `<tr>
+    <td>${s.priority}</td><td><b>${escapeHtml(s.company)}</b></td><td>${escapeHtml(s.product_name || '(전 상품)')}</td><td>${escapeHtml(s.note || '')}</td>
+    <td><button class="danger small" onclick="propDeleteStrategy(${s.id})">삭제</button></td></tr>`).join('')
+    : `<tr><td colspan="5" style="color:var(--muted);">${escapeHtml(ym)} 전략이 아직 없습니다.</td></tr>`;
+}
+async function propAddStrategy(){
+  const ym = document.getElementById('prop_smonth').value || propMonthNow();
+  const company = document.getElementById('prop_s_company').value.trim();
+  if (!company) { alert('회사를 입력해주세요.'); return; }
+  const row = { year_month: ym, company: company, product_name: document.getElementById('prop_s_product').value.trim() || null,
+    priority: Math.max(1, parseInt(document.getElementById('prop_s_pri').value, 10) || 1), note: document.getElementById('prop_s_note').value.trim() || null };
+  const { data, error } = await sb.from('monthly_strategy').insert([row]).select();
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  propStrategy.push((data && data[0]) ? data[0] : row);
+  ['prop_s_company', 'prop_s_product', 'prop_s_note'].forEach(id => { document.getElementById(id).value = ''; });
+  propRenderStrategy();
+}
+async function propDeleteStrategy(id){
+  if (!confirm('이 전략 항목을 삭제할까요?')) return;
+  const { error } = await sb.from('monthly_strategy').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  propStrategy = propStrategy.filter(s => s.id !== id);
+  propRenderStrategy();
+}
+
+function propRenderConceptList(){
+  const el = document.getElementById('prop_conceptList');
+  const list = propConcepts.filter(c => c.kind !== 'common');
+  const common = propCommon();
+  el.innerHTML = (list.length ? list.map(c => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #EFEDE6;padding:8px 0;">
+      <div><b>${escapeHtml(c.name)}</b>${c.active === false ? ' <span class="badge" style="background:#EFEDE6;">비활성</span>' : ''}
+      <div style="font-size:11.5px;color:var(--muted);">상품 ${propProducts.filter(p => p.concept_id === c.id).length}개 · 반론 ${(c.objections || []).length}개 · 자료 ${propFiles.filter(f => f.concept_id === c.id).length}개</div></div>
+      <div style="display:flex;gap:6px;"><button class="secondary small" onclick="propEditConcept(${c.id})">편집</button><button class="danger small" onclick="propDeleteConcept(${c.id})">삭제</button></div></div>`).join('')
+    : '<div class="sub" style="margin:0;">등록된 컨셉이 없습니다. “+ 새 컨셉”으로 시작하세요.</div>')
+    + `<div style="font-size:11.5px;color:var(--muted);margin-top:8px;">공통 반론: ${common ? (common.objections || []).length + '개 등록됨' : '아직 없음'}</div>`;
+}
+function propEditNew(kind){
+  propEditor = { id: null, kind: kind, name: '', keywords: '', summary: '', intro_script: '', objections: [{ title: '', reply: '' }], active: true, sort_order: 0 };
+  propRenderEditor();
+  document.getElementById('prop_editor').scrollIntoView({ behavior: 'smooth' });
+}
+function propEditConcept(id){
+  const c = propConcepts.find(x => x.id === id);
+  if (!c) return;
+  propEditor = { id: c.id, kind: c.kind || 'concept', name: c.name, keywords: c.keywords || '', summary: c.summary || '', intro_script: c.intro_script || '',
+    objections: (c.objections || []).map(o => ({ title: o.title, reply: o.reply })), active: c.active !== false, sort_order: c.sort_order || 0 };
+  if (!propEditor.objections.length) propEditor.objections.push({ title: '', reply: '' });
+  propRenderEditor();
+  document.getElementById('prop_editor').scrollIntoView({ behavior: 'smooth' });
+}
+function propEditCommon(){
+  const c = propCommon();
+  if (c) propEditConcept(c.id);
+  else { propEditNew('common'); propEditor.name = '공통 반론'; propRenderEditor(); }
+}
+async function propDeleteConcept(id){
+  const c = propConcepts.find(x => x.id === id);
+  if (!c || !confirm(`“${c.name}” 컨셉을 삭제할까요? 연결된 상품·자료·팀장 수정본도 함께 삭제됩니다.`)) return;
+  const { error } = await sb.from('ad_concepts').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  propConcepts = propConcepts.filter(x => x.id !== id);
+  propProducts = propProducts.filter(p => p.concept_id !== id);
+  propFiles = propFiles.filter(f => f.concept_id !== id);
+  delete propUser[id];
+  if (propEditor && propEditor.id === id) propEditor = null;
+  propFillConceptSelect(); propRenderConceptList(); propRenderEditor();
+}
+function propSyncEditor(){
+  if (!propEditor) return;
+  const g = id => { const el = document.getElementById(id); return el ? el.value : null; };
+  if (propEditor.kind !== 'common') {
+    propEditor.name = g('prop_c_name') !== null ? g('prop_c_name') : propEditor.name;
+    propEditor.keywords = g('prop_c_kw') !== null ? g('prop_c_kw') : propEditor.keywords;
+    propEditor.summary = g('prop_c_sum') !== null ? g('prop_c_sum') : propEditor.summary;
+    propEditor.intro_script = g('prop_c_intro') !== null ? g('prop_c_intro') : propEditor.intro_script;
+    const sort = g('prop_c_sort'); if (sort !== null) propEditor.sort_order = parseInt(sort, 10) || 0;
+    const act = document.getElementById('prop_c_active'); if (act) propEditor.active = act.checked;
+  }
+  propEditor.objections = propEditor.objections.map((o, i) => ({
+    title: g('prop_o_t' + i) !== null ? g('prop_o_t' + i) : o.title,
+    reply: g('prop_o_r' + i) !== null ? g('prop_o_r' + i) : o.reply }));
+}
+function propAddObjRow(){ propSyncEditor(); propEditor.objections.push({ title: '', reply: '' }); propRenderEditor(); }
+function propDelObjRow(i){ propSyncEditor(); propEditor.objections.splice(i, 1); if (!propEditor.objections.length) propEditor.objections.push({ title: '', reply: '' }); propRenderEditor(); }
+function propCancelEditor(){ propEditor = null; propRenderEditor(); }
+async function propSaveConcept(){
+  propSyncEditor();
+  const e = propEditor;
+  if (e.kind !== 'common' && !e.name.trim()) { alert('컨셉명을 입력해주세요.'); return; }
+  const objs = e.objections.map(o => ({ title: o.title.trim(), reply: o.reply.trim() })).filter(o => o.title && o.reply);
+  const row = { kind: e.kind, name: e.kind === 'common' ? '공통 반론' : e.name.trim(), keywords: e.keywords.trim() || null, summary: e.summary.trim() || null,
+    intro_script: e.intro_script.trim() || null, objections: objs, active: e.active, sort_order: e.sort_order, updated_at: new Date().toISOString() };
+  if (e.id) {
+    const { error } = await sb.from('ad_concepts').update(row).eq('id', e.id);
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    const i = propConcepts.findIndex(c => c.id === e.id);
+    if (i >= 0) propConcepts[i] = Object.assign({}, propConcepts[i], row);
+  } else {
+    const { data, error } = await sb.from('ad_concepts').insert([row]).select();
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    if (!data || !data[0]) { alert('저장은 되었지만 새 번호를 받지 못했습니다. 새로고침 후 다시 열어주세요.'); return; }
+    propConcepts.push(data[0]);
+    e.id = data[0].id;
+  }
+  propFillConceptSelect(); propRenderConceptList(); propRenderEditor();
+  alert(e.kind === 'common' ? '공통 반론을 저장했습니다.' : '저장했습니다. 아래에서 연결 상품과 참고 자료를 추가할 수 있습니다.');
+}
+
+function propRenderEditor(){
+  const el = document.getElementById('prop_editor');
+  if (!propEditor) { el.innerHTML = ''; return; }
+  const e = propEditor;
+  const isCommon = e.kind === 'common';
+  const objRows = e.objections.map((o, i) => `<div style="border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:6px;">
+    <input type="text" id="prop_o_t${i}" value="${escAttr(o.title)}" placeholder="고객이 하는 말 (예: 보험료가 부담돼요)" style="margin-bottom:6px;">
+    <textarea id="prop_o_r${i}" rows="4" placeholder="대응 멘트" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;">${escapeHtml(o.reply)}</textarea>
+    <div style="text-align:right;"><button class="danger small" onclick="propDelObjRow(${i})">이 반론 삭제</button></div></div>`).join('');
+  let h = `<div class="card" style="border-color:var(--navy);"><div style="font-weight:700;margin-bottom:8px;">${isCommon ? '공통 반론 편집' : (e.id ? '컨셉 편집' : '새 컨셉 등록')}</div>`;
+  if (!isCommon) {
+    h += `<div class="row"><div style="flex:2;"><label>컨셉명</label><input type="text" id="prop_c_name" value="${escAttr(e.name)}" placeholder="예: 입원비 특약 (다빈도입원비)"></div>
+      <div style="flex:0 0 90px;"><label>정렬</label><input type="number" id="prop_c_sort" value="${e.sort_order}"></div>
+      <div style="flex:0 0 90px;"><label>사용</label><label style="display:flex;align-items:center;gap:6px;margin-top:8px;"><input type="checkbox" id="prop_c_active" style="width:auto;" ${e.active ? 'checked' : ''}> 활성</label></div></div>
+      <label>협력사메모 매칭 키워드 (쉼표로 구분)</label><input type="text" id="prop_c_kw" value="${escAttr(e.keywords)}" placeholder="예: 입원비, 다빈도, 입원일당" style="margin-bottom:8px;">
+      <label>광고 핵심 내용 (광고 원문의 수치·문구 그대로)</label><textarea id="prop_c_sum" rows="3" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;margin-bottom:8px;">${escapeHtml(e.summary)}</textarea>
+      <label>도입멘트 기본안</label><textarea id="prop_c_intro" rows="6" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13.5px;">${escapeHtml(e.intro_script)}</textarea>
+      <div style="font-size:11.5px;color:var(--muted);margin:4px 0 10px;">변수: {고객명} {호칭} {나이} {연령대} {성별} {컨셉} {회사} {상품} · 줄 맨 앞에 [남] [여] [49이하] [50이상]을 붙이면 해당 고객일 때만 그 줄이 보입니다. 예) [50이상] 오랜 시간 가족 위해 애쓰셨죠.</div>`;
+  }
+  h += `<div style="font-weight:700;margin:6px 0;">${isCommon ? '공통 반론 목록' : '이 컨셉 전용 반론'}</div>${objRows}
+    <button class="secondary small" onclick="propAddObjRow()">+ 반론 추가</button>
+    <div style="margin-top:12px;display:flex;gap:8px;"><button class="act" onclick="propSaveConcept()">저장</button><button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="propCancelEditor()">닫기</button></div>`;
+  if (!isCommon && e.id) {
+    const prods = propProducts.filter(p => p.concept_id === e.id);
+    const files = propFiles.filter(f => f.concept_id === e.id);
+    h += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);"><div style="font-weight:700;margin-bottom:6px;">연결 상품 (회사·연령)</div>
+      <div style="overflow-x:auto;"><table style="min-width:520px;"><thead><tr><th>회사</th><th>상품</th><th style="width:11%">최소연령</th><th style="width:11%">최대연령</th><th>메모</th><th style="width:11%"></th></tr></thead><tbody>
+      ${prods.map(p => `<tr><td>${escapeHtml(p.company)}</td><td>${escapeHtml(p.product_name || '')}</td><td>${p.age_min != null ? p.age_min : ''}</td><td>${p.age_max != null ? p.age_max : ''}</td><td>${escapeHtml(p.note || '')}</td><td><button class="danger small" onclick="propDeleteProduct(${p.id})">삭제</button></td></tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted);">아직 없습니다.</td></tr>'}
+      <tr><td><input type="text" id="prop_p_company" placeholder="회사"></td><td><input type="text" id="prop_p_name" placeholder="상품명"></td><td><input type="number" id="prop_p_min" placeholder="15"></td><td><input type="number" id="prop_p_max" placeholder="70"></td><td><input type="text" id="prop_p_note" placeholder="메모"></td><td><button class="act small" onclick="propAddProduct()">추가</button></td></tr>
+      </tbody></table></div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">연령은 보험나이 기준으로 입력하세요. 비워두면 제한 없음으로 봅니다.</div></div>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);"><div style="font-weight:700;margin-bottom:6px;">참고 자료 (광고 이미지·PDF, 5MB 이하)</div>
+      ${files.map(f => `<div style="display:flex;gap:8px;align-items:center;padding:4px 0;"><span style="flex:1;">📎 <a href="#" onclick="propOpenFile(${f.id});return false;" style="color:var(--navy);">${escapeHtml(f.memo || f.file_name)}</a></span><button class="danger small" onclick="propDeleteFile(${f.id})">삭제</button></div>`).join('') || '<div class="sub" style="margin:0 0 6px;">첨부된 자료가 없습니다.</div>'}
+      <div class="row"><div><input type="text" id="prop_f_memo" placeholder="자료 설명 (예: 10월 입원비 광고)"></div><div><input type="file" id="prop_f_file" accept="image/*,.pdf"></div><div style="flex:0 0 90px;"><button class="act small" onclick="propAddFile()">올리기</button></div></div>
+      <div style="font-size:11.5px;color:var(--muted);">올린 자료는 참고용으로 보관·열람만 되며, 내용이 자동으로 읽혀 멘트가 되지는 않습니다.</div></div>`;
+  } else if (!isCommon) h += `<div class="sub" style="margin:12px 0 0;">먼저 저장하면 연결 상품과 참고 자료를 추가할 수 있습니다.</div>`;
+  h += `</div>`;
+  el.innerHTML = h;
+}
+async function propAddProduct(){
+  const company = document.getElementById('prop_p_company').value.trim();
+  if (!company) { alert('회사를 입력해주세요.'); return; }
+  const num = id => { const v = document.getElementById(id).value; return v === '' ? null : (parseInt(v, 10) || 0); };
+  const row = { concept_id: propEditor.id, company: company, product_name: document.getElementById('prop_p_name').value.trim() || null,
+    age_min: num('prop_p_min'), age_max: num('prop_p_max'), note: document.getElementById('prop_p_note').value.trim() || null };
+  if (row.age_min != null && row.age_max != null && row.age_min > row.age_max) { alert('최소연령이 최대연령보다 클 수 없습니다.'); return; }
+  propSyncEditor();
+  const { data, error } = await sb.from('concept_products').insert([row]).select();
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  propProducts.push((data && data[0]) ? data[0] : row);
+  propRenderEditor(); propRenderConceptList();
+}
+async function propDeleteProduct(id){
+  if (!confirm('이 상품을 삭제할까요?')) return;
+  const { error } = await sb.from('concept_products').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  propProducts = propProducts.filter(p => p.id !== id);
+  propSyncEditor(); propRenderEditor(); propRenderConceptList();
+}
+async function propAddFile(){
+  const f = document.getElementById('prop_f_file').files[0];
+  if (!f) { alert('파일을 선택해주세요.'); return; }
+  if (f.size > 5 * 1024 * 1024) { alert('파일 용량이 너무 큽니다 (5MB 이하로 올려주세요).'); return; }
+  const data = await readImageAsBase64(f);
+  const row = { concept_id: propEditor.id, file_name: f.name, file_type: f.type, file_data: data, memo: document.getElementById('prop_f_memo').value.trim() || null };
+  propSyncEditor();
+  const { data: ins, error } = await sb.from('concept_files').insert([row]).select('id,concept_id,file_name,file_type,memo,uploaded_at');
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  propFiles.push((ins && ins[0]) ? ins[0] : { id: -1, concept_id: row.concept_id, file_name: row.file_name, memo: row.memo });
+  propRenderEditor(); propRenderConceptList();
+}
+async function propDeleteFile(id){
+  if (!confirm('이 자료를 삭제할까요?')) return;
+  const { error } = await sb.from('concept_files').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  propFiles = propFiles.filter(f => f.id !== id);
+  propSyncEditor(); propRenderEditor(); propRenderConceptList();
 }
 
 /* ============================================================
