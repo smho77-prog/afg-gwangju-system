@@ -2473,10 +2473,10 @@ const MON_CODE_ITEMS = [
   { label: '도입 반론 극복 (반론이 있었던 콜 중)', den: f => f[8] !== '없음', num: f => f[10] === '극복' },
   { label: '병력 질문 전에 이유를 말함', den: f => f[11] !== '해당없음', num: f => f[11] === '예' },
   { label: '30초 이상 일방 설명 있음 (낮을수록 좋음)', den: f => true, num: f => f[13] === '있음' },
-  { label: '고객이 자기 걱정을 말하게 끌어냄', den: f => true, num: f => f[14] === '끌어냄' },
+  { label: '고객이 자기 걱정을 말하게 끌어냄', den: f => true, num: f => f[14] === '끌어냄' || /^있음/.test(f[14]) },
   { label: '니즈를 숫자·시점으로 보여줌', den: f => f[15] !== '해당없음', num: f => f[15] === '예' },
   { label: '선택형 클로징', den: f => f[16] !== '해당없음', num: f => f[16] === '선택형' },
-  { label: '다음 행동 확정 (청약진행·시각확정)', den: f => true, num: f => f[17] === '청약진행' || f[17] === '시각확정' }
+  { label: '다음 행동 확정 (청약진행·시각확정)', den: f => true, num: f => f[17] === '청약진행' || f[17] === '시각확정' || f[17] === '시각까지' }
 ];
 const MON_METRICS = [
   { key: 'low', label: '3회 미만 터치율', unit: '%', val: a => a.total ? a.low / a.total * 100 : null },
@@ -2826,9 +2826,22 @@ async function monMarkChecked(code, pickKey){
   monChecks = monChecks.filter(c => c.customer_code !== code).concat([row]);
   monRenderPick();
 }
+let monManualSeq = 0;
 function monParseCode(line){
   const t = line.trim();
-  if (!t || t.indexOf('CODE|') < 0) return null;
+  if (!t) return null;
+  /* 프로젝트 대화창 "코딩" 모드 결과: 탭으로 구분된 16칸 (팀장 | DB유형 | 결과 | 도달단계 | 이탈지점 | 도입반론유형 | 도입반론대응 | 도입반론결과 | 병력이유 | 질문수 | 최장독백 | 고객걱정 | 숫자니즈 | 클로징형태 | 다음행동 | 근거발화) */
+  if (t.indexOf('CODE|') < 0 && t.indexOf('\t') >= 0) {
+    const g = t.split('\t').map(x => x.replace(/\|/g, '/').trim());
+    while (g.length > 16 && g[g.length - 1] === '') g.pop();
+    if (g.length !== 16) return { err: `탭으로 나뉜 칸이 ${g.length}개 (16개여야 함): ${t.slice(0, 30)}` };
+    const res = g[2] === '체결' ? '체결' : '미체결';
+    const ym = monToday().slice(0, 7);
+    const id = 'M' + monToday().replace(/-/g, '') + '-' + Date.now().toString(36) + (monManualSeq++);
+    const f = ['CODE', 'v1', id, ym, g[0], g[1], res, g[3], g[5], g[6], g[7], g[8], g[9], g[10], g[11], g[12], g[13], g[14], g[15]];
+    return { f: f, line: f.join('|') };
+  }
+  if (t.indexOf('CODE|') < 0) return null;
   if (t.indexOf('CODE|v1|') !== 0) return { err: 'CODE|v1| 로 시작하지 않음: ' + t.slice(0, 40) };
   const f = t.split('|');
   if (f.length !== 19) return { err: `칸이 ${f.length}개 (19개여야 함): ${t.slice(0, 40)}` };
@@ -2846,7 +2859,7 @@ async function monSaveCodes(){
     const old = monChecks.find(c => c.customer_code === code);
     rows.push({ customer_code: code, manager_name: p.f[4] || null, db_type: p.f[5] || null, pick_type: old ? (old.pick_type || null) : null, result: p.f[6] || null, code_line: p.line, checked_at: new Date().toISOString() });
   });
-  if (!rows.length) { msg.style.color = 'var(--red)'; msg.textContent = errs.length ? '저장할 수 있는 줄이 없습니다. ' + errs[0] : '붙여넣은 내용에서 CODE 줄을 찾지 못했습니다.'; return; }
+  if (!rows.length) { msg.style.color = 'var(--red)'; msg.textContent = errs.length ? '저장할 수 있는 줄이 없습니다. ' + errs[0] : '붙여넣은 내용에서 코딩 줄을 찾지 못했습니다. (CODE|v1|… 줄 또는 프로젝트 코딩 모드의 한 줄을 그대로 붙여넣어주세요)'; return; }
   const seen = {}; rows.forEach(r => { seen[r.customer_code] = r; });
   const uniq = Object.keys(seen).map(k => seen[k]);
   const { error } = await sb.from('call_checks').upsert(uniq, { onConflict: 'customer_code' });
