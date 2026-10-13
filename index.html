@@ -1442,12 +1442,13 @@
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;" id="db_subtabs">
       <button class="act small" data-v="dash" onclick="dbSetView('dash')">📊 현황판</button>
       <button class="secondary small" data-v="leak" onclick="dbSetView('leak')">🚨 누수 목록 <span id="db_leakBadge"></span></button>
-      <button class="secondary small" data-v="list" onclick="dbSetView('list')">📋 고객 목록</button>
+      <button class="secondary small" data-v="list" id="db_listBtn" onclick="dbSetView('list')">📋 고객 목록</button>
       <button class="secondary small" data-v="upload" onclick="dbSetView('upload')">📥 엑셀 업로드</button>
       <button class="secondary small" data-v="add" onclick="dbSetView('add')">✍️ 수기 등록</button>
     </div>
     <div class="sub" style="margin:10px 0 0;">
-      <b>누수 기준</b> — 상담거절·계약완료는 종결 건으로 보고 제외합니다. 진행 건 중 ① 터치 <span id="db_cfgMin">3</span>회 미만(분배 <span id="db_cfgGrace">1</span>일 경과) ② 상담예약일이 지났는데 그 이후 터치가 없음 ③ 재터치 지연(부재 <span id="db_cfgAbs">3</span>일 / 가망고객·단순통화 <span id="db_cfgPro">7</span>일 이상 무터치)
+      <b>이 탭의 목적</b> — ① 터치 <span id="db_cfgMin">3</span>회 미만 DB를 줄이기(분배 <span id="db_cfgGrace">1</span>일 경과) ② 상담예약·가망고객을 재터치하지 못하고 놓치지 않기(예약일이 지났는데 터치가 없음 / 가망고객 <span id="db_cfgPro">7</span>일 이상 무터치).
+      이 두 가지에 해당하지 않는 건(터치 <span id="db_cfgMin2">3</span>회 이상 등)과 상담거절·계약완료 건은 표시하지 않습니다.
     </div>
   </div>
 
@@ -1474,6 +1475,14 @@
 
   <div id="db_viewLeak" style="display:none;">
     <div class="card">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;">
+        <label style="margin:0;">보기</label>
+        <select id="db_fReason" style="width:auto;" onchange="dbRender()">
+          <option value="__all__">전체</option>
+          <option value="low">터치 3회 미만</option>
+          <option value="follow">상담예약·가망고객 재터치 필요</option>
+        </select>
+      </div>
       <div id="db_leakSummary" style="font-size:13px;margin-bottom:8px;"></div>
       <div style="overflow-x:auto;"><table style="min-width:760px;">
         <colgroup><col style="width:9%"><col style="width:14%"><col style="width:15%"><col style="width:10%"><col style="width:7%"><col style="width:13%"><col style="width:22%"><col style="width:10%"></colgroup>
@@ -1761,7 +1770,7 @@ function switchTab(name) {
 ============================================================ */
 const DB_STATUSES = ['부재','가망고객','상담예약','단순통화','상담거절','계약완료'];
 const DB_CLOSED = ['상담거절','계약완료'];
-const DB_CFG = { minTouch: 3, graceDays: 1, absentDays: 3, prospectDays: 7, simpleDays: 7 };
+const DB_CFG = { minTouch: 3, graceDays: 1, prospectDays: 7 };
 const DB_SQL = `create table if not exists db_customers (
   id bigint generated always as identity primary key,
   customer_code text not null unique,
@@ -1827,7 +1836,11 @@ async function loadDbCustomers(){
   }
 }
 
-/* 한 건의 누수 여부 판정 (종결 건은 항상 제외) */
+/* 한 건의 누수 여부 판정 — 목적 두 가지만 본다 (종결 건은 항상 제외)
+   ① low    : 터치 3회 미만 (분배 1일 경과)
+   ② resv   : 상담예약일이 지났는데 그 이후 터치 없음
+   ③ retouch: 상담예약·가망고객인데 7일 이상 무터치
+   부재·단순통화 등은 터치가 3회 이상이면 표시하지 않는다. */
 function dbAnalyze(r, now){
   const status = r.status || '';
   if (DB_CLOSED.indexOf(status) >= 0) return { closed: true, reasons: [], touches: Number(r.touch_count)||0, lastT: dbTs(r.last_touch_at) };
@@ -1851,9 +1864,8 @@ function dbAnalyze(r, now){
         reasons.push({ code: 'resv', label: `예약일 경과·무터치 (${dbFmt(ra)})` });
       }
     }
-  } else {
-    const lim = status === '부재' ? DB_CFG.absentDays : (status === '단순통화' ? DB_CFG.simpleDays : DB_CFG.prospectDays);
-    if (sinceTouch >= lim) reasons.push({ code: 'retouch', label: `재터치 지연 (${Math.floor(sinceTouch)}일 무터치)` });
+  } else if (status === '가망고객') {
+    if (sinceTouch >= DB_CFG.prospectDays) reasons.push({ code: 'retouch', label: `재터치 지연 (${Math.floor(sinceTouch)}일 무터치)` });
   }
   return { closed: false, reasons: reasons, touches: touches, lastT: lastT, sinceTouch: sinceTouch };
 }
@@ -1881,6 +1893,7 @@ function dbRefreshFilters(){
   dbFillSelect('db_fMonth', dbRows.map(r => dbMonthOf(r.distributed_at)).sort().reverse(), '전체');
   dbFillSelect('db_fType', dbRows.map(r => r.db_type || '').sort(), '전체');
   document.getElementById('db_mgrWrap').style.display = currentUser.role === 'master' ? '' : 'none';
+  document.getElementById('db_listBtn').style.display = currentUser.role === 'master' ? '' : 'none';
   document.getElementById('db_mgrList').innerHTML = Array.from(new Set(mgrs)).map(n => `<option value="${escAttr(n)}">`).join('');
   const sSel = document.getElementById('db_fStatus');
   if (sSel.options.length <= 1) sSel.innerHTML = '<option value="__all__">전체 상태</option>' + DB_STATUSES.map(s => `<option value="${s}">${s}</option>`).join('');
@@ -1891,7 +1904,7 @@ function dbRefreshFilters(){
 async function dbOpenTab(){
   document.getElementById('db_cfgMin').textContent = DB_CFG.minTouch;
   document.getElementById('db_cfgGrace').textContent = DB_CFG.graceDays;
-  document.getElementById('db_cfgAbs').textContent = DB_CFG.absentDays;
+  document.getElementById('db_cfgMin2').textContent = DB_CFG.minTouch;
   document.getElementById('db_cfgPro').textContent = DB_CFG.prospectDays;
   const a = document.getElementById('db_a_mgr');
   if (a && currentUser && currentUser.role !== 'master') { a.value = currentUser.manager_name; a.readOnly = true; a.style.background = '#EFEDE6'; }
@@ -1905,6 +1918,7 @@ async function dbOpenTab(){
 async function dbReload(){ await dbOpenTab(); }
 
 function dbSetView(v){
+  if (v === 'list' && !(currentUser && currentUser.role === 'master')) v = 'dash';
   dbView = v;
   document.querySelectorAll('#db_subtabs button').forEach(b => {
     const on = b.dataset.v === v;
@@ -1944,18 +1958,17 @@ function dbCopySql(){
   catch(e) { alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.'); }
 }
 
-/* ---------- 현황판 ---------- */
+/* ---------- 현황판 (3회 미만 터치 / 상담예약·가망 재터치 두 가지만) ---------- */
 function dbAgg(rows, now){
-  const a = { total: rows.length, active: 0, refuse: 0, done: 0, leak: 0, low: 0, resv: 0, retouch: 0, touchSum: 0 };
+  const a = { total: rows.length, active: 0, low: 0, resv: 0, retouch: 0, follow: 0, leak: 0 };
   rows.forEach(r => {
     const x = dbAnalyze(r, now);
-    if (r.status === '상담거절') a.refuse++;
-    else if (r.status === '계약완료') a.done++;
     if (x.closed) return;
     a.active++;
-    a.touchSum += x.touches;
     if (x.reasons.length) a.leak++;
-    x.reasons.forEach(s => { a[s.code]++; });
+    let f = false;
+    x.reasons.forEach(s => { a[s.code]++; if (s.code !== 'low') f = true; });
+    if (f) a.follow++;
   });
   return a;
 }
@@ -1964,14 +1977,11 @@ function dbRenderDash(rows, now){
   const el = document.getElementById('db_viewDash');
   if (!rows.length) { el.innerHTML = `<div class="card"><div class="sub" style="margin:0;">${dbLoaded ? '표시할 DB가 없습니다. “엑셀 업로드” 또는 “수기 등록”으로 먼저 등록해주세요.' : '아직 불러온 데이터가 없습니다.'}</div></div>`; return; }
   const t = dbAgg(rows, now);
-  const kpi = (label, val, sub, color) => `<div style="flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:11.5px;color:var(--muted);">${label}</div><div style="font-size:22px;font-weight:800;color:${color||'var(--ink)'};">${val}</div><div style="font-size:11px;color:var(--muted);">${sub||''}</div></div>`;
+  const kpi = (label, val, sub, color) => `<div style="flex:1;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:11.5px;color:var(--muted);">${label}</div><div style="font-size:22px;font-weight:800;color:${color||'var(--ink)'};">${val}</div><div style="font-size:11px;color:var(--muted);">${sub||''}</div></div>`;
   let html = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">` +
-    kpi('총 분배', t.total.toLocaleString('ko-KR') + '건', '') +
-    kpi('진행 중', t.active.toLocaleString('ko-KR') + '건', '거절·계약완료 제외') +
-    kpi('🚨 누수', t.leak.toLocaleString('ko-KR') + '건', `진행 중의 ${dbPct(t.leak, t.active)}`, t.leak ? 'var(--red)' : 'var(--green)') +
+    kpi('분배된 DB', t.total.toLocaleString('ko-KR') + '건', '') +
     kpi('3회 미만 터치율', dbPct(t.low, t.total), `분배 ${t.total}건 중 ${t.low}건`, t.low ? 'var(--amber)' : 'var(--green)') +
-    kpi('상담거절', t.refuse.toLocaleString('ko-KR') + '건', '종결(더 이상 터치 안 함)') +
-    kpi('계약완료', t.done.toLocaleString('ko-KR') + '건', `계약완료율 ${dbPct(t.done, t.total)}`, 'var(--green)') + `</div>`;
+    kpi('상담예약·가망 재터치 필요', t.follow.toLocaleString('ko-KR') + '건', `예약일 경과 ${t.resv} · 재터치 지연 ${t.retouch}`, t.follow ? 'var(--red)' : 'var(--green)') + `</div>`;
 
   const groupTable = (title, keyFn, clickable) => {
     const map = {};
@@ -1980,19 +1990,17 @@ function dbRenderDash(rows, now){
     const body = keys.map(k => {
       const g = dbAgg(map[k], now);
       const nm = clickable ? `<a href="#" style="color:var(--navy);font-weight:700;" onclick="dbPickManager('${escAttr(k).replace(/'/g,"\\'")}');return false;">${escapeHtml(k)}</a>` : escapeHtml(k);
-      return `<tr><td>${nm}</td><td>${g.total}</td><td>${g.active}</td><td>${g.refuse}</td><td>${g.done}</td>
-        <td style="font-weight:700;color:${g.leak ? 'var(--red)' : 'var(--green)'};">${g.leak}</td>
+      return `<tr><td>${nm}</td><td>${g.total}</td>
         <td style="font-weight:700;color:${g.low ? 'var(--amber)' : 'var(--green)'};">${dbPct(g.low, g.total)}<div style="font-size:11px;font-weight:400;color:var(--muted);">${g.low}건 / 분배 ${g.total}건</div></td>
-        <td style="font-size:11.5px;color:var(--muted);">${g.low} / ${g.resv} / ${g.retouch}</td>
-        <td>${g.active ? (g.touchSum / g.active).toFixed(1) : '-'}</td><td>${dbPct(g.done, g.total)}</td></tr>`;
+        <td style="font-weight:700;color:${g.follow ? 'var(--red)' : 'var(--green)'};">${g.follow}건<div style="font-size:11px;font-weight:400;color:var(--muted);">예약경과 ${g.resv} · 재터치지연 ${g.retouch}</div></td></tr>`;
     }).join('');
-    return `<div class="card"><div style="font-weight:700;margin-bottom:6px;">${title}</div><div style="overflow-x:auto;"><table style="min-width:760px;">
-      <thead><tr><th style="width:12%">구분</th><th>분배</th><th>진행</th><th>거절</th><th>계약</th><th>누수</th><th style="width:13%">3회 미만<br>터치율</th><th style="width:13%">터치부족/예약경과/재터치</th><th>평균터치<br><span style="font-weight:400">(진행건)</span></th><th>계약완료율</th></tr></thead>
+    return `<div class="card"><div style="font-weight:700;margin-bottom:6px;">${title}</div><div style="overflow-x:auto;"><table style="min-width:520px;">
+      <thead><tr><th style="width:24%">구분</th><th style="width:14%">분배</th><th style="width:31%">3회 미만 터치율</th><th style="width:31%">상담예약·가망 재터치 필요</th></tr></thead>
       <tbody>${body}</tbody></table></div></div>`;
   };
   if (currentUser.role === 'master') html += groupTable('팀장별 현황 (이름을 누르면 해당 팀장 누수 목록)', r => r.manager_name, true);
   html += groupTable('DB유형별 현황', r => r.db_type, false);
-  html += `<div class="sub" style="margin:0;">3회 미만 터치율 = 분배된 전체 DB 중, 진행 중(거절·계약완료 제외)이면서 터치가 3회 미만인 고객의 비율입니다(분배 1일 경과분). 분모가 분배 전체라서 거절이 많아도 팀장님 간 비교가 공정합니다. 누수 건수는 한 고객이 여러 사유에 해당해도 1건으로 셉니다. 오른쪽의 터치부족/예약경과/재터치 숫자는 사유별 합계라 누수 건수보다 클 수 있습니다.</div>`;
+  html += `<div class="sub" style="margin:0;">3회 미만 터치율 = 분배된 전체 DB 중, 진행 중(거절·계약완료 제외)이면서 터치가 3회 미만인 고객의 비율입니다(분배 1일 경과분). 상담예약·가망 재터치 필요 = 예약일이 지났는데 터치가 없거나, 상담예약·가망고객인데 7일 이상 터치하지 않은 건입니다.</div>`;
   el.innerHTML = html;
 }
 function dbPickManager(name){
@@ -2029,15 +2037,21 @@ function dbRowHtml(r, mode, now){
 
 /* ---------- 누수 목록 ---------- */
 function dbRenderLeak(rows, now){
-  const list = [];
-  rows.forEach(r => { const x = dbAnalyze(r, now); if (x.reasons.length) list.push({ r: r, x: x }); });
-  list.sort((a, b) => (b.x.reasons.length - a.x.reasons.length) || ((b.x.sinceTouch || 0) - (a.x.sinceTouch || 0)));
-  const LIM = 300;
+  const all = [];
+  rows.forEach(r => { const x = dbAnalyze(r, now); if (x.reasons.length) all.push({ r: r, x: x }); });
+  all.sort((a, b) => (b.x.reasons.length - a.x.reasons.length) || ((b.x.sinceTouch || 0) - (a.x.sinceTouch || 0)));
   const cnt = { low: 0, resv: 0, retouch: 0 };
-  list.forEach(o => o.x.reasons.forEach(s => cnt[s.code]++));
-  document.getElementById('db_leakSummary').innerHTML = list.length
-    ? `🚨 누수 <b style="color:var(--red);">${list.length}건</b> — 터치부족 ${cnt.low} · 예약일경과 ${cnt.resv} · 재터치지연 ${cnt.retouch}${list.length > LIM ? ` <span style="color:var(--muted);">(상위 ${LIM}건만 표시)</span>` : ''}`
-    : '✅ 현재 조건에 해당하는 누수 건이 없습니다.';
+  all.forEach(o => o.x.reasons.forEach(s => cnt[s.code]++));
+  const rs = (document.getElementById('db_fReason') || {}).value || '__all__';
+  const list = rs === 'low' ? all.filter(o => o.x.reasons.some(s => s.code === 'low'))
+             : rs === 'follow' ? all.filter(o => o.x.reasons.some(s => s.code !== 'low'))
+             : all;
+  const LIM = 300;
+  document.getElementById('db_leakSummary').innerHTML = all.length
+    ? `🚨 터치가 필요한 건 <b style="color:var(--red);">${all.length}건</b> — 터치 3회 미만 ${cnt.low} · 예약일 경과 ${cnt.resv} · 재터치 지연 ${cnt.retouch}` +
+      (rs !== '__all__' ? ` <span style="color:var(--muted);">(현재 ${list.length}건 표시)</span>` : '') +
+      (list.length > LIM ? ` <span style="color:var(--muted);">(상위 ${LIM}건만 표시)</span>` : '')
+    : '✅ 현재 조건에 해당하는 건이 없습니다.';
   document.getElementById('db_leakBody').innerHTML = list.slice(0, LIM).map(o => dbRowHtml(o.r, 'leak', now)).join('');
 }
 
