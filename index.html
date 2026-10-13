@@ -873,12 +873,13 @@
   <div class="card" style="padding:14px 18px;">
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;" id="mon_subtabs">
       <button class="act small" data-v="status" onclick="monSetView('status')">📊 현황·병목</button>
+      <button class="secondary small" data-v="mgr" onclick="monSetView('mgr')">👤 팀장별 분석</button>
       <button class="secondary small" data-v="pick" onclick="monSetView('pick')">🎧 점검 콜·코딩</button>
       <button class="secondary small" data-v="daily" onclick="monSetView('daily')">✏️ 일일 입력</button>
       <button class="secondary small" data-v="impact" onclick="monSetView('impact')">🔗 콜시간·가망→실적</button>
       <button class="secondary small" data-v="trend" onclick="monSetView('trend')">📈 추이</button>
     </div>
-    <div class="sub" style="margin:10px 0 0;">DB관리에 올린 엑셀을 기준으로 팀장별 DB 활용·병목을 보고, 점검할 콜을 뽑아 코딩하고, 매일 콜시간·가망고객 발굴을 입력해 실적과의 관계와 주간 추이를 봅니다. (마스터 전용 · 신규/카카오페이 DB 제외)</div>
+    <div class="sub" style="margin:10px 0 0;">DB관리에 올린 엑셀을 기준으로 팀장별 DB 활용·병목을 보고(팀장 한 명을 골라 분석·코칭도 가능), 점검할 콜을 뽑아 코딩하고, 매일 콜시간·가망고객 발굴을 입력해 실적과의 관계와 주간 추이를 봅니다. (마스터 전용 · 신규/카카오페이 DB 제외)</div>
   </div>
 
   <div id="mon_setupBox" class="card" style="display:none;border-color:var(--amber);background:var(--amber-bg);">
@@ -906,6 +907,7 @@
   </div>
 
   <div id="mon_viewStatus"></div>
+  <div id="mon_viewMgr" style="display:none;"></div>
   <div id="mon_viewPick" style="display:none;"></div>
   <div id="mon_viewDaily" style="display:none;"></div>
   <div id="mon_viewImpact" style="display:none;"></div>
@@ -2678,18 +2680,19 @@ function monRender(){
     document.getElementById('mon_sqlText').textContent = MON_SQL;
   }
   document.querySelectorAll('#mon_subtabs button').forEach(b => { b.className = (b.dataset.v === monView ? 'act' : 'secondary') + ' small'; });
-  ['status', 'pick', 'daily', 'impact', 'trend'].forEach(k => {
+  ['status', 'mgr', 'pick', 'daily', 'impact', 'trend'].forEach(k => {
     const el = document.getElementById('mon_view' + k.charAt(0).toUpperCase() + k.slice(1));
     if (el) el.style.display = (k === monView) ? '' : 'none';
   });
   document.getElementById('mon_filterCard').style.display = monView === 'daily' ? 'none' : '';
-  document.getElementById('mon_rangeWrap').style.display = monView === 'status' ? '' : 'none';
+  document.getElementById('mon_rangeWrap').style.display = (monView === 'status' || monView === 'mgr') ? '' : 'none';
   monRenderMgrChecks();
   const tracked = dbRows.filter(dbTracked).length;
   document.getElementById('mon_loadInfo').textContent = dbLoaded
     ? `DB ${dbRows.length.toLocaleString('ko-KR')}건 불러옴 (${DB_EXCLUDE_TYPES.join('·')} 제외 ${tracked.toLocaleString('ko-KR')}건)`
     : '';
   if (monView === 'status') monRenderStatus();
+  if (monView === 'mgr') monRenderMgr();
   if (monView === 'pick') monRenderPick();
   if (monView === 'daily') monRenderDaily();
   if (monView === 'impact') monRenderImpact();
@@ -2729,7 +2732,7 @@ function monRenderStatus(){
   const body = list.map(x => {
     const m = x.m, a = m.a;
     const diag = monDiag(m, med).map(t => monTag(t[0], t[1])).join('');
-    return `<tr><td><b>${escapeHtml(x.n)}</b></td><td>${a.total}</td><td>${m.avg === null ? '-' : m.avg.toFixed(1)}</td>
+    return `<tr><td><b class="mon-mgrlink" style="cursor:pointer;border-bottom:1px dotted var(--muted);" title="팀장별 분석 보기" data-n="${escAttr(x.n)}" onclick="monGoMgr(this.dataset.n)">${escapeHtml(x.n)}</b></td><td>${a.total}</td><td>${m.avg === null ? '-' : m.avg.toFixed(1)}</td>
       <td>${f1(m.low)}<div style="font-size:11px;color:var(--muted);">${a.low}/${a.total}</div></td>
       <td>${f1(m.want)}<div style="font-size:11px;color:var(--muted);">${a.prospect + a.done}/${a.total}</div></td>
       <td>${f1(m.refuse)}<div style="font-size:11px;color:var(--muted);">${a.refuse}/${a.total}</div></td>
@@ -2742,6 +2745,7 @@ function monRenderStatus(){
     <tbody>${body}${medRow}</tbody></table></div>
     <div class="sub" style="margin:8px 0 0;">
       <b>진단 기준</b> (팀 중앙값과 비교, ${MON_CFG.diffPP}%p 이상 차이, 분배 ${MON_CFG.minN}건 이상일 때만): ① 3회 미만 터치율이 높으면 <b>터치 부족</b> ② 터치는 충분한데 가망화율이 낮으면 <b>도입·상담 점검</b> ③ 가망화율은 괜찮은데 계약전환이 낮으면 <b>클로징 점검</b>.<br>
+      팀장 이름을 누르면 그 팀장님의 <b>팀장별 분석</b>으로 이동합니다.<br>
       진단은 "어느 팀장님 콜을 먼저 들어볼지" 정하는 단서일 뿐 원인 판정이 아닙니다. 상담상태는 팀장님이 직접 입력하는 값이고, 최근 분배분은 아직 터치할 시간이 적어 수치가 낮게 보일 수 있습니다.
     </div></div>`;
 
@@ -2800,7 +2804,7 @@ function monRenderPick(){
     const body = picks.map(o => {
       const r = o.r, last = dbTs(r.last_status_at) || dbTs(r.last_touch_at);
       const phone4 = String(r.phone || '').slice(-4);
-      return `<tr><td><b>${escapeHtml(o.m)}</b></td>
+      return `<tr><td><b class="mon-mgrlink" style="cursor:pointer;border-bottom:1px dotted var(--muted);" title="팀장별 분석 보기" data-n="${escAttr(o.m)}" onclick="monGoMgr(this.dataset.n)">${escapeHtml(o.m)}</b></td>
         <td>${monTag(o.p.label, o.p.key === 'won' ? 'green' : 'red')}<div style="font-size:11px;color:var(--muted);">${escapeHtml(o.p.desc)}</div></td>
         <td>${escapeHtml(r.db_type || '-')}<div style="font-size:11px;color:var(--muted);">${escapeHtml(r.consult_type || '')}</div></td>
         <td><b>${escapeHtml(r.customer_name || '-')}</b><div style="font-size:11px;color:var(--muted);">연락처 끝 ${escapeHtml(phone4)}</div></td>
@@ -3258,6 +3262,379 @@ function monRenderTrend(){
     <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:12px;">${series.map(s => `<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${s.color};margin-right:4px;"></span>${escapeHtml(s.name)}</span>`).join('')}</div></div>`;
   html += `<div class="card"><div style="overflow-x:auto;"><table style="min-width:${Math.max(420, 100 + dates.length * 70)}px;"><thead><tr><th>팀장</th>${dates.map(d => `<th style="font-size:11.5px;">${escapeHtml(d.slice(5))}</th>`).join('')}</tr></thead><tbody>` +
     series.slice().reverse().map(s => `<tr${s.team ? ' style="background:#F7F5EF;font-weight:700;"' : ''}><td>${escapeHtml(s.name)}</td>${s.vals.map(v => `<td>${f(v)}</td>`).join('')}</tr>`).join('') + `</tbody></table></div></div>`;
+  el.innerHTML = html;
+}
+
+/* ============================================================
+   6) 팀장별 분석 — 팀장 한 명을 골라 숫자·활동량·코딩을 보고 코칭 메모를 만든다
+   · DB 구조 변경 없음 (db_customers / call_checks / daily_activity / daily_prospects 그대로 사용)
+   · 코칭 문구는 전부 미리 준비한 규칙 기반(오프라인)이다. Claude API를 부르지 않는다.
+============================================================ */
+let monMgr = '', monMgrType = '__all__', monMgrMemoText = '';
+const MON_MGR_KPI = [
+  { key: 'avg', label: '평균 터치', better: 'high', pct: false },
+  { key: 'low', label: '3회 미만 터치율', better: 'low', pct: true },
+  { key: 'want', label: '가망화율', better: 'high', pct: true },
+  { key: 'refuse', label: '거절율', better: 'low', pct: true },
+  { key: 'conv', label: '계약전환', better: 'high', pct: true }
+];
+/* MON_CODE_ITEMS 와 같은 순서(0~6). prio 가 클수록 먼저 짚는다. lowGood=true 는 "있음"이 나쁜 항목 */
+const MON_COACH = [
+  { short: '도입 반론 극복', ev: '반론을 극복한 비율', prio: 5, lowGood: false,
+    change: '반론이 나오면 바로 설명으로 들어가지 말고 ① 먼저 받아주고 ② 고객이 신청한 이유로 되돌린 뒤 ③ 질문 하나로 대화를 고객 쪽으로 넘겨 보세요.',
+    sample: '"맞아요, 그 부분은 걱정되실 수 있어요. 그런데 이번에 신청하신 건 받을 수 있는 보장을 찾아보시려는 거였잖아요. 지금 제일 궁금하신 게 어느 쪽이세요?"' },
+  { short: '병력 질문 전 이유 말하기', ev: '병력 이유를 먼저 말한 비율', prio: 1, lowGood: false,
+    change: '병력을 묻기 직전에 "왜 묻는지" 한 문장을 먼저 말하면 고객이 방어하지 않고 답하기 쉬워져요.',
+    sample: '"병력에 따라 보험료가 달라져서요, 몇 가지만 편하게 여쭤볼게요."' },
+  { short: '일방 설명 줄이기', ev: '30초 이상 일방 설명이 있었던 비율', prio: 2, lowGood: true,
+    change: '30초 넘게 이어 말하는 구간 중간에 확인 질문을 하나 넣어서, 고객이 말할 틈을 만들어 보세요.',
+    sample: '"여기까지 괜찮으세요? 지금 내고 계신 보험료 중에 제일 부담되는 게 어느 쪽이세요?"' },
+  { short: '고객 걱정 끌어내기', ev: '고객 걱정을 끌어낸 비율', prio: 4, lowGood: false,
+    change: '분석 내용을 말하기 전에 고객이 직접 걱정을 말하게 하는 질문을 먼저 하고, 고객이 쓴 표현 그대로 받아서 이어가 보세요.',
+    sample: '"지금 가입하신 보험 중에 제일 마음에 걸리는 게 뭐예요?"' },
+  { short: '니즈를 숫자·시점으로 보여주기', ev: '숫자·시점으로 보여준 비율', prio: 3, lowGood: false,
+    change: '"나중에 오른다" 같은 막연한 표현 대신, 그 고객 증권 기준의 시점과 금액을 넣어 말해 보세요. (숫자는 반드시 실제 분석표 기준)',
+    sample: '"○○세 갱신 때 월 ○○원이 ○○원으로 바뀌는 구조예요." (○는 고객 증권 기준 실제 숫자)' },
+  { short: '선택형 클로징', ev: '선택형으로 클로징한 비율', prio: 6, lowGood: false,
+    change: '"고민해보시겠어요?"처럼 예/아니오로 답하는 질문은 고객이 빠져나갈 틈이 돼요. 전진 선언 뒤에 둘 중 하나를 고르는 질문으로 바꿔 보세요.',
+    sample: '"제가 비교표 만들어 보여드릴게요. 전체를 바꿀지 일부만 조정할지는 표 보시고 정하시죠."' },
+  { short: '다음 행동 확정', ev: '다음 행동을 확정한 비율', prio: 7, lowGood: false,
+    change: '끊기 전에 청약 진행이나 다음 통화 시각 중 하나는 꼭 확정하고 끝내 보세요. 고객이 말한 시각이 있으면 그대로 받아서 확정하면 됩니다.',
+    sample: '"그럼 제가 내일 12시에 분석표 정리해서 전화드릴게요."' }
+];
+
+function monF1(v){ return v === null || v === undefined || isNaN(v) ? '-' : (v * 100).toFixed(1) + '%'; }
+function monPctN(p){ return p === null ? '-' : p.toFixed(0) + '%'; }
+function monRangeVals(){
+  const f = document.getElementById('mon_from'), t = document.getElementById('mon_to');
+  return { from: f ? f.value : '', to: t ? t.value : '' };
+}
+function monMgrRowsOf(name, type){
+  const rg = monRangeVals();
+  return dbRows.filter(r => dbTracked(r) && r.manager_name === name && monInRange(r.distributed_at, rg.from, rg.to) && (type === '__all__' || (r.db_type || '(미분류)') === type));
+}
+/* 팀 기준선: 포함된 팀장 전체의 같은 기간·유형 집계와, 분배 minN건 이상 팀장들의 중앙값 */
+function monMgrBase(type, now){
+  const rg = monRangeVals();
+  const inc = new Set(monIncluded());
+  const rows = dbRows.filter(r => dbTracked(r) && inc.has(r.manager_name) && monInRange(r.distributed_at, rg.from, rg.to) && (type === '__all__' || (r.db_type || '(미분류)') === type));
+  const byM = {};
+  rows.forEach(r => { (byM[r.manager_name] = byM[r.manager_name] || []).push(r); });
+  const list = Object.keys(byM).map(n => ({ n: n, m: monRatios(monAgg(byM[n], now)) }));
+  const base = list.filter(x => x.m.a.total >= MON_CFG.minN);
+  const med = base.length >= 3 ? { low: monMedian(base.map(x => x.m.low)), want: monMedian(base.map(x => x.m.want)), conv: monMedian(base.map(x => x.m.conv)), refuse: monMedian(base.map(x => x.m.refuse)), avg: monMedian(base.map(x => x.m.avg)) } : null;
+  return { rows: rows, med: med, nBase: base.length, pooled: monRatios(monAgg(rows, now)) };
+}
+function monKpiVal(m, key){ return key === 'avg' ? m.avg : m[key]; }
+/* 팀 중앙값과 비교한 상태: better / worse / same / none */
+function monKpiState(k, v, mv){
+  if (v === null || mv === null || mv === undefined) return 'none';
+  const th = k.pct ? MON_CFG.diffPP / 100 : 0.5;
+  const d = v - mv;
+  if (Math.abs(d) <= th) return 'same';
+  const up = d > 0;
+  return (k.better === 'high') === up ? 'better' : 'worse';
+}
+function monKpiDiffText(k, v, mv){
+  if (v === null || mv === null || mv === undefined) return '';
+  const d = v - mv;
+  return k.pct ? (d >= 0 ? '+' : '') + (d * 100).toFixed(1) + '%p' : (d >= 0 ? '+' : '') + d.toFixed(1) + '회';
+}
+
+/* ----- 코딩 줄 도구 ----- */
+function monCodeRate(recs, i){
+  const it = MON_CODE_ITEMS[i];
+  const den = recs.filter(x => it.den(x.f)), num = den.filter(x => it.num(x.f));
+  return { n: den.length, k: num.length, p: den.length ? num.length / den.length * 100 : null };
+}
+/* 한 콜의 한 항목: good(잘함) / bad(아쉬움) / na(해당 없음) */
+function monCallState(f, i){
+  const it = MON_CODE_ITEMS[i];
+  if (!it.den(f)) return 'na';
+  const hit = !!it.num(f);
+  return MON_COACH[i].lowGood ? (hit ? 'bad' : 'good') : (hit ? 'good' : 'bad');
+}
+function monCallTagText(f, i){
+  const v = x => (x === undefined || x === null || String(x).trim() === '') ? '-' : String(x).trim();
+  if (i === 0) return v(f[8]) === '없음' ? '도입 반론 없음' : `도입 반론(${v(f[8])}) ${v(f[10])}`;
+  if (i === 1) return `병력 이유 ${v(f[11])}`;
+  if (i === 2) return `일방 설명 ${v(f[13])}`;
+  if (i === 3) return `고객 걱정 ${v(f[14])}`;
+  if (i === 4) return `숫자 니즈 ${v(f[15])}`;
+  if (i === 5) return `클로징 ${v(f[16])}`;
+  return `다음 행동 ${v(f[17])}`;
+}
+function monMgrRecs(name){
+  return monCodeRecords().filter(x => (x.c.manager_name || x.f[4]) === name);
+}
+/* 팀 전체 코딩에서 체결콜 vs 미체결콜 비교 (한 항목) */
+function monTeamEvidence(i){
+  const all = monCodeRecords();
+  const won = all.filter(x => x.f[6] === '체결'), lost = all.filter(x => x.f[6] === '미체결');
+  const a = monCodeRate(won, i), b = monCodeRate(lost, i);
+  if (!a.n || !b.n) return '';
+  const small = (won.length < MON_CFG.smallN || lost.length < MON_CFG.smallN);
+  return `팀 코딩 기준 ${MON_COACH[i].ev}: 체결콜 ${monPctN(a.p)}(${a.k}/${a.n}) · 미체결콜 ${monPctN(b.p)}(${b.k}/${b.n})` + (small ? ' — 건수가 적어 참고용' : '');
+}
+/* 이 팀장님 코딩에서 아쉬운 항목(아쉬운 비율 50% 이상)과 잘하는 항목(30% 이하, 2건 이상) */
+function monMgrCodeFindings(recs){
+  const weak = [], strong = [];
+  MON_CODE_ITEMS.forEach((it, i) => {
+    const r = monCodeRate(recs, i);
+    if (!r.n) return;
+    const miss = MON_COACH[i].lowGood ? r.k : (r.n - r.k);
+    const ratio = miss / r.n;
+    if (ratio >= 0.5) weak.push({ i: i, r: r, miss: miss });
+    else if (ratio <= 0.3 && r.n >= 2) strong.push({ i: i, r: r, miss: miss });
+  });
+  weak.sort((a, b) => MON_COACH[b.i].prio - MON_COACH[a.i].prio);
+  return { weak: weak, strong: strong };
+}
+function monMissText(w){
+  const c = MON_COACH[w.i];
+  return c.lowGood ? `코딩한 ${w.r.n}건 중 ${w.r.k}건에서 30초 이상 일방 설명이 있었어요` : `해당되는 ${w.r.n}건 중 ${w.miss}건에서 아쉬웠어요`;
+}
+
+/* ----- 코칭 만들기 ----- */
+function monBuildCoach(name, m, med, recs){
+  const pp = MON_CFG.diffPP / 100;
+  const nums = [], strengths = [];
+  if (med && m.a.total >= MON_CFG.minN) {
+    const lowHi = m.low > med.low + pp;
+    if (lowHi) nums.push({ title: '터치 횟수 늘리기', observe: `3회 미만 터치율 ${monF1(m.low)} (팀 중앙값 ${monF1(med.low)}) · 3회 미만 ${m.a.low}건`,
+      change: '분배 첫날 1회차 이후 부재 건은 2·3회차를 다른 시간대로 옮겨서 걸어 보세요. DB관리 탭의 "3회 미만" 목록을 하루 한 번 비우는 루틴이 가장 단순합니다.', sample: '', evidence: '', src: 'num' });
+    const wantLow = !lowHi && m.want !== null && med.want !== null && m.want < med.want - pp;
+    const refHi = m.refuse !== null && med.refuse !== null && m.refuse > med.refuse + pp;
+    if (wantLow || refHi) nums.push({ title: '첫 통화 도입 점검',
+      observe: [wantLow ? `가망화율 ${monF1(m.want)} (팀 중앙값 ${monF1(med.want)})` : '', refHi ? `거절율 ${monF1(m.refuse)} (팀 중앙값 ${monF1(med.refuse)})` : ''].filter(Boolean).join(' · '),
+      change: '터치는 충분한데 가망·예약으로 이어지는 비율이 낮거나 거절이 많다면 첫 통화 도입이 단서일 수 있어요. 설명으로 시작하기보다 질문 하나로 시작해 고객이 먼저 말하게 해 보세요. "점검 콜·코딩"에서 이 팀장님의 거절로 끝난 콜을 먼저 들어보면 확인할 수 있어요.',
+      sample: '"신청해주신 이유가 어떤 점이셨어요?"', evidence: '', src: 'num' });
+    if (m.want !== null && med.want !== null && m.want >= med.want - pp && m.conv !== null && med.conv !== null && m.conv < med.conv - pp) nums.push({ title: '클로징 점검',
+      observe: `가망·예약·계약 ${m.a.prospect + m.a.done}건 중 계약 ${m.a.done}건 → 계약전환 ${monF1(m.conv)} (팀 중앙값 ${monF1(med.conv)})`,
+      change: '가망·예약까지는 잘 만드는데 계약으로 넘어가는 비율이 낮아요. 가망·예약 건의 클로징 콜을 들어보고, 통화를 끝내기 전에 다음 행동(청약 진행 또는 정확한 통화 시각)을 확정하고 있는지 확인해 보세요.',
+      sample: '"그럼 제가 내일 12시에 분석표 정리해서 전화드릴게요."', evidence: '', src: 'num' });
+    if (m.low < med.low - pp) strengths.push(`3회 미만 터치율 ${monF1(m.low)} — 팀 중앙값(${monF1(med.low)})보다 낮아요`);
+    if (m.want !== null && med.want !== null && m.want > med.want + pp) strengths.push(`가망화율 ${monF1(m.want)} — 팀 중앙값(${monF1(med.want)})보다 높아요`);
+    if (m.conv !== null && med.conv !== null && m.conv > med.conv + pp) strengths.push(`계약전환 ${monF1(m.conv)} — 팀 중앙값(${monF1(med.conv)})보다 높아요`);
+    if (m.avg !== null && med.avg !== null && m.avg > med.avg + 0.5) strengths.push(`평균 터치 ${m.avg.toFixed(1)}회 — 팀 중앙값(${med.avg.toFixed(1)}회)보다 많이 터치해요`);
+  }
+  const fd = monMgrCodeFindings(recs);
+  const codes = fd.weak.map(w => ({ title: MON_COACH[w.i].short, observe: monMissText(w), change: MON_COACH[w.i].change, sample: MON_COACH[w.i].sample, evidence: monTeamEvidence(w.i), src: 'code', i: w.i }));
+  fd.strong.forEach(s => {
+    const c = MON_COACH[s.i];
+    strengths.push(c.lowGood ? `${c.short} — 코딩한 ${s.r.n}건 중 일방 설명은 ${s.r.k}건뿐이에요` : `${c.short} — 해당되는 ${s.r.n}건 중 ${s.r.k}건에서 잘했어요`);
+  });
+  const all = nums.concat(codes);
+  return { improves: all.slice(0, 3), more: all.slice(3), strengths: strengths.slice(0, 5), codeCount: recs.length };
+}
+
+function monMgrMemo(name, typeLabel, rangeText, m, med, co){
+  const L = [];
+  L.push(`[${name} 팀장님 콜 모니터링 피드백 · ${monToday()}]`);
+  L.push('');
+  L.push(`■ 숫자로 본 현황 (${rangeText} · ${typeLabel})`);
+  L.push(`- 분배 ${m.a.total}건 / 평균 터치 ${m.avg === null ? '-' : m.avg.toFixed(1) + '회'} / 3회 미만 터치율 ${monF1(m.low)}${med ? ` (팀 중앙값 ${monF1(med.low)})` : ''}`);
+  L.push(`- 가망화율 ${monF1(m.want)}${med ? ` (팀 ${monF1(med.want)})` : ''} / 거절율 ${monF1(m.refuse)}${med ? ` (팀 ${monF1(med.refuse)})` : ''} / 계약전환 ${monF1(m.conv)}${med ? ` (팀 ${monF1(med.conv)})` : ''}`);
+  L.push('');
+  if (co.strengths.length) {
+    L.push('■ 이미 잘하고 계신 것');
+    co.strengths.forEach(s => L.push('- ' + s));
+    L.push('');
+  }
+  if (co.improves.length) {
+    L.push('■ 이렇게 바꿔보면 도움이 될 것 같아요');
+    co.improves.forEach((x, i) => {
+      L.push(`${i + 1}) ${x.title}`);
+      L.push(`   · 지금: ${x.observe}`);
+      L.push(`   · 바꿔보기: ${x.change}`);
+      if (x.sample) L.push(`   · 예) ${x.sample}`);
+    });
+    L.push('');
+    const p = co.improves[0];
+    L.push('■ 이번 주 연습 한 가지');
+    L.push(`- ${p.title}${p.sample ? ' — ' + p.sample : ''}`);
+  } else {
+    L.push('■ 바꿔볼 점');
+    L.push('- 숫자와 코딩에서 팀 기준보다 눈에 띄게 아쉬운 항목이 아직 없어요. 점검 콜이 더 쌓이면 다시 보겠습니다.');
+  }
+  L.push('');
+  L.push('※ 상담상태는 직접 입력하는 값이고, 코딩이 적을 때는 참고용입니다. "콜을 이렇게 바꿔라"가 아니라 숫자에서 확인된 부분을 함께 보자는 취지예요.');
+  return L.join('\n');
+}
+
+/* ----- 화면 ----- */
+function monGoMgr(n){
+  monMgr = n; monMgrType = '__all__';
+  monSetView('mgr');
+  window.scrollTo(0, 0);
+}
+function monSetMgr(n){ monMgr = n; monMgrType = '__all__'; monRenderMgr(); }
+function monSetMgrType(t){ monMgrType = t; monRenderMgr(); }
+function monCopyMemo(btn){ monCopy(monMgrMemoText, btn); }
+
+function monRenderMgr(){
+  const el = document.getElementById('mon_viewMgr');
+  if (!el) return;
+  if (!dbLoaded) { el.innerHTML = monEmpty('DB 데이터를 불러오지 못했습니다. 위의 안내를 확인해주세요.'); return; }
+  const mgrs = monAllManagers();
+  if (!mgrs.length) { el.innerHTML = monEmpty('팀장님 목록이 없습니다. DB관리 탭에서 엑셀을 먼저 업로드해주세요.'); return; }
+  if (!monMgr || mgrs.indexOf(monMgr) < 0) monMgr = monIncluded()[0] || mgrs[0];
+  const name = monMgr, now = new Date();
+  const isExcl = monExcl.indexOf(name) >= 0;
+  const chips = mgrs.map(n => `<button class="${n === name ? 'act' : 'secondary'} small" data-n="${escAttr(n)}" onclick="monSetMgr(this.dataset.n)">${escapeHtml(n)}${monExcl.indexOf(n) >= 0 ? ' <span style="font-size:10.5px;opacity:.7;">(제외)</span>' : ''}</button>`).join(' ');
+  const allRows = monMgrRowsOf(name, '__all__');
+  const types = Array.from(new Set(allRows.map(r => r.db_type || '(미분류)'))).sort();
+  if (monMgrType !== '__all__' && types.indexOf(monMgrType) < 0) monMgrType = '__all__';
+  const typeBtns = ['__all__'].concat(types).map(t => `<button class="${t === monMgrType ? 'act' : 'secondary'} small" data-t="${escAttr(t)}" onclick="monSetMgrType(this.dataset.t)">${t === '__all__' ? '전체 DB' : escapeHtml(t)}</button>`).join(' ');
+  const typeLabel = monMgrType === '__all__' ? '전체 DB' : monMgrType;
+  const rg = monRangeVals();
+  const rangeText = (!rg.from && !rg.to) ? '분배 전체 기간' : `분배일 ${rg.from || '처음'} ~ ${rg.to || '오늘'}`;
+
+  let html = `<div class="card"><div style="font-weight:700;margin-bottom:8px;">팀장 선택</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${chips}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);"><b style="font-size:13px;margin-right:6px;">DB유형</b>${typeBtns}</div>
+    <div class="sub" style="margin:8px 0 0;">${escapeHtml(name)} 팀장님 · ${escapeHtml(rangeText)} · 팀 비교 기준은 위에서 체크한 팀장 전체입니다.${isExcl ? ' <b>이 팀장님은 현재 분석 제외로 체크돼 있어 팀 비교 기준에는 들어가지 않습니다.</b>' : ''}</div></div>`;
+
+  const rows = monMgrRowsOf(name, monMgrType);
+  if (!rows.length) { el.innerHTML = html + monEmpty('조건에 맞는 DB가 없습니다. 위의 분배일 기간·DB유형을 바꿔 보세요.'); return; }
+  const m = monRatios(monAgg(rows, now));
+  const base = monMgrBase(monMgrType, now);
+  const med = base.med;
+
+  /* A. 숫자 한눈에 */
+  const kpiCard = (label, val, sub, tag) => `<div style="flex:1;min-width:150px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;"><div style="font-size:11.5px;color:var(--muted);">${label}</div><div style="font-size:22px;font-weight:800;">${val}</div><div style="font-size:11px;color:var(--muted);">${sub}</div>${tag || ''}</div>`;
+  const stTag = st => st === 'better' ? monTag('팀보다 양호', 'green') : st === 'worse' ? monTag('팀보다 아쉬움', 'red') : st === 'same' ? monTag('팀과 비슷', 'muted') : '';
+  let cards = kpiCard('분배', m.a.total.toLocaleString('ko-KR') + '건', `진행 중 ${m.a.active}건`, '');
+  MON_MGR_KPI.forEach(k => {
+    const v = monKpiVal(m, k.key), mv = med ? monKpiVal(med, k.key) : null;
+    const vTxt = v === null ? '-' : (k.pct ? monF1(v) : v.toFixed(1) + '회');
+    const mTxt = mv === null || mv === undefined ? '' : `팀 중앙값 ${k.pct ? monF1(mv) : mv.toFixed(1) + '회'} (${monKpiDiffText(k, v, mv)})`;
+    cards += kpiCard(k.label, vTxt, mTxt, med ? stTag(monKpiState(k, v, mv)) : '');
+  });
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:8px;">${escapeHtml(name)} 팀장님 한눈에 — ${escapeHtml(typeLabel)}</div><div style="display:flex;flex-wrap:wrap;gap:8px;">${cards}</div>`;
+  const diag = monDiag(m, med).map(t => monTag(t[0], t[1])).join('');
+  html += `<div style="margin-top:10px;font-size:13px;"><b>진단</b> ${diag}</div>
+    <div class="sub" style="margin:8px 0 0;">비교 기준: 분배 ${MON_CFG.minN}건 이상 팀장 ${base.nBase}명의 중앙값${med ? '' : ' (3명 미만이라 비교하지 않음)'}. 진단은 "어느 콜을 먼저 들어볼지" 정하는 단서일 뿐 원인 판정이 아닙니다.${m.a.total < MON_CFG.minN ? ' <b style="color:var(--amber);">분배 ' + m.a.total + '건이라 숫자는 참고용입니다.</b>' : ''}</div></div>`;
+
+  /* B. 코칭 */
+  const recs = monMgrRecs(name);
+  const co = monBuildCoach(name, m, med, recs);
+  monMgrMemoText = monMgrMemo(name, typeLabel, rangeText, m, med, co);
+  const impCard = (x, idx) => `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff;">
+      <div style="font-weight:700;font-size:13.5px;">${idx}) ${escapeHtml(x.title)} ${x.src === 'code' ? monTag('코딩 근거', 'amber') : monTag('숫자 근거', 'muted')}</div>
+      <div style="font-size:12.5px;margin-top:4px;"><b>지금</b> ${escapeHtml(x.observe)}</div>
+      ${x.evidence ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">${escapeHtml(x.evidence)}</div>` : ''}
+      <div style="font-size:12.5px;margin-top:4px;"><b>이렇게 바꿔보면</b> ${escapeHtml(x.change)}</div>
+      ${x.sample ? `<div style="font-size:12.5px;margin-top:4px;background:var(--amber-bg);border-radius:8px;padding:6px 10px;"><b>예시 문장</b> ${escapeHtml(x.sample)}</div>` : ''}</div>`;
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:8px;">코칭 피드백 <span style="font-weight:400;font-size:12px;color:var(--muted);">(숫자 + 코딩한 콜 ${co.codeCount}건 기준 · 규칙 기반)</span></div>`;
+  html += `<div style="font-size:13px;font-weight:700;margin:2px 0 6px;color:var(--green);">이미 잘하고 있는 것</div>`;
+  html += co.strengths.length ? `<ul style="margin:0 0 12px;padding-left:20px;font-size:12.5px;line-height:1.8;">${co.strengths.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`
+    : `<div class="sub" style="margin:0 0 12px;">팀 기준보다 눈에 띄게 앞서는 지표는 아직 없어요. 코딩한 콜이 쌓이면 항목별로 표시됩니다.</div>`;
+  html += `<div style="font-size:13px;font-weight:700;margin:2px 0 6px;color:var(--red);">이렇게 바꿔보면 도움이 될 것 (우선순위 순, 3개 이내)</div>`;
+  if (co.improves.length) {
+    html += co.improves.map((x, i) => impCard(x, i + 1)).join('');
+    if (co.more.length) html += `<details style="margin-bottom:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">그 외 참고 ${co.more.length}개</summary><div style="margin-top:8px;">${co.more.map((x, i) => impCard(x, i + 4)).join('')}</div></details>`;
+    const p = co.improves[0];
+    html += `<div style="font-size:13px;font-weight:700;margin:10px 0 6px;">이번 주 연습 한 가지</div><div style="font-size:12.5px;line-height:1.7;">${escapeHtml(p.title)}${p.sample ? ' — ' + escapeHtml(p.sample) : ''}</div>`;
+  } else {
+    html += `<div class="sub" style="margin:0;">숫자와 코딩에서 팀 기준보다 눈에 띄게 아쉬운 항목이 아직 없어요.${recs.length ? '' : ' "점검 콜·코딩"에서 이 팀장님 콜을 코딩해 저장하면 항목별 코칭이 추가됩니다.'}</div>`;
+  }
+  if (!recs.length) html += `<div class="sub" style="margin:10px 0 0;color:var(--amber);">아직 이 팀장님의 코딩 저장분이 없어 <b>숫자 기준 코칭만</b> 나왔습니다. 점검 콜을 굿콜평가기에 넣어 코딩 줄을 저장하면 "도입 반론 · 클로징 · 다음 행동" 같은 콜 내용 코칭이 더해집니다.</div>`;
+  html += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);"><div style="font-size:13px;font-weight:700;margin-bottom:6px;">팀장님께 전달할 메모 (고객 정보 없음)</div>
+    <textarea readonly rows="12" style="width:100%;font-size:12.5px;line-height:1.6;">${escapeHtml(monMgrMemoText)}</textarea>
+    <div style="margin-top:6px;"><button class="act small" onclick="monCopyMemo(this)">📋 메모 복사</button> <span class="sub" style="margin:0 0 0 6px;">복사해서 카톡 등으로 전달하세요. 상담상태가 직접 입력값이라는 점과 참고용 문구가 함께 들어갑니다.</span></div></div></div>`;
+
+  /* C. DB유형별 (팀 전체 대비) */
+  const byT = {};
+  allRows.forEach(r => { const t = r.db_type || '(미분류)'; (byT[t] = byT[t] || []).push(r); });
+  const tBody = Object.keys(byT).sort().map(t => {
+    const a = monRatios(monAgg(byT[t], now)), tb = monMgrBase(t, now).pooled;
+    const cell = (v, tv) => `${monF1(v)}<div style="font-size:11px;color:var(--muted);">팀 ${monF1(tv)}</div>`;
+    return `<tr><td><b>${escapeHtml(t)}</b></td><td>${a.a.total}</td><td>${a.avg === null ? '-' : a.avg.toFixed(1)}</td><td>${cell(a.low, tb.low)}</td><td>${cell(a.want, tb.want)}</td><td>${cell(a.refuse, tb.refuse)}</td><td>${cell(a.conv, tb.conv)}</td></tr>`;
+  }).join('');
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">DB유형별 — 팀 전체 대비</div><div style="overflow-x:auto;"><table style="min-width:640px;">
+    <thead><tr><th>DB유형</th><th>분배</th><th>평균<br>터치</th><th>3회 미만<br>터치율</th><th>가망화율</th><th>거절율</th><th>계약전환</th></tr></thead><tbody>${tBody}</tbody></table></div>
+    <div class="sub" style="margin:8px 0 0;">아래 작은 글씨는 같은 기간·유형의 <b>팀 전체 합산</b> 비율입니다(위 카드의 "팀 중앙값"과 다른 기준). DB유형마다 품질이 달라 유형별로 나눠 봐야 공정합니다. 유형별 분배가 적으면 비율이 크게 흔들립니다.</div></div>`;
+
+  /* D. 분배 주차별 */
+  const byW = {};
+  rows.forEach(r => { const d = dbTs(r.distributed_at); if (!d) return; const w = monWeekStart(monYmd(d)); (byW[w] = byW[w] || []).push(r); });
+  const weeks = Object.keys(byW).sort().reverse().slice(0, MON_CFG.maxCohortWeeks);
+  const wBody = weeks.map(w => { const a = monRatios(monAgg(byW[w], now)); return `<tr><td>${escapeHtml(w)} 주</td><td>${a.a.total}</td><td>${monF1(a.low)}</td><td>${monF1(a.want)}</td><td>${monF1(a.conv)}</td></tr>`; }).join('');
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">분배 주차별 변화 — ${escapeHtml(typeLabel)}</div><div style="overflow-x:auto;"><table style="min-width:480px;"><thead><tr><th>분배 주(월요일)</th><th>분배</th><th>3회 미만 터치율</th><th>가망화율</th><th>계약전환</th></tr></thead><tbody>${wBody}</tbody></table></div>
+    <div class="sub" style="margin:8px 0 0;">최근 주일수록 터치·전환할 시간이 짧아 낮게 보이는 것이 정상입니다.</div></div>`;
+
+  /* E. 지금 챙길 건 (누수) */
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">지금 챙길 건 — ${escapeHtml(typeLabel)}</div><div style="display:flex;flex-wrap:wrap;gap:8px;">` +
+    kpiCard('터치 3회 미만', m.a.low + '건', '분배 1일 경과 · 종결 제외', '') +
+    kpiCard('예약일 경과 후 무터치', (m.a.resv || 0) + '건', '상담예약 건', '') +
+    kpiCard('가망·예약 7일+ 무터치', (m.a.retouch || 0) + '건', '', '') +
+    kpiCard('재터치 필요 합계', m.a.follow + '건', '3회 미만 제외 기준', '') + `</div>
+    <div class="sub" style="margin:8px 0 0;">고객별 목록은 DB관리 탭에서 이 팀장님 이름으로 확인하세요.</div></div>`;
+
+  /* F. 활동량 (최근 4주) */
+  const today = monToday(), w0 = monAddDays(monWeekStart(today), -21), wk = [];
+  for (let i = 0; i < 4; i++) wk.push(monAddDays(w0, i * 7));
+  const incl = monIncluded();
+  const weekOf = (n, w) => {
+    const end = monAddDays(w, 6);
+    const ds = monDaily.filter(d => d.manager_name === n && d.activity_date >= w && d.activity_date <= end && monSecOf(d) !== null);
+    const sec = ds.reduce((s, d) => s + monSecOf(d), 0);
+    return {
+      days: ds.length, sec: sec,
+      pros: monProspects.filter(p => p.manager_name === n && p.activity_date >= w && p.activity_date <= end).length,
+      cons: (allContracts || []).filter(c => c.manager_name === n && c.contract_date && String(c.contract_date).slice(0, 10) >= w && String(c.contract_date).slice(0, 10) <= end).length
+    };
+  };
+  const hasAct = monDaily.some(d => d.manager_name === name && monSecOf(d) !== null);
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">활동량 — 최근 4주 (일일 입력 기준)</div>`;
+  if (!hasAct) html += `<div class="sub" style="margin:0;">이 팀장님의 일일 콜시간 입력이 아직 없습니다. "일일 입력"에서 콜시간을 입력하면 주별로 표시됩니다.</div>`;
+  else {
+    const aBody = wk.map(w => {
+      const a = weekOf(name, w);
+      const teamAvgs = incl.map(n => weekOf(n, w)).filter(x => x.days > 0).map(x => x.sec / x.days);
+      const tAvg = teamAvgs.length ? monAvg(teamAvgs) : null;
+      return `<tr><td>${escapeHtml(w.slice(5))} 주</td><td>${a.days}일</td><td>${a.days ? monFmtDur(a.sec) : '-'}</td><td>${a.days ? monFmtDur(a.sec / a.days) : '-'}</td><td style="color:var(--muted);">${tAvg === null ? '-' : monFmtDur(tAvg)}</td><td>${a.pros}명</td><td>${a.cons}건</td></tr>`;
+    }).join('');
+    html += `<div style="overflow-x:auto;"><table style="min-width:600px;"><thead><tr><th>주(월요일)</th><th>입력일수</th><th>콜시간 합계</th><th>일평균 콜시간</th><th>팀 일평균<br>(포함 팀장)</th><th>가망 발굴</th><th>계약(계약일 기준)</th></tr></thead><tbody>${aBody}</tbody></table></div>
+      <div class="sub" style="margin:8px 0 0;">입력일수가 ${MON_CFG.minDays}일 미만인 주는 비교하지 마세요. 계약은 계약관리 탭 자료입니다. 활동량과 실적의 관계는 "콜시간·가망→실적" 화면에서 봅니다.</div>`;
+  }
+  html += `</div>`;
+
+  /* G. 코딩한 콜 */
+  const own = monChecks.filter(c => (c.manager_name || '') === name);
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">점검·코딩한 콜 <span style="font-weight:400;font-size:12px;color:var(--muted);">(점검 ${own.length}건 · 코딩 저장 ${recs.length}건)</span></div>`;
+  if (!recs.length) html += `<div class="sub" style="margin:0;">코딩 줄이 저장된 콜이 아직 없습니다. "점검 콜·코딩" 화면에서 점검 → 굿콜평가기 → 코딩 줄 저장 순서로 쌓입니다.</div>`;
+  else {
+    const teamRecs = monCodeRecords();
+    const small = recs.length < 3;
+    const iBody = MON_CODE_ITEMS.map((it, i) => {
+      const a = monCodeRate(recs, i), t = monCodeRate(teamRecs, i);
+      const fc = c => c.p === null ? '-' : `${c.p.toFixed(0)}% <span style="font-size:11px;color:var(--muted);">(${c.k}/${c.n})</span>`;
+      return `<tr><td>${escapeHtml(it.label)}</td><td>${fc(a)}</td><td>${fc(t)}</td></tr>`;
+    }).join('');
+    html += `<div style="overflow-x:auto;"><table style="min-width:520px;"><thead><tr><th>항목</th><th>${escapeHtml(name)} (${recs.length}건)</th><th>팀 전체 (${teamRecs.length}건)</th></tr></thead><tbody>${iBody}</tbody></table></div>`;
+    if (small) html += `<div class="sub" style="margin:8px 0 0;color:var(--amber);">이 팀장님 코딩이 ${recs.length}건뿐이라 <b>참고용</b>입니다.</div>`;
+    const sorted = recs.slice().sort((a, b) => String(b.c.checked_at || '').localeCompare(String(a.c.checked_at || '')));
+    const callCard = x => {
+      const f = x.f, won = f[6] === '체결';
+      const chipsH = MON_CODE_ITEMS.map((it, i) => {
+        const st = monCallState(f, i);
+        return monTag(monCallTagText(f, i), st === 'good' ? 'green' : st === 'bad' ? 'red' : 'muted');
+      }).join('');
+      const bads = MON_CODE_ITEMS.map((it, i) => i).filter(i => monCallState(f, i) === 'bad').sort((a, b) => MON_COACH[b].prio - MON_COACH[a].prio).slice(0, 2);
+      const tips = bads.map(i => `<li><b>${escapeHtml(MON_COACH[i].short)}</b> — ${escapeHtml(MON_COACH[i].change)}<div style="color:var(--muted);">예) ${escapeHtml(MON_COACH[i].sample)}</div></li>`).join('');
+      const ev = String(f[18] || '').trim();
+      const dt = x.c.checked_at ? String(x.c.checked_at).slice(0, 10) : '-';
+      return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px;background:#fff;">
+        <div style="font-size:12.5px;margin-bottom:4px;"><b>${escapeHtml(dt)}</b> · ${monTag(won ? '체결' : '미체결', won ? 'green' : 'red')} ${escapeHtml(f[5] || '')} · 도달 단계 ${escapeHtml(String(f[7] || '-'))}</div>
+        <div>${chipsH}</div>
+        ${ev ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">근거 발화: ${escapeHtml(ev)}</div>` : ''}
+        ${tips ? `<div style="font-size:12.5px;margin-top:6px;"><b>이 콜에서 바꿔보면</b><ul style="margin:4px 0 0;padding-left:20px;line-height:1.7;">${tips}</ul></div>` : `<div style="font-size:12.5px;margin-top:6px;color:var(--green);">이 콜은 코딩 항목 기준으로 아쉬운 점이 눈에 띄지 않았어요.</div>`}</div>`;
+    };
+    html += `<div style="margin-top:10px;font-weight:700;font-size:13px;">콜별 코칭 (최근 순)</div>` + sorted.slice(0, 5).map(callCard).join('');
+    if (sorted.length > 5) html += `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">이전 콜 ${sorted.length - 5}건 더 보기</summary>${sorted.slice(5).map(callCard).join('')}</details>`;
+  }
+  html += `</div>`;
   el.innerHTML = html;
 }
 
