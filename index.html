@@ -875,10 +875,10 @@
       <button class="act small" data-v="status" onclick="monSetView('status')">📊 현황·병목</button>
       <button class="secondary small" data-v="pick" onclick="monSetView('pick')">🎧 점검 콜·코딩</button>
       <button class="secondary small" data-v="daily" onclick="monSetView('daily')">✏️ 일일 입력</button>
-      <button class="secondary small" data-v="impact" onclick="monSetView('impact')">🔗 콜량·가망→실적</button>
+      <button class="secondary small" data-v="impact" onclick="monSetView('impact')">🔗 콜시간·가망→실적</button>
       <button class="secondary small" data-v="trend" onclick="monSetView('trend')">📈 추이</button>
     </div>
-    <div class="sub" style="margin:10px 0 0;">DB관리에 올린 엑셀을 기준으로 팀장별 DB 활용·병목을 보고, 점검할 콜을 뽑아 코딩하고, 매일 콜량·가망고객 발굴을 입력해 실적과의 관계와 주간 추이를 봅니다. (마스터 전용 · 신규/카카오페이 DB 제외)</div>
+    <div class="sub" style="margin:10px 0 0;">DB관리에 올린 엑셀을 기준으로 팀장별 DB 활용·병목을 보고, 점검할 콜을 뽑아 코딩하고, 매일 콜시간·가망고객 발굴을 입력해 실적과의 관계와 주간 추이를 봅니다. (마스터 전용 · 신규/카카오페이 DB 제외)</div>
   </div>
 
   <div id="mon_setupBox" class="card" style="display:none;border-color:var(--amber);background:var(--amber-bg);">
@@ -2395,7 +2395,7 @@ async function dbCommitExcel(){
 
 /* ============================================================
    콜 모니터링 (마스터 전용)
-   · 현황·병목 / 점검 콜·코딩 / 일일 입력 / 콜량·가망→실적 / 주간 추이
+   · 현황·병목 / 점검 콜·코딩 / 일일 입력 / 콜시간·가망→실적 / 주간 추이
    · 테이블: db_snapshots, daily_activity, daily_prospects, call_checks (+ db_customers.has_recording)
    · 신규·카카오페이 DB는 DB관리와 같은 기준(DB_EXCLUDE_TYPES)으로 제외한다
 ============================================================ */
@@ -2423,16 +2423,18 @@ create table if not exists db_snapshots (
   unique (snapshot_date, manager_name, db_type)
 );
 
--- 3) 일일 콜량
+-- 3) 일일 콜량 (하루 동안 콜을 한 총 시간, 초 단위로 저장)
 create table if not exists daily_activity (
   id bigint generated always as identity primary key,
   activity_date date not null,
   manager_name text not null,
   call_count integer not null default 0,
+  call_seconds integer,
   memo text,
   updated_at timestamptz not null default now(),
   unique (activity_date, manager_name)
 );
+alter table daily_activity add column if not exists call_seconds integer;
 
 -- 4) 일일 가망고객 발굴 (이름/생년월일)
 create table if not exists daily_prospects (
@@ -2908,6 +2910,23 @@ function monRenderCodeStats(){
 /* ============================================================
    3) 일일 입력 (콜량 · 가망고객 발굴)
 ============================================================ */
+/* 콜시간: 초 단위 정수로 저장·계산하고, 화면에는 시:분:초로 보여준다 */
+const MON_ALTER_SQL = 'alter table daily_activity add column if not exists call_seconds integer;';
+function monSecOf(d){
+  if (!d || d.call_seconds === null || d.call_seconds === undefined || d.call_seconds === '') return null;
+  const n = Number(d.call_seconds);
+  return isNaN(n) || n < 0 ? null : n;
+}
+function monFmtDur(sec){
+  if (sec === null || sec === undefined || isNaN(sec)) return '-';
+  const t = Math.round(Number(sec)), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+function monDurParts(sec){
+  if (sec === null) return { h: '', m: '', s: '' };
+  const t = Math.round(sec);
+  return { h: Math.floor(t / 3600), m: Math.floor((t % 3600) / 60), s: t % 60 };
+}
 function monNormBirth(s){
   const d = String(s || '').replace(/\D/g, '');
   if (d.length === 8) return d;
@@ -2947,13 +2966,17 @@ function monRenderDaily(){
     <b>${escapeHtml(dow)}요일</b>
     <button class="secondary small" onclick="monShiftDaily(1)">다음날 ▶</button>
     <button class="secondary small" onclick="monSetDailyDate(monToday())">오늘</button></div>
-    <div class="sub" style="margin:8px 0 0;">팀장님들께 받은 하루 콜량(통)을 입력하세요. 비워둔 칸은 저장하지 않습니다. 이미 저장한 날짜는 불러와서 수정할 수 있습니다.</div></div>`;
-  const rowsHtml = mgrs.map(n => `<tr><td><b>${escapeHtml(n)}</b>${monExcl.indexOf(n) >= 0 ? ' <span style="font-size:11px;color:var(--muted);">(분석 제외)</span>' : ''}</td>
-    <td><input type="number" class="mon-call-in" data-m="${escAttr(n)}" min="0" value="${byM[n] ? byM[n].call_count : ''}" style="width:90px;" placeholder="통"></td>
-    <td>${pCnt[n] || 0}명</td></tr>`).join('');
-  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">${escapeHtml(date)} 콜량</div><div style="overflow-x:auto;"><table style="min-width:360px;">
-    <thead><tr><th>팀장</th><th>콜량(통)</th><th>가망고객 발굴</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
-    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="act" onclick="monSaveDaily()">콜량 저장</button><span id="mon_dMsg" style="font-size:12.5px;color:var(--muted);"></span></div></div>`;
+    <div class="sub" style="margin:8px 0 0;">팀장님들께 받은 하루 콜시간(통화한 총 시간)을 시·분·초로 입력하세요. 시·분·초를 모두 비워둔 줄은 저장하지 않습니다. 이미 저장한 날짜는 불러와서 수정할 수 있습니다.</div></div>`;
+  const durIn = (cls, n, v, ph, mx) => `<input type="number" class="${cls}" data-m="${escAttr(n)}" min="0" ${mx ? 'max="' + mx + '"' : ''} step="1" inputmode="numeric" value="${v}" style="width:64px;text-align:center;" placeholder="${ph}">`;
+  const rowsHtml = mgrs.map(n => {
+    const dp = monDurParts(monSecOf(byM[n]));
+    return `<tr><td><b>${escapeHtml(n)}</b>${monExcl.indexOf(n) >= 0 ? ' <span style="font-size:11px;color:var(--muted);">(분석 제외)</span>' : ''}</td>
+    <td style="white-space:nowrap;">${durIn('mon-dur-h', n, dp.h, '00')} : ${durIn('mon-dur-m', n, dp.m, '00', 59)} : ${durIn('mon-dur-s', n, dp.s, '00', 59)}<span style="font-size:11px;color:var(--muted);margin-left:6px;">시 : 분 : 초</span></td>
+    <td>${pCnt[n] || 0}명</td></tr>`;
+  }).join('');
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">${escapeHtml(date)} 콜시간</div><div style="overflow-x:auto;"><table style="min-width:420px;">
+    <thead><tr><th>팀장</th><th>콜시간 (시:분:초)</th><th>가망고객 발굴</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="act" onclick="monSaveDaily()">콜시간 저장</button><span id="mon_dMsg" style="font-size:12.5px;color:var(--muted);"></span></div></div>`;
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">가망고객 발굴 입력 — ${escapeHtml(date)}</div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px;"><label style="margin:0;">팀장</label>
       <select id="mon_pMgr" style="width:auto;">${mgrs.map(n => `<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('')}</select></div>
@@ -2967,30 +2990,40 @@ function monRenderDaily(){
   html += `</div>`;
   /* 최근 7일 입력 현황 */
   const days = []; for (let i = 6; i >= 0; i--) days.push(monAddDays(monToday(), -i));
-  const dMap = {}; monDaily.forEach(d => { dMap[d.manager_name + '|' + d.activity_date] = d.call_count; });
+  const dMap = {}; monDaily.forEach(d => { const sc = monSecOf(d); if (sc !== null) dMap[d.manager_name + '|' + d.activity_date] = sc; });
   const pMap = {}; monProspects.forEach(p => { const k = p.manager_name + '|' + p.activity_date; pMap[k] = (pMap[k] || 0) + 1; });
   const head = days.map(d => `<th style="font-size:11.5px;">${escapeHtml(d.slice(5))}</th>`).join('');
   const body = mgrs.map(n => `<tr><td>${escapeHtml(n)}</td>` + days.map(d => {
     const c = dMap[n + '|' + d], p = pMap[n + '|' + d] || 0;
-    return `<td style="font-size:12px;">${c === undefined ? '<span style="color:var(--muted);">-</span>' : c + '통'}${p ? `<div style="font-size:11px;color:var(--green);">가망 ${p}</div>` : ''}</td>`;
+    return `<td style="font-size:12px;">${c === undefined ? '<span style="color:var(--muted);">-</span>' : monFmtDur(c)}${p ? `<div style="font-size:11px;color:var(--green);">가망 ${p}</div>` : ''}</td>`;
   }).join('') + `</tr>`).join('');
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">최근 7일 입력 현황</div><div style="overflow-x:auto;"><table style="min-width:520px;"><thead><tr><th>팀장</th>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
   el.innerHTML = html;
 }
 async function monSaveDaily(){
   const msg = document.getElementById('mon_dMsg');
-  const items = [], bad = [];
-  document.querySelectorAll('#mon_viewDaily .mon-call-in').forEach(inp => {
-    const v = inp.value.trim();
-    if (v === '') return;
-    const n = parseInt(v, 10);
-    if (isNaN(n) || n < 0) { bad.push(inp.dataset.m); return; }
-    items.push({ activity_date: monDailyDate, manager_name: inp.dataset.m, call_count: n, updated_at: new Date().toISOString() });
+  const items = [], bad = [], g = {};
+  document.querySelectorAll('#mon_viewDaily input.mon-dur-h, #mon_viewDaily input.mon-dur-m, #mon_viewDaily input.mon-dur-s').forEach(inp => {
+    const n = inp.dataset.m;
+    const part = inp.classList.contains('mon-dur-h') ? 'h' : (inp.classList.contains('mon-dur-m') ? 'm' : 's');
+    (g[n] = g[n] || {})[part] = inp.value.trim();
   });
-  if (bad.length) { msg.style.color = 'var(--red)'; msg.textContent = '콜량은 0 이상의 숫자로 입력해주세요: ' + bad.join(', '); return; }
-  if (!items.length) { msg.style.color = 'var(--amber)'; msg.textContent = '입력된 콜량이 없습니다.'; return; }
+  Object.keys(g).forEach(n => {
+    const p = g[n];
+    if (p.h === '' && p.m === '' && p.s === '') return;
+    const toN = v => v === '' ? 0 : Number(v);
+    const h = toN(p.h), m = toN(p.m), s = toN(p.s);
+    if ([h, m, s].some(x => isNaN(x) || x < 0 || Math.floor(x) !== x) || m > 59 || s > 59) { bad.push(n); return; }
+    items.push({ activity_date: monDailyDate, manager_name: n, call_seconds: h * 3600 + m * 60 + s, updated_at: new Date().toISOString() });
+  });
+  if (bad.length) { msg.style.color = 'var(--red)'; msg.textContent = '시·분·초는 0 이상의 정수로, 분과 초는 59 이하로 입력해주세요: ' + bad.join(', '); return; }
+  if (!items.length) { msg.style.color = 'var(--amber)'; msg.textContent = '입력된 콜시간이 없습니다.'; return; }
   const { error } = await sb.from('daily_activity').upsert(items, { onConflict: 'activity_date,manager_name' });
-  if (error) { msg.style.color = 'var(--red)'; msg.textContent = '저장 실패: ' + error.message + ' (위 안내의 SQL을 먼저 실행했는지 확인해주세요)'; return; }
+  if (error) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = '저장 실패: ' + error.message + ' — Supabase SQL Editor에서 다음 SQL을 먼저 실행해주세요: ' + MON_ALTER_SQL;
+    return;
+  }
   try { monDaily = await monFetchAll('daily_activity'); } catch (e) {}
   monRenderDaily();
   const m2 = document.getElementById('mon_dMsg');
@@ -3044,7 +3077,7 @@ function monScatter(pts, xl, yl){
   const X = v => L + (W - L - R) * v / mx, Y = v => T + (H - T - B) * (1 - v / my);
   let g = '';
   for (let i = 0; i <= 4; i++) { const yv = my * i / 4; g += `<line x1="${L}" x2="${W - R}" y1="${Y(yv)}" y2="${Y(yv)}" stroke="#E4E0D5"/><text x="${L - 6}" y="${Y(yv) + 4}" font-size="10" text-anchor="end" fill="#6B7280">${Math.round(yv * 10) / 10}</text>`; }
-  for (let i = 0; i <= 4; i++) { const xv = mx * i / 4; g += `<text x="${X(xv)}" y="${H - B + 14}" font-size="10" text-anchor="middle" fill="#6B7280">${Math.round(xv)}</text>`; }
+  for (let i = 0; i <= 4; i++) { const xv = mx * i / 4; g += `<text x="${X(xv)}" y="${H - B + 14}" font-size="10" text-anchor="middle" fill="#6B7280">${Math.round(xv * 10) / 10}</text>`; }
   const dots = pts.map(p => `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="5" fill="#2F5FA8" fill-opacity=".65"><title>${escapeHtml(p.t)}</title></circle>`).join('');
   let line = '';
   const sl = monSlope(pts.map(p => p.x), pts.map(p => p.y));
@@ -3053,15 +3086,16 @@ function monScatter(pts, xl, yl){
 }
 function monRenderImpact(){
   const el = document.getElementById('mon_viewImpact');
-  if (!monDaily.length) { el.innerHTML = monEmpty('아직 입력된 일일 콜량이 없습니다. "일일 입력"에서 콜량을 입력하면 이 화면이 채워집니다.'); return; }
+  const monTimed = monDaily.filter(d => monSecOf(d) !== null);
+  if (!monTimed.length) { el.innerHTML = monEmpty('아직 입력된 일일 콜시간이 없습니다. "일일 입력"에서 콜시간(시:분:초)을 입력하면 이 화면이 채워집니다.'); return; }
   const today = monToday();
-  const minD = monDaily.map(d => d.activity_date).sort()[0];
+  const minD = monTimed.map(d => d.activity_date).sort()[0];
   if (!monImpFrom) monImpFrom = minD;
   if (!monImpTo) monImpTo = today;
   const incl = monIncluded();
   const inSet = new Set(incl);
   const inP = d => d >= monImpFrom && d <= monImpTo;
-  const dRows = monDaily.filter(d => inSet.has(d.manager_name) && inP(d.activity_date));
+  const dRows = monTimed.filter(d => inSet.has(d.manager_name) && inP(d.activity_date));
   const pRows = monProspects.filter(p => inSet.has(p.manager_name) && inP(p.activity_date));
   const cRows = (allContracts || []).filter(c => inSet.has(c.manager_name) && c.contract_date && inP(String(c.contract_date).slice(0, 10)));
   let html = `<div class="card"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;"><b style="font-size:13px;">기간</b>
@@ -3071,16 +3105,16 @@ function monRenderImpact(){
 
   /* A. 팀장별 합계 */
   const mgrs = incl.filter(n => dRows.some(d => d.manager_name === n));
-  if (!mgrs.length) { el.innerHTML = html + monEmpty('선택한 기간·팀장에 입력된 콜량이 없습니다.'); return; }
+  if (!mgrs.length) { el.innerHTML = html + monEmpty('선택한 기간·팀장에 입력된 콜시간이 없습니다.'); return; }
   const aBody = mgrs.map(n => {
-    const ds = dRows.filter(d => d.manager_name === n), calls = ds.reduce((s, d) => s + (Number(d.call_count) || 0), 0), days = ds.length;
+    const ds = dRows.filter(d => d.manager_name === n), calls = ds.reduce((s, d) => s + (monSecOf(d) || 0), 0), days = ds.length;
     const pc = pRows.filter(p => p.manager_name === n).length;
     const cs = cRows.filter(c => c.manager_name === n), prem = cs.reduce((s, c) => s + (Number(c.premium) || 0), 0);
-    return `<tr><td><b>${escapeHtml(n)}</b></td><td>${days}일</td><td>${calls.toLocaleString('ko-KR')}</td><td>${days ? (calls / days).toFixed(1) : '-'}</td><td>${pc}명${days ? `<div style="font-size:11px;color:var(--muted);">일 ${(pc / days).toFixed(2)}명</div>` : ''}</td>
-      <td>${cs.length}건</td><td>${prem ? Math.round(prem).toLocaleString('ko-KR') : '-'}</td><td>${calls ? (cs.length / calls * 100).toFixed(2) : '-'}</td></tr>`;
+    return `<tr><td><b>${escapeHtml(n)}</b></td><td>${days}일</td><td>${monFmtDur(calls)}</td><td>${days ? monFmtDur(calls / days) : '-'}</td><td>${pc}명${days ? `<div style="font-size:11px;color:var(--muted);">일 ${(pc / days).toFixed(2)}명</div>` : ''}</td>
+      <td>${cs.length}건</td><td>${prem ? Math.round(prem).toLocaleString('ko-KR') : '-'}</td><td>${calls ? (cs.length / (calls / 3600)).toFixed(2) : '-'}</td></tr>`;
   }).join('');
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">팀장별 활동량과 실적</div><div style="overflow-x:auto;"><table style="min-width:720px;">
-    <thead><tr><th>팀장</th><th>입력일수</th><th>콜량 합계</th><th>일평균 콜량</th><th>가망고객 발굴</th><th>계약</th><th>보험료 합계(원)</th><th>콜 100통당<br>계약(건)</th></tr></thead><tbody>${aBody}</tbody></table></div></div>`;
+    <thead><tr><th>팀장</th><th>입력일수</th><th>콜시간 합계<br>(시:분:초)</th><th>일평균 콜시간<br>(시:분:초)</th><th>가망고객 발굴</th><th>계약</th><th>보험료 합계(원)</th><th>콜 1시간당<br>계약(건)</th></tr></thead><tbody>${aBody}</tbody></table></div></div>`;
 
   /* B. 주 단위 관계 */
   const weeks = [];
@@ -3090,7 +3124,7 @@ function monRenderImpact(){
     const end = monAddDays(w, 6);
     const ds = dRows.filter(d => d.manager_name === n && d.activity_date >= w && d.activity_date <= end);
     return {
-      days: ds.length, calls: ds.reduce((s, d) => s + (Number(d.call_count) || 0), 0),
+      days: ds.length, calls: ds.reduce((s, d) => s + (monSecOf(d) || 0), 0) / 3600,
       pros: pRows.filter(p => p.manager_name === n && p.activity_date >= w && p.activity_date <= end).length,
       cons: (allContracts || []).filter(c => c.manager_name === n && c.contract_date && String(c.contract_date).slice(0, 10) >= w && String(c.contract_date).slice(0, 10) <= end).length,
       done: end < today
@@ -3100,7 +3134,7 @@ function monRenderImpact(){
     weeks.forEach(w => {
       const a = wk(n, w);
       if (!a.done || a.days < MON_CFG.minDays) return;
-      pts.push({ x: a.calls, y: a.cons, t: `${n} ${w}주: 콜 ${a.calls}통 → 계약 ${a.cons}건` });
+      pts.push({ x: a.calls, y: a.cons, t: `${n} ${w}주: 콜시간 ${monFmtDur(a.calls * 3600)} → 계약 ${a.cons}건` });
       ptsP.push({ x: a.pros, y: a.cons });
       const b = wk(n, monAddDays(w, 7));
       if (b.done) lag.push({ x: a.calls, y: b.cons });
@@ -3108,15 +3142,15 @@ function monRenderImpact(){
   });
   const r0 = monCorr(pts.map(p => p.x), pts.map(p => p.y)), r1 = monCorr(lag.map(p => p.x), lag.map(p => p.y)), r2 = monCorr(ptsP.map(p => p.x), ptsP.map(p => p.y));
   const sl = monSlope(pts.map(p => p.x), pts.map(p => p.y));
-  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">콜량이 많은 주에 계약도 많았나?</div>`;
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">콜시간이 긴 주에 계약도 많았나?</div>`;
   if (pts.length < 3) html += `<div class="sub" style="margin:0;">비교할 수 있는 "팀장님×주" 자료가 ${pts.length}개입니다. 주 ${MON_CFG.minDays}일 이상 콜량이 입력된, 이미 끝난 주만 비교하므로 몇 주 더 쌓이면 나옵니다.</div>`;
   else {
-    html += `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;"><div style="flex:1;min-width:300px;">${monScatter(pts, '주간 콜량(통)', '그 주 계약(건)')}</div>
+    html += `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;"><div style="flex:1;min-width:300px;">${monScatter(pts, '주간 콜시간(시간)', '그 주 계약(건)')}</div>
       <div style="flex:1;min-width:260px;font-size:13px;line-height:1.9;">
-        <div><b>같은 주</b> 콜량 ↔ 계약: ${escapeHtml(monCorrText(r0, pts.length))}</div>
+        <div><b>같은 주</b> 콜시간 ↔ 계약:${escapeHtml(monCorrText(r0, pts.length))}</div>
         <div><b>다음 주</b> 계약과의 관계: ${escapeHtml(monCorrText(r1, lag.length))}</div>
         <div><b>같은 주</b> 가망 발굴 수 ↔ 계약: ${escapeHtml(monCorrText(r2, ptsP.length))}</div>
-        ${sl !== null ? `<div>추세선 기울기: 콜 100통 늘면 계약 약 ${(sl * 100).toFixed(2)}건</div>` : ''}
+        ${sl !== null ? `<div>추세선 기울기: 콜시간이 1시간 늘면 계약 약 ${sl.toFixed(2)}건</div>` : ''}
       </div></div>
       <div class="sub" style="margin:8px 0 0;">점 하나는 "팀장님 1명의 1주"입니다(주 ${MON_CFG.minDays}일 이상 입력, 이미 끝난 주만). 함께 움직였는지를 보여줄 뿐 콜량이 계약을 만들었다는 증명은 아닙니다. 표본이 ${MON_CFG.smallN}개 미만이면 참고용입니다.</div>`;
   }
