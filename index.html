@@ -2821,7 +2821,7 @@ function monRenderPick(){
     <div class="sub" style="margin:0 0 8px;">프로젝트 대화창에서 받은 <b>CODE|v1|…</b> 줄을 여러 줄 그대로 붙여넣으세요. 저장해 두면 PC가 바뀌어도 남고, 아래에서 체결/미체결 비교가 자동으로 나옵니다.</div>
     <textarea id="mon_codeIn" rows="5" placeholder="CODE|v1|DB-00504578.mp3|2026-10|안세현|상품광고DB|미체결|분석전달|…" style="width:100%;font-size:12px;"></textarea>
     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="act" onclick="monSaveCodes()">코딩 줄 저장</button><span id="mon_codeMsg" style="font-size:12.5px;color:var(--muted);"></span></div></div>`;
-  html += monRenderCodeStats();
+  html += `<div id="mon_codeStats">${monRenderCodeStats()}</div>`;
   el.innerHTML = html;
 }
 async function monMarkChecked(code, pickKey){
@@ -2882,10 +2882,40 @@ function monCodeRecords(){
   return monChecks.filter(c => c.code_line).map(c => ({ c: c, f: c.code_line.split('|') })).filter(x => x.f.length === 19);
 }
 function monCopyCodes(btn){ monCopy(monCodeRecords().map(x => x.c.code_line).join('\n'), btn); }
+let monCodeMgr = '';
+function monCodeMgrOf(x){ return x.c.manager_name || x.f[4] || '(미상)'; }
+function monSetCodeMgr(v){
+  monCodeMgr = v;
+  const el = document.getElementById('mon_codeStats');
+  if (el) el.innerHTML = monRenderCodeStats();
+}
 function monRenderCodeStats(){
-  const recs = monCodeRecords();
-  let html = `<div class="card"><div style="font-weight:700;margin-bottom:6px;">코딩 현황 <span style="font-weight:400;font-size:12px;color:var(--muted);">(저장된 코딩 줄 ${recs.length}건 · 점검만 하고 코딩 전 ${monChecks.length - recs.length}건)</span></div>`;
-  if (!recs.length) return html + `<div class="sub" style="margin:0;">아직 저장된 코딩 줄이 없습니다.</div></div>`;
+  const all = monCodeRecords();
+  const names = Array.from(new Set(all.map(monCodeMgrOf))).sort();
+  if (monCodeMgr && names.indexOf(monCodeMgr) < 0) monCodeMgr = '';
+  const recs = monCodeMgr ? all.filter(x => monCodeMgrOf(x) === monCodeMgr) : all;
+  const sel = `<select onchange="monSetCodeMgr(this.value)" style="font-size:13px;margin-left:8px;"><option value="">전체 팀장</option>${names.map(n => `<option value="${escapeHtml(n)}"${n === monCodeMgr ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('')}</select>`;
+  let html = `<div class="card"><div style="font-weight:700;margin-bottom:6px;">코딩 현황 ${sel} <span style="font-weight:400;font-size:12px;color:var(--muted);">(${monCodeMgr ? escapeHtml(monCodeMgr) + ' 팀장 ' : '저장된 '}코딩 줄 ${recs.length}건 · 점검만 하고 코딩 전 ${monChecks.length - all.length}건)</span></div>`;
+  if (!all.length) return html + `<div class="sub" style="margin:0;">아직 저장된 코딩 줄이 없습니다.</div></div>`;
+  if (!recs.length) return html + `<div class="sub" style="margin:0;">선택한 팀장의 코딩 줄이 없습니다.</div></div>`;
+  /* 팀장별 × 항목 비교표: 체결+미체결을 합쳐서 팀 전체 대비 어디가 낮은지 본다 */
+  const rate = (grp, it) => { const den = grp.filter(x => it.den(x.f)), num = den.filter(x => it.num(x.f)); return { n: den.length, k: num.length, p: den.length ? num.length / den.length * 100 : null }; };
+  const mHead = names.map(n => `<th style="white-space:nowrap;">${escapeHtml(n)}<div style="font-weight:400;font-size:11px;color:var(--muted);">${all.filter(x => monCodeMgrOf(x) === n).length}건</div></th>`).join('');
+  const mRows = MON_CODE_ITEMS.map((it, i) => {
+    const t = rate(all, it);
+    const cells = names.map(n => {
+      const r = rate(all.filter(x => monCodeMgrOf(x) === n), it);
+      if (r.p === null) return '<td>-</td>';
+      const gap = t.p === null ? 0 : (r.p - t.p) * (MON_COACH[i].lowGood ? -1 : 1);
+      const few = r.n < 3;
+      const col = few ? 'var(--muted)' : gap <= -20 ? 'var(--red)' : gap >= 20 ? 'var(--green)' : 'inherit';
+      return `<td style="color:${col};font-weight:${!few && Math.abs(gap) >= 20 ? 700 : 400};">${r.p.toFixed(0)}% <span style="font-size:11px;color:var(--muted);">(${r.k}/${r.n})</span></td>`;
+    }).join('');
+    return `<tr><td>${escapeHtml(it.label)}</td><td>${t.p === null ? '-' : t.p.toFixed(0) + '%'}</td>${cells}</tr>`;
+  }).join('');
+  html += `<div style="font-weight:600;font-size:13px;margin:10px 0 4px;">팀장별 항목 비교 <span style="font-weight:400;font-size:12px;color:var(--muted);">(체결+미체결 합산)</span></div>
+    <div style="overflow-x:auto;"><table style="min-width:${360 + names.length * 90}px;"><thead><tr><th>항목</th><th>팀 전체</th>${mHead}</tr></thead><tbody>${mRows}</tbody></table></div>
+    <div class="sub" style="margin:6px 0 12px;"><span style="color:var(--red);font-weight:700;">빨강</span> = 팀 전체보다 20%p 이상 불리(병목 후보), <span style="color:var(--green);font-weight:700;">초록</span> = 20%p 이상 유리. 해당 건수가 3건 미만인 칸은 회색(<b>참고용</b>)입니다. 일방 설명 항목은 낮을수록 좋아서 색이 반대로 칠해집니다.</div>`;
   const won = recs.filter(x => x.f[6] === '체결'), lost = recs.filter(x => x.f[6] === '미체결');
   const cell = (grp, it) => {
     const den = grp.filter(x => it.den(x.f)), num = den.filter(x => it.num(x.f));
@@ -2900,11 +2930,11 @@ function monRenderCodeStats(){
     return `<tr><td>${escapeHtml(it.label)}</td><td>${fc(a)}</td><td>${fc(b)}</td><td style="font-weight:${diff !== null && Math.abs(diff) >= 20 ? 700 : 400};color:${diff !== null && Math.abs(diff) >= 20 ? 'var(--red)' : 'var(--muted)'};">${dtxt}</td></tr>`;
   }).join('');
   const q = grp => { const v = grp.map(x => parseFloat(x.f[12])).filter(x => !isNaN(x)); return v.length ? monAvg(v).toFixed(1) : '-'; };
-  html += `<div style="overflow-x:auto;"><table style="min-width:560px;"><thead><tr><th>항목</th><th>체결콜 (${won.length}건)</th><th>미체결콜 (${lost.length}건)</th><th>차이</th></tr></thead>
+  html += `<div style="font-weight:600;font-size:13px;margin:4px 0;">체결 vs 미체결 <span style="font-weight:400;font-size:12px;color:var(--muted);">(${monCodeMgr ? escapeHtml(monCodeMgr) + ' 팀장' : '전체 팀장'})</span></div><div style="overflow-x:auto;"><table style="min-width:560px;"><thead><tr><th>항목</th><th>체결콜 (${won.length}건)</th><th>미체결콜 (${lost.length}건)</th><th>차이</th></tr></thead>
     <tbody>${body}<tr><td>상담원 평균 질문 수</td><td>${q(won)}</td><td>${q(lost)}</td><td></td></tr></tbody></table></div>`;
   if (won.length < MON_CFG.smallN || lost.length < MON_CFG.smallN) html += `<div class="sub" style="margin:8px 0 0;color:var(--amber);">체결·미체결 중 한쪽이라도 ${MON_CFG.smallN}건 미만이면 <b>참고용</b>입니다. 체결콜 ${won.length}건 · 미체결콜 ${lost.length}건.</div>`;
   const byM = {};
-  recs.forEach(x => { const n = x.c.manager_name || x.f[4] || '(미상)'; const o = byM[n] = byM[n] || { w: 0, l: 0 }; if (x.f[6] === '체결') o.w++; else o.l++; });
+  all.forEach(x => { const n = monCodeMgrOf(x); const o = byM[n] = byM[n] || { w: 0, l: 0 }; if (x.f[6] === '체결') o.w++; else o.l++; });
   const mBody = Object.keys(byM).sort().map(n => `<tr><td>${escapeHtml(n)}</td><td>${byM[n].w + byM[n].l}</td><td>${byM[n].w}</td><td>${byM[n].l}</td></tr>`).join('');
   html += `<div style="overflow-x:auto;margin-top:12px;"><table style="min-width:420px;"><thead><tr><th>팀장</th><th>코딩 콜</th><th>체결</th><th>미체결</th></tr></thead><tbody>${mBody}</tbody></table></div>
     <div style="margin-top:10px;"><button class="secondary small" onclick="monCopyCodes(this)">코딩 줄 전체 복사</button> <span class="sub" style="margin:0 0 0 6px;">월말에 프로젝트 대화창에 "리포트"와 함께 붙여넣으세요.</span></div></div>`;
