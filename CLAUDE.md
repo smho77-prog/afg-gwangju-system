@@ -134,3 +134,23 @@
 - 반영은 PR로 하고, 바뀐 점을 사용자가 이해할 수 있는 말로 요약한다. (예: "계약관리 탭에 직업 입력칸을 추가했어요. Supabase에서 아래 SQL을 먼저 실행해 주세요.")
 - 모바일 화면에서도 깨지지 않게 한다.
 - 이 파일에는 비밀번호, 개인 사원번호, 시책 요율 같은 민감한 정보를 적지 않는다. 이 파일도 사이트 주소로 접근될 수 있기 때문이다.
+
+## 7. 화면 색 구성 (3가지 저장본)
+
+화면 색은 `index.html` 맨 아래쪽 `<style id="ui_modern">` 블록의 **"색 확정" 주석 구간**에서 정한다. 사용자가 "B로 바꿔줘"처럼 요청하면 그 구간의 값을 아래 표의 값으로 바꾸고, 반드시 미리보기(스크린샷)로 먼저 보여준 뒤 반영한다.
+공통: 왼쪽 메뉴 남색 `#0F1B3D`(로고 남색과 맞춤), 활성 탭 인디고 `#4F46E5`, 글자 `#0F172A`는 세 가지 모두 같다.
+
+| 항목 | **A 아이보리 (현재 적용)** | B 블루그레이 | C 스톤 |
+|---|---|---|---|
+| 상단 바 배경 `header#mainHeader` | `#F5EFE1` | `#E6EBF4` | `#ECEAE4` |
+| 상단 바 테두리 / 구분선 | `#E3D9C3` | `#D3DBEA` | `#DAD7CE` |
+| 본문 바탕 `--paper` | `#EFEADF` | `#E9EDF4` | `#E7E5DF` |
+| 카드 `--card` | `#FFFEFB` | `#FFFFFF` | `#FCFCFA` |
+| `--ui-slate-50` | `#F7F3E9` | `#F3F5FA` | `#F5F4F0` |
+| `--ui-slate-100` | `#EFEADD` | `#E8ECF4` | `#EBE9E3` |
+| `--ui-slate-200` / `--line` | `#E4DDCB` | `#D8DFEC` | `#DDDAD1` |
+| 표 머리글 `th` | `#F4F0E4` | `#F0F3F9` | `#F1F0EB` |
+| 느낌 | 포근한 베이지 | 로고 남색과 같은 계열(통일감) | 차분한 회갈색 |
+
+- 바꿀 곳: `:root`의 `--paper/--card/--line/--ui-slate-*`, `header#mainHeader`, `#statusRow/#notifBtn/#menuToggle`의 테두리, `.brand-logo + h1`의 왼쪽 선, `th`, `tbody tr:hover td`, `.cm-table th`, `.cal-cell:hover`, `button.secondary`
+- 상단 바 로고: `afg-logo.jpg`(흰 배경 로고, 여백 포함 가로 5000px 원본 기준). 로고 틀은 `.brand-logo` CSS에서 원본 비율(여백 잘라내기)에 맞춰져 있으니 다른 비율의 파일로 바꾸면 틀 값도 함께 고친다.
