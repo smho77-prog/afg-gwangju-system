@@ -597,6 +597,19 @@ header#mainHeader { background:#F6F1E4; border-bottom:1px solid #E6DDC6; }
 .brand-logo + h1 { padding-left:12px; border-left:1px solid #D9CFB5; font-size:15px; }
 .brand-logo + h1 .brand-fb { display:none; }
 @media (max-width:640px){ .brand-logo { width:112px; height:21px; } .brand-logo img { width:187px; left:-37px; top:-34px; } .brand-logo + h1 { font-size:13px; padding-left:8px; } }
+/* --- 색 확정: 아이보리 상단 바 + 베이지 본문 바탕 + 로고 남색 사이드바 --- */
+:root { --paper:#EFEADF; --card:#FFFEFB; --line:#E4DDCB;
+  --ui-slate-50:#F7F3E9; --ui-slate-100:#EFEADD; --ui-slate-200:#E4DDCB; }
+header#mainHeader { background:#F5EFE1; border-bottom-color:#E3D9C3; }
+#statusRow, #notifBtn, #menuToggle { border-color:#E3D9C3; }
+.brand-logo + h1 { border-left-color:#E3D9C3; }
+#sideMenu { background:#0F1B3D; }
+#sideMenu::-webkit-scrollbar-thumb { background:#2A3B66; }
+th { background:#F4F0E4; }
+tbody tr:hover td, .cm-table tbody tr:hover { background:#F7F3E9; }
+.cm-table th, .cm-hist th { background:#F4F0E4; }
+.cal-cell:hover:not(.empty) { background:#F3EEE0; }
+button.secondary { background:#EFEADD; } button.secondary:hover { background:#E4DDCB; }
 </style>
 </head>
 <body>
