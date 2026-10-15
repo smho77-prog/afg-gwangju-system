@@ -1058,8 +1058,9 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="secondary small" data-v="daily" onclick="monSetView('daily')">✏️ 일일 입력</button>
       <button class="secondary small" data-v="impact" onclick="monSetView('impact')">🔗 콜시간·가망→실적</button>
       <button class="secondary small" data-v="trend" onclick="monSetView('trend')">📈 추이</button>
+      <button class="secondary small" data-v="upload" onclick="monSetView('upload')">📥 DB 업로드</button>
     </div>
-    <div class="sub" style="margin:10px 0 0;">DB관리에 올린 엑셀을 기준으로 팀장별 DB 활용·병목을 보고(팀장 한 명을 골라 분석·코칭도 가능), 점검할 콜을 뽑아 코딩하고, 매일 콜시간·가망고객 발굴을 입력해 실적과의 관계와 주간 추이를 봅니다. (마스터 전용 · 신규/카카오페이 DB 제외)</div>
+    <div class="sub" style="margin:10px 0 0;"><b>📥 DB 업로드</b>에 올린 엑셀(DB관리 탭과 별개)을 기준으로 팀장별 DB 활용·병목을 보고(팀장 한 명을 골라 분석·코칭도 가능), 점검할 콜을 뽑아 코딩하고, 매일 콜시간·가망고객 발굴을 입력해 실적과의 관계와 주간 추이를 봅니다. (마스터 전용 · 신규/카카오페이 DB 제외)</div>
   </div>
 
   <div id="mon_setupBox" class="card" style="display:none;border-color:var(--amber);background:var(--amber-bg);">
@@ -1092,6 +1093,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div id="mon_viewDaily" style="display:none;"></div>
   <div id="mon_viewImpact" style="display:none;"></div>
   <div id="mon_viewTrend" style="display:none;"></div>
+  <div id="mon_viewUpload" style="display:none;"></div>
 </div>
 
 <!-- ===== 급여계산기 (마스터 전용) ===== -->
@@ -2578,10 +2580,40 @@ async function dbCommitExcel(){
 /* ============================================================
    콜 모니터링 (마스터 전용)
    · 현황·병목 / 점검 콜·코딩 / 일일 입력 / 콜시간·가망→실적 / 주간 추이
-   · 테이블: db_snapshots, daily_activity, daily_prospects, call_checks (+ db_customers.has_recording)
+   · 테이블: mon_customers(콜 모니터링 전용 DB — 이 탭의 'DB 업로드'로만 채움, DB관리 탭과 별개), db_snapshots, daily_activity, daily_prospects, call_checks
    · 신규·카카오페이 DB는 DB관리와 같은 기준(DB_EXCLUDE_TYPES)으로 제외한다
 ============================================================ */
-const MON_SQL = `-- 1) DB관리 엑셀의 '녹취파일' O/X 저장
+const MON_SQL = `-- 0) 콜 모니터링 전용 DB (DB관리 탭의 db_customers와 별개 · 이 탭의 'DB 업로드'로만 채워짐)
+create table if not exists mon_customers (
+  id bigint generated always as identity primary key,
+  customer_code text not null unique,
+  manager_name text not null,
+  db_type text,
+  consult_type text,
+  distributed_at timestamptz,
+  status text not null default '부재',
+  customer_name text,
+  phone text,
+  region text,
+  reserve_at timestamptz,
+  touch_count integer not null default 0,
+  contract_count integer not null default 0,
+  last_status_at timestamptz,
+  last_touch_at timestamptz,
+  memo text,
+  partner_memo text,
+  birth text,
+  gender text,
+  has_recording boolean,
+  source text not null default 'excel',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists mon_customers_mgr_idx on mon_customers (manager_name);
+create index if not exists mon_customers_dist_idx on mon_customers (distributed_at);
+grant select, insert, update, delete on mon_customers to anon, authenticated;
+
+-- 1) (DB관리용 · 선택) DB관리 엑셀의 '녹취파일' O/X 저장
 alter table db_customers add column if not exists has_recording boolean;
 
 -- 2) 주간 요약 스냅샷 (고객 정보 없음 · 추이 확인용)
@@ -2670,6 +2702,7 @@ const MON_METRICS = [
   { key: 'avg', label: '평균 터치 횟수', unit: '회', val: a => a.total ? a.touch_sum / a.total : null }
 ];
 
+let monRows = [], monLoaded = false, monLoadError = '', monPending = null, monUpMode = 'replace';
 let monView = 'status', monType = '__all__', monMissing = [];
 let monSnaps = [], monDaily = [], monProspects = [], monChecks = [];
 let monExcl = null, monDailyDate = '', monImpFrom = '', monImpTo = '';
@@ -2735,13 +2768,13 @@ function monExclLoad(){
 function monExclSave(){ try { localStorage.setItem(MON_EXCL_KEY, JSON.stringify(monExcl)); } catch (e) {} }
 function monAllManagers(){
   const s = new Set();
-  dbRows.forEach(r => { if (r.manager_name) s.add(r.manager_name); });
+  monRows.forEach(r => { if (r.manager_name) s.add(r.manager_name); });
   monDaily.forEach(d => { if (d.manager_name) s.add(d.manager_name); });
   s.delete(currentUser.manager_name);
   return Array.from(s).sort();
 }
 function monIncluded(){ return monAllManagers().filter(n => monExcl.indexOf(n) < 0); }
-function monHasRecCol(){ return dbRows.length > 0 && Object.prototype.hasOwnProperty.call(dbRows[0], 'has_recording'); }
+function monHasRecCol(){ return monRows.length > 0 && Object.prototype.hasOwnProperty.call(monRows[0], 'has_recording'); }
 function monInRange(iso, from, to){
   if (!from && !to) return true;
   const d = dbTs(iso); if (!d) return false;
@@ -2751,7 +2784,7 @@ function monInRange(iso, from, to){
 function monScopeRows(){
   const inc = new Set(monIncluded());
   const from = document.getElementById('mon_from').value, to = document.getElementById('mon_to').value;
-  return dbRows.filter(r => dbTracked(r) && inc.has(r.manager_name) && monInRange(r.distributed_at, from, to));
+  return monRows.filter(r => dbTracked(r) && inc.has(r.manager_name) && monInRange(r.distributed_at, from, to));
 }
 /* 한 묶음의 집계 — db_snapshots 컬럼과 같은 이름을 쓴다 */
 function monAgg(rows, now){
@@ -2820,11 +2853,164 @@ async function monOpenTab(){
   if (monExcl === null) monExcl = monExclLoad();
   if (!monDailyDate) monDailyDate = monToday();
   document.getElementById('mon_loadInfo').textContent = '불러오는 중...';
-  await loadDbCustomers();
+  await monLoadCustomers();
   await monLoadExtra();
   monRender();
 }
 async function monReload(){ await monOpenTab(); }
+
+/* ---------- 콜 모니터링 전용 DB (mon_customers) : 불러오기 · 엑셀 업로드 ---------- */
+async function monLoadCustomers(){
+  monLoadError = '';
+  try{
+    if (!sb) throw new Error('DB 연결이 아직 준비되지 않았습니다.');
+    monRows = await monFetchAll('mon_customers');
+    monLoaded = true;
+  }catch(e){
+    monRows = [];
+    monLoaded = false;
+    monLoadError = (e && e.message) ? e.message : String(e);
+  }
+}
+function monSetUpMode(v){ monUpMode = v; if (monPending) monRenderUploadPreview(); }
+function monUpDateRange(list, key){
+  let mn = '', mx = '';
+  list.forEach(r => { const d = dbTs(r[key]); if (!d) return; const k = monYmd(d); if (!mn || k < mn) mn = k; if (!mx || k > mx) mx = k; });
+  return mn ? (mn === mx ? mn : mn + ' ~ ' + mx) : '-';
+}
+function monRenderUpload(){
+  const el = document.getElementById('mon_viewUpload');
+  const n = monRows.length;
+  const mgrs = new Set(monRows.map(r => r.manager_name).filter(Boolean)).size;
+  let last = null;
+  monRows.forEach(r => { const t = dbTs(r.updated_at); if (t && (!last || t > last)) last = t; });
+  const info = !monLoaded
+    ? '<span style="color:var(--red);">모니터링 DB를 불러오지 못했습니다. 화면 위의 SQL 안내를 먼저 실행해주세요.</span>'
+    : n
+      ? `현재 모니터링 DB <b>${n.toLocaleString('ko-KR')}건</b> · 팀장 ${mgrs}명 · 분배일 ${monUpDateRange(monRows, 'distributed_at')} · 마지막 업로드 ${last ? dbFmt(last) : '-'}`
+      : '아직 올린 데이터가 없습니다. 아래에서 회사 전산 DB 엑셀을 올려주세요.';
+  const radio = (v, label, desc) => `<label style="display:flex;gap:8px;align-items:flex-start;margin:0 0 8px;font-size:13px;color:var(--ink);cursor:pointer;">
+      <input type="radio" name="mon_upMode" value="${v}" style="width:auto;margin-top:3px;" ${monUpMode === v ? 'checked' : ''} onchange="monSetUpMode(this.value)">
+      <span><b>${label}</b><br><span style="font-size:12px;color:var(--muted);">${desc}</span></span></label>`;
+  el.innerHTML = `<div class="card">
+      <div style="font-weight:700;margin-bottom:4px;">📥 콜 모니터링용 DB 업로드</div>
+      <div class="sub" style="margin-bottom:10px;">여기에 올린 엑셀은 <b>콜 모니터링 전용</b>입니다. DB관리 탭(팀장님들이 올린 월별 DB)과는 완전히 별개로 저장되고, 서로 영향을 주지 않습니다. 기간(2개월·6개월·1년 등)은 올리는 파일 그대로 정하세요.</div>
+      <div style="font-size:13px;margin-bottom:12px;padding:9px 12px;background:#F7F5EF;border-radius:8px;">${info}</div>
+      <div style="margin-bottom:12px;">
+        ${radio('replace', '기존 데이터를 교체하며 올리기 (추천)', '파일에 있는 고객은 새 값으로 갱신하고, 파일에 없는 기존 고객은 삭제합니다. 분석 기간을 바꿀 때(예: 2개월 → 6개월) 알맞습니다.')}
+        ${radio('merge', '기존 데이터에 추가·갱신하기', '파일에 있는 고객만 추가·갱신하고, 나머지 기존 데이터는 그대로 둡니다. 같은 고객코드는 최신 값으로 덮어씁니다.')}
+      </div>
+      <input type="file" id="mon_excelFile" accept=".xlsx,.xls" onchange="monHandleExcel(event)" style="max-width:360px;">
+      <div id="mon_excelStatus" style="font-size:12.5px;margin-top:8px;"></div>
+    </div>
+    <div class="card" id="mon_upPreviewCard" style="display:none;"></div>`;
+  if (monPending) monRenderUploadPreview();
+}
+function monHandleExcel(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const st = document.getElementById('mon_excelStatus');
+  st.textContent = '읽는 중...';
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    try{
+      if (!monLoaded) await monLoadCustomers();
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      if (!rows.length) { st.textContent = '❌ 데이터가 없는 파일입니다.'; return; }
+      const headers = Object.keys(rows[0]).map(h => h.trim());
+      const missing = ['고객코드', '담당자명', '상담상태'].filter(h => headers.indexOf(h) < 0);
+      if (missing.length) { st.textContent = '❌ 필수 컬럼을 찾지 못했습니다: ' + missing.join(', ') + ' (회사 전산 DB 엑셀 원본인지 확인해주세요)'; return; }
+      const byCode = new Map();
+      let invalid = 0, dup = 0;
+      rows.forEach(r => {
+        const m = dbMapExcelRow(r);
+        if (!m) { invalid++; return; }
+        if (byCode.has(m.customer_code)) dup++;
+        byCode.set(m.customer_code, m);
+      });
+      const list = Array.from(byCode.values());
+      if (!list.length) { st.textContent = '❌ 반영할 수 있는 행이 없습니다.'; return; }
+      const exist = new Set(monRows.map(r => r.customer_code));
+      list.forEach(x => { x._new = !exist.has(x.customer_code); });
+      monPending = { list: list, invalid: invalid, dup: dup, total: rows.length };
+      st.textContent = `✓ ${rows.length}행을 읽었습니다. 아래 내용을 확인한 뒤 “업로드 반영”을 눌러주세요.`;
+      monRenderUploadPreview();
+    }catch(err){
+      console.error(err);
+      st.textContent = '❌ 파일을 읽는 중 오류: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function monRenderUploadPreview(){
+  const p = monPending;
+  const card = document.getElementById('mon_upPreviewCard');
+  if (!p || !card) return;
+  card.style.display = '';
+  const nNew = p.list.filter(x => x._new).length;
+  const codes = new Set(p.list.map(x => x.customer_code));
+  const stale = monUpMode === 'replace' ? monRows.filter(r => !codes.has(r.customer_code)).length : 0;
+  const byMgr = {}, bySt = {};
+  p.list.forEach(x => { byMgr[x.manager_name] = (byMgr[x.manager_name] || 0) + 1; bySt[x.status] = (bySt[x.status] || 0) + 1; });
+  const chips = o => Object.keys(o).map(k => `<span class="badge" style="background:#EFEDE6;margin-right:4px;">${escapeHtml(k)} ${o[k]}</span>`).join('');
+  const SHOW = 30;
+  const body = p.list.slice(0, SHOW).map(x => `<tr><td>${escapeHtml(x.manager_name)}</td><td>${escapeHtml(x.db_type || '')}</td><td>${escapeHtml(x.customer_name || '')}</td>
+    <td>${dbStatusTag(x.status)}</td><td>${x.touch_count}</td><td style="font-size:12px;">${x.distributed_at ? escapeHtml(x.distributed_at.slice(0, 16).replace('T', ' ')) : ''}</td>
+    <td>${x._new ? '<span class="badge badge-done">신규</span>' : '<span class="badge" style="background:#EFEDE6;">갱신</span>'}</td></tr>`).join('');
+  card.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">업로드 미리보기</div>
+    <div style="font-size:13px;line-height:1.7;">반영 대상 <b>${p.list.length.toLocaleString('ko-KR')}건</b> (신규 <b style="color:var(--green);">${nNew}</b> · 갱신 <b>${p.list.length - nNew}</b>) · 분배일 ${monUpDateRange(p.list, 'distributed_at')}
+      ${monUpMode === 'replace' ? `<br><span style="color:${stale ? 'var(--red)' : 'var(--muted)'};">교체 모드: 파일에 없는 기존 <b>${stale.toLocaleString('ko-KR')}건</b>이 삭제됩니다.</span>` : '<br><span style="color:var(--muted);">추가·갱신 모드: 기존 데이터는 삭제되지 않습니다.</span>'}
+      <br>팀장별: ${chips(byMgr)}<br>상태별: ${chips(bySt)}
+      ${(p.invalid || p.dup) ? `<br><span style="color:var(--amber);font-size:12px;">제외/정리: 고객코드·담당자 없음 ${p.invalid}행 · 파일 내 중복 ${p.dup}행(마지막 행 기준)</span>` : ''}</div>
+    <div style="overflow-x:auto;"><table style="min-width:560px;"><thead><tr><th>팀장</th><th>DB유형</th><th>고객명</th><th>상태</th><th>터치</th><th>분배일시</th><th></th></tr></thead><tbody>${body}</tbody></table></div>
+    <div class="sub" style="margin:6px 0 0;">${p.list.length > SHOW ? `… 외 ${(p.list.length - SHOW).toLocaleString('ko-KR')}건 (미리보기는 ${SHOW}건만 표시)` : ''}</div>
+    <div style="display:flex;gap:8px;margin-top:10px;"><button class="act" id="mon_commitBtn" onclick="monCommitExcel()">업로드 반영</button><button class="secondary" onclick="monCancelExcel()">취소</button></div>`;
+}
+function monCancelExcel(){
+  monPending = null;
+  const c = document.getElementById('mon_upPreviewCard'); if (c) { c.style.display = 'none'; c.innerHTML = ''; }
+  const f = document.getElementById('mon_excelFile'); if (f) f.value = '';
+  const st = document.getElementById('mon_excelStatus'); if (st) st.textContent = '';
+}
+async function monCommitExcel(){
+  if (!monPending) return;
+  const p = monPending;
+  const codes = new Set(p.list.map(x => x.customer_code));
+  const stale = monUpMode === 'replace' ? monRows.filter(r => !codes.has(r.customer_code)) : [];
+  if (stale.length && !confirm(`파일에 없는 기존 모니터링 데이터 ${stale.length.toLocaleString('ko-KR')}건이 삭제됩니다.\n(DB관리 탭 데이터는 영향 없음)\n계속할까요?`)) return;
+  const btn = document.getElementById('mon_commitBtn');
+  if (btn) btn.disabled = true;
+  const st = document.getElementById('mon_excelStatus');
+  try{
+    const nowIso = new Date().toISOString();
+    const payload = p.list.map(x => { const o = Object.assign({}, x, { updated_at: nowIso }); delete o._new; return o; });
+    const CH = 300;
+    for (let i = 0; i < payload.length; i += CH) {
+      st.textContent = `저장 중... ${Math.min(i + CH, payload.length)} / ${payload.length}`;
+      const { error } = await sb.from('mon_customers').upsert(payload.slice(i, i + CH), { onConflict: 'customer_code' });
+      if (error) throw error;
+    }
+    /* 새 데이터를 먼저 저장한 뒤 파일에 없는 옛 건을 지운다 (저장이 실패해도 기존 데이터가 비지 않게) */
+    for (let i = 0; i < stale.length; i += 200) {
+      st.textContent = `정리 중... ${Math.min(i + 200, stale.length)} / ${stale.length}`;
+      const { error } = await sb.from('mon_customers').delete().in('id', stale.slice(i, i + 200).map(r => r.id));
+      if (error) throw error;
+    }
+    const n = payload.length;
+    monCancelExcel();
+    await monLoadCustomers();
+    monRender();
+    const st2 = document.getElementById('mon_excelStatus');
+    if (st2) st2.textContent = `✓ ${n.toLocaleString('ko-KR')}건 반영 완료` + (stale.length ? ` (기존 ${stale.length.toLocaleString('ko-KR')}건 삭제)` : '');
+  }catch(e){
+    console.error(e);
+    st.textContent = '❌ 저장 실패: ' + (e.message || e) + ' (처음이라면 화면 위의 SQL 안내를 먼저 실행해주세요)';
+  }finally{
+    if (btn) btn.disabled = false;
+  }
+}
 
 /* ---------- 화면 틀 ---------- */
 function monSetView(v){ monView = v; monRender(); }
@@ -2850,9 +3036,8 @@ function monRender(){
   if (!currentUser || currentUser.role !== 'master') return;
   if (monExcl === null) monExcl = monExclLoad();
   const warn = [];
-  if (dbLoadError) warn.push('DB 고객 데이터: ' + dbLoadError);
+  if (monLoadError) warn.push('콜 모니터링 DB(mon_customers): ' + monLoadError);
   monMissing.forEach(m => warn.push(m));
-  if (dbRows.length && !monHasRecCol()) warn.push('db_customers.has_recording 열이 아직 없습니다 (녹취 O/X 미저장)');
   const box = document.getElementById('mon_setupBox');
   box.style.display = warn.length ? '' : 'none';
   if (warn.length) {
@@ -2860,16 +3045,16 @@ function monRender(){
     document.getElementById('mon_sqlText').textContent = MON_SQL;
   }
   document.querySelectorAll('#mon_subtabs button').forEach(b => { b.className = (b.dataset.v === monView ? 'act' : 'secondary') + ' small'; });
-  ['status', 'mgr', 'pick', 'daily', 'impact', 'trend'].forEach(k => {
+  ['status', 'mgr', 'pick', 'daily', 'impact', 'trend', 'upload'].forEach(k => {
     const el = document.getElementById('mon_view' + k.charAt(0).toUpperCase() + k.slice(1));
     if (el) el.style.display = (k === monView) ? '' : 'none';
   });
-  document.getElementById('mon_filterCard').style.display = monView === 'daily' ? 'none' : '';
-  document.getElementById('mon_rangeWrap').style.display = (monView === 'status' || monView === 'mgr') ? '' : 'none';
+  document.getElementById('mon_filterCard').style.display = (monView === 'daily' || monView === 'upload') ? 'none' : '';
+  document.getElementById('mon_rangeWrap').style.display = (monView === 'status' || monView === 'mgr') ? 'flex' : 'none';
   monRenderMgrChecks();
-  const tracked = dbRows.filter(dbTracked).length;
-  document.getElementById('mon_loadInfo').textContent = dbLoaded
-    ? `DB ${dbRows.length.toLocaleString('ko-KR')}건 불러옴 (${DB_EXCLUDE_TYPES.join('·')} 제외 ${tracked.toLocaleString('ko-KR')}건)`
+  const tracked = monRows.filter(dbTracked).length;
+  document.getElementById('mon_loadInfo').textContent = monLoaded
+    ? `DB ${monRows.length.toLocaleString('ko-KR')}건 불러옴 (${DB_EXCLUDE_TYPES.join('·')} 제외 ${tracked.toLocaleString('ko-KR')}건)`
     : '';
   if (monView === 'status') monRenderStatus();
   if (monView === 'mgr') monRenderMgr();
@@ -2877,6 +3062,7 @@ function monRender(){
   if (monView === 'daily') monRenderDaily();
   if (monView === 'impact') monRenderImpact();
   if (monView === 'trend') monRenderTrend();
+  if (monView === 'upload') monRenderUpload();
 }
 function monCopySql(){ monCopy(MON_SQL, document.getElementById('mon_sqlBtn')); }
 
@@ -2887,7 +3073,7 @@ function monSetType(t){ monType = t; monRenderStatus(); }
 function monRenderStatus(){
   const el = document.getElementById('mon_viewStatus');
   const rows = monScopeRows();
-  if (!dbLoaded || !rows.length) { el.innerHTML = monEmpty(dbLoaded ? '조건에 맞는 DB가 없습니다. 기간·팀장 선택을 확인하거나 DB관리 탭에서 엑셀을 업로드해주세요.' : 'DB 데이터를 불러오지 못했습니다. 위의 안내를 확인해주세요.'); return; }
+  if (!monLoaded || !rows.length) { el.innerHTML = monEmpty(monLoaded ? '조건에 맞는 DB가 없습니다. 기간·팀장 선택을 확인하거나, 위의 <b>📥 DB 업로드</b>에서 엑셀을 올려주세요. (이 탭의 DB는 DB관리 탭과 별개입니다)' : 'DB 데이터를 불러오지 못했습니다. 위의 안내를 확인해주세요.'); return; }
   const now = new Date();
   const types = Array.from(new Set(rows.map(r => r.db_type || '(미분류)'))).sort();
   if (monType !== '__all__' && types.indexOf(monType) < 0) monType = '__all__';
@@ -2956,16 +3142,16 @@ function monSetPickOpt(){
 }
 function monRenderPick(){
   const el = document.getElementById('mon_viewPick');
-  if (!dbLoaded) { el.innerHTML = monEmpty('DB 데이터를 불러오지 못했습니다. 위의 안내를 확인해주세요.'); return; }
+  if (!monLoaded) { el.innerHTML = monEmpty('DB 데이터를 불러오지 못했습니다. 위의 안내를 확인해주세요.'); return; }
   const now = new Date();
-  const haveRec = monHasRecCol() && dbRows.some(r => r.has_recording === true || r.has_recording === false);
+  const haveRec = monHasRecCol() && monRows.some(r => r.has_recording === true || r.has_recording === false);
   const checked = new Set(monChecks.map(c => c.customer_code));
   const cutoff = now.getTime() - monPickOpt.days * 86400000;
   const picks = [];
   monIncluded().forEach(m => {
     MON_PICKS.forEach(p => {
       const n = monPickOpt[p.key]; if (!n) return;
-      dbRows.filter(r => dbTracked(r) && r.manager_name === m && p.test(r) && !checked.has(r.customer_code) && (!haveRec || r.has_recording === true) && monLastTs(r) >= cutoff)
+      monRows.filter(r => dbTracked(r) && r.manager_name === m && p.test(r) && !checked.has(r.customer_code) && (!haveRec || r.has_recording === true) && monLastTs(r) >= cutoff)
         .sort((a, b) => monLastTs(b) - monLastTs(a)).slice(0, n).forEach(r => picks.push({ m: m, p: p, r: r }));
     });
   });
@@ -3005,7 +3191,7 @@ function monRenderPick(){
   el.innerHTML = html;
 }
 async function monMarkChecked(code, pickKey){
-  const r = dbRows.find(x => x.customer_code === code);
+  const r = monRows.find(x => x.customer_code === code);
   const row = { customer_code: code, manager_name: r ? r.manager_name : null, db_type: r ? r.db_type : null, pick_type: pickKey || null, result: r ? (r.status === '계약완료' ? '체결' : '미체결') : null, checked_at: new Date().toISOString() };
   const { error } = await sb.from('call_checks').upsert([row], { onConflict: 'customer_code' });
   if (error) { alert('저장 실패: ' + error.message + '\n(위 안내의 SQL을 먼저 실행했는지 확인해주세요)'); return; }
@@ -3168,7 +3354,7 @@ function monRenderDaily(){
   const el = document.getElementById('mon_viewDaily');
   const date = monDailyDate;
   const mgrs = monAllManagers();
-  if (!mgrs.length) { el.innerHTML = monEmpty('팀장님 목록이 없습니다. DB관리 탭에서 엑셀을 먼저 업로드해주세요.'); return; }
+  if (!mgrs.length) { el.innerHTML = monEmpty('팀장님 목록이 없습니다. <b>📥 DB 업로드</b>에서 엑셀을 먼저 올려주세요.'); return; }
   const byM = {};
   monDaily.filter(d => d.activity_date === date).forEach(d => { byM[d.manager_name] = d; });
   const pros = monProspects.filter(p => p.activity_date === date);
@@ -3378,7 +3564,7 @@ function monRenderImpact(){
     const k = nm + '|' + b, d = String(c.contract_date || '').slice(0, 10);
     if (!cKey.has(k) || d < cKey.get(k)) cKey.set(k, d);
   });
-  dbRows.forEach(r => {
+  monRows.forEach(r => {
     if (r.status !== '계약완료') return;
     const b = monNormBirth(r.birth), nm = String(r.customer_name || '').trim();
     if (!b || !nm) return;
@@ -3405,12 +3591,12 @@ function monRenderImpact(){
 async function monSaveSnapshot(){
   const msg = document.getElementById('mon_snapMsg');
   const date = (document.getElementById('mon_snapDate').value || monToday());
-  if (!dbRows.length) { msg.style.color = 'var(--red)'; msg.textContent = '저장할 DB 데이터가 없습니다.'; return; }
-  const last = dbRows.reduce((m, r) => { [r.updated_at, r.last_touch_at, r.last_status_at, r.distributed_at].forEach(v => { const t = dbTs(v); if (t && t > m) m = t; }); return m; }, new Date(0));
+  if (!monRows.length) { msg.style.color = 'var(--red)'; msg.textContent = '저장할 DB 데이터가 없습니다.'; return; }
+  const last = monRows.reduce((m, r) => { [r.updated_at, r.last_touch_at, r.last_status_at, r.distributed_at].forEach(v => { const t = dbTs(v); if (t && t > m) m = t; }); return m; }, new Date(0));
   const age = (Date.now() - last.getTime()) / 86400000;
   if (age >= 2 && !confirm(`DB 데이터가 마지막으로 갱신된 지 ${Math.floor(age)}일 지났습니다 (${dbFmt(last)}).\n최신 엑셀을 업로드하지 않았다면 오래된 수치가 저장됩니다. 그래도 저장할까요?`)) return;
   const now = new Date(), g = {};
-  dbRows.filter(dbTracked).forEach(r => { const k = (r.manager_name || '') + '\u0001' + (r.db_type || '(미분류)'); (g[k] = g[k] || []).push(r); });
+  monRows.filter(dbTracked).forEach(r => { const k = (r.manager_name || '') + '\u0001' + (r.db_type || '(미분류)'); (g[k] = g[k] || []).push(r); });
   const rows = Object.keys(g).map(k => {
     const p = k.split('\u0001'), a = monAgg(g[k], now);
     return { snapshot_date: date, manager_name: p[0], db_type: p[1], total: a.total, active: a.active, low: a.low, resv: a.resv, retouch: a.retouch, follow: a.follow, touched: a.touched, prospect: a.prospect, refuse: a.refuse, done: a.done, touch_sum: a.touch_sum };
@@ -3477,7 +3663,7 @@ function monRenderTrend(){
 
 /* ============================================================
    6) 팀장별 분석 — 팀장 한 명을 골라 숫자·활동량·코딩을 보고 코칭 메모를 만든다
-   · DB 구조 변경 없음 (db_customers / call_checks / daily_activity / daily_prospects 그대로 사용)
+   · 데이터는 mon_customers(이 탭 전용) / call_checks / daily_activity / daily_prospects 사용
    · 코칭 문구는 전부 미리 준비한 규칙 기반(오프라인)이다. Claude API를 부르지 않는다.
 ============================================================ */
 let monMgr = '', monMgrType = '__all__', monMgrMemoText = '';
@@ -3521,13 +3707,13 @@ function monRangeVals(){
 }
 function monMgrRowsOf(name, type){
   const rg = monRangeVals();
-  return dbRows.filter(r => dbTracked(r) && r.manager_name === name && monInRange(r.distributed_at, rg.from, rg.to) && (type === '__all__' || (r.db_type || '(미분류)') === type));
+  return monRows.filter(r => dbTracked(r) && r.manager_name === name && monInRange(r.distributed_at, rg.from, rg.to) && (type === '__all__' || (r.db_type || '(미분류)') === type));
 }
 /* 팀 기준선: 포함된 팀장 전체의 같은 기간·유형 집계와, 분배 minN건 이상 팀장들의 중앙값 */
 function monMgrBase(type, now){
   const rg = monRangeVals();
   const inc = new Set(monIncluded());
-  const rows = dbRows.filter(r => dbTracked(r) && inc.has(r.manager_name) && monInRange(r.distributed_at, rg.from, rg.to) && (type === '__all__' || (r.db_type || '(미분류)') === type));
+  const rows = monRows.filter(r => dbTracked(r) && inc.has(r.manager_name) && monInRange(r.distributed_at, rg.from, rg.to) && (type === '__all__' || (r.db_type || '(미분류)') === type));
   const byM = {};
   rows.forEach(r => { (byM[r.manager_name] = byM[r.manager_name] || []).push(r); });
   const list = Object.keys(byM).map(n => ({ n: n, m: monRatios(monAgg(byM[n], now)) }));
@@ -3685,9 +3871,9 @@ function monCopyMemo(btn){ monCopy(monMgrMemoText, btn); }
 function monRenderMgr(){
   const el = document.getElementById('mon_viewMgr');
   if (!el) return;
-  if (!dbLoaded) { el.innerHTML = monEmpty('DB 데이터를 불러오지 못했습니다. 위의 안내를 확인해주세요.'); return; }
+  if (!monLoaded) { el.innerHTML = monEmpty('DB 데이터를 불러오지 못했습니다. 위의 안내를 확인해주세요.'); return; }
   const mgrs = monAllManagers();
-  if (!mgrs.length) { el.innerHTML = monEmpty('팀장님 목록이 없습니다. DB관리 탭에서 엑셀을 먼저 업로드해주세요.'); return; }
+  if (!mgrs.length) { el.innerHTML = monEmpty('팀장님 목록이 없습니다. <b>📥 DB 업로드</b>에서 엑셀을 먼저 올려주세요.'); return; }
   if (!monMgr || mgrs.indexOf(monMgr) < 0) monMgr = monIncluded()[0] || mgrs[0];
   const name = monMgr, now = new Date();
   const isExcl = monExcl.indexOf(name) >= 0;
@@ -3779,7 +3965,7 @@ function monRenderMgr(){
     kpiCard('예약일 경과 후 무터치', (m.a.resv || 0) + '건', '상담예약 건', '') +
     kpiCard('가망·예약 7일+ 무터치', (m.a.retouch || 0) + '건', '', '') +
     kpiCard('재터치 필요 합계', m.a.follow + '건', '3회 미만 제외 기준', '') + `</div>
-    <div class="sub" style="margin:8px 0 0;">고객별 목록은 DB관리 탭에서 이 팀장님 이름으로 확인하세요.</div></div>`;
+    <div class="sub" style="margin:8px 0 0;">고객별 목록은 DB관리 탭(팀장님들이 올린 최근 월 데이터 기준)에서 확인하세요.</div></div>`;
 
   /* F. 활동량 (최근 4주) */
   const today = monToday(), w0 = monAddDays(monWeekStart(today), -21), wk = [];

@@ -51,7 +51,7 @@
 | 나는 이렇게 반론했어요 | 전체 | `objection_rebuttals` |
 | 전국 종합병원 지도 / 암치료비 타임라인 | 전체 | — |
 | DB관리 (누수 관리) | 본인 담당 / 마스터 전체 | `db_customers` |
-| 콜 모니터링 | **마스터 전용** | `db_customers`(has_recording), `db_snapshots`, `daily_activity`, `daily_prospects`, `call_checks` |
+| 콜 모니터링 | **마스터 전용** | `mon_customers`(이 탭 전용 DB, DB관리와 별개), `db_snapshots`, `daily_activity`, `daily_prospects`, `call_checks` |
 | 제안 준비 (상품광고3) | 조회 전체 / 자료 등록은 **마스터** | `ad_concepts`, `concept_products`, `monthly_strategy`, `concept_files`, `concept_user_scripts` |
 
 - 정확한 컬럼은 항상 `index.html`의 실제 코드를 기준으로 확인한다.
@@ -107,7 +107,11 @@
 - 한 번에 1000행씩 페이지로 읽는다(Supabase 기본 1000행 제한).
 
 ### 콜 모니터링 (마스터 전용, 사이드바 마스터 전용 그룹)
-- 6개 화면: 현황·병목 / **팀장별 분석** / 점검 콜·코딩 / 일일 입력 / 콜시간·가망→실적 / 추이. 데이터 기준은 DB관리에 올린 엑셀(`db_customers`).
+- 7개 화면: 현황·병목 / **팀장별 분석** / 점검 콜·코딩 / 일일 입력 / 콜시간·가망→실적 / 추이 / **DB 업로드**.
+- **DB는 DB관리 탭과 완전히 별개다.** DB관리 탭은 팀장님들이 올린 해당 월(또는 2개월) DB(`db_customers`)를 보고, 콜 모니터링은 마스터가 이 탭의 **"📥 DB 업로드"**에 올린 엑셀(`mon_customers`, 기간 제한 없음: 2개월·6개월·1년 등)만 쓴다. 서로 영향을 주지 않는다(같은 고객이 양쪽에 따로 있을 수 있고 값이 다를 수 있음 — 의도된 동작).
+- 코드에서 모니터링 구간은 `monRows` / `monLoaded` / `monLoadError`를 쓴다(DB관리의 `dbRows`와 다름). 엑셀 매핑은 DB관리와 같은 `dbMapExcelRow`를 재사용한다.
+- 업로드 방식 두 가지: **교체(기본·추천)** = 파일에 있는 고객은 갱신하고 파일에 없는 기존 고객은 삭제(새 데이터를 먼저 저장한 뒤 삭제), **추가·갱신** = 삭제 없이 같은 고객코드만 덮어씀. 삭제가 생기면 확인창을 띄운다.
+- `mon_customers`가 없으면 화면 위에 SQL 안내(`MON_SQL`)가 뜬다. 컬럼은 `db_customers`와 같고 `has_recording`·`partner_memo`·`birth`·`gender`가 처음부터 들어 있다. RLS 미적용(고객명·연락처 포함) — `db_customers`와 같은 수준의 보안 과제.
 - **팀장별 분석**(`monRenderMgr`): 팀장 한 명을 골라 ① 숫자 한눈에(팀 중앙값 대비) ② 코칭 피드백(잘하는 것 / 바꿔보면 좋을 것 3개 이내 / 이번 주 연습 한 가지 / 전달용 메모 복사) ③ DB유형별(팀 전체 대비) ④ 분배 주차별 ⑤ 지금 챙길 건 ⑥ 최근 4주 활동량 ⑦ 점검·코딩한 콜별 코칭을 본다. 현황·병목·점검 콜 표의 팀장 이름을 누르면 이 화면으로 이동한다.
   - 새 테이블 없음(기존 `db_customers`/`call_checks`/`daily_activity`/`daily_prospects` 사용). 코칭 문구는 코드 안의 `MON_COACH`(코딩 항목 7개와 같은 순서)와 `monBuildCoach`의 규칙으로 만든다 — Claude API 호출 없음.
   - 코칭 원칙: "콜을 이렇게 바꿔라"가 아니라 "이렇게 바꾸면 도움이 될 것"이라는 데이터 근거 형태로 쓴다. 개선점은 3개 이내, 잘하는 것을 먼저 보여준다. 코딩이 3건 미만이면 "참고용", 팀 체결/미체결 비교도 각 10건 미만이면 "참고용". 전달용 메모에는 고객 정보를 넣지 않는다.
