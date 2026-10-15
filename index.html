@@ -597,20 +597,42 @@ header#mainHeader { background:#F6F1E4; border-bottom:1px solid #E6DDC6; }
 .brand-logo + h1 { padding-left:12px; border-left:1px solid #D9CFB5; font-size:15px; }
 .brand-logo + h1 .brand-fb { display:none; }
 @media (max-width:640px){ .brand-logo { width:112px; height:21px; } .brand-logo img { width:187px; left:-37px; top:-34px; } .brand-logo + h1 { font-size:13px; padding-left:8px; } }
-/* --- 색 확정: 아이보리 상단 바 + 베이지 본문 바탕 + 로고 남색 사이드바 --- */
+/* --- 분기별 색상 (아래 <script id="ui_theme">가 월에 맞춰 변수 값을 바꿔줌. 기본값 = 4분기 아이보리) --- */
 :root { --paper:#EFEADF; --card:#FFFEFB; --line:#E4DDCB;
-  --ui-slate-50:#F7F3E9; --ui-slate-100:#EFEADD; --ui-slate-200:#E4DDCB; }
-header#mainHeader { background:#F5EFE1; border-bottom-color:#E3D9C3; }
-#statusRow, #notifBtn, #menuToggle { border-color:#E3D9C3; }
-.brand-logo + h1 { border-left-color:#E3D9C3; }
+  --ui-slate-50:#F7F3E9; --ui-slate-100:#EFEADD; --ui-slate-200:#E4DDCB;
+  --hdr:#F5EFE1; --hdr-b:#E3D9C3; --th:#F4F0E4; }
+header#mainHeader { background:var(--hdr); border-bottom-color:var(--hdr-b); }
+#statusRow, #notifBtn, #menuToggle { border-color:var(--hdr-b); }
+.brand-logo + h1 { border-left-color:var(--hdr-b); }
 #sideMenu { background:#0F1B3D; }
 #sideMenu::-webkit-scrollbar-thumb { background:#2A3B66; }
-th { background:#F4F0E4; }
-tbody tr:hover td, .cm-table tbody tr:hover { background:#F7F3E9; }
-.cm-table th, .cm-hist th { background:#F4F0E4; }
-.cal-cell:hover:not(.empty) { background:#F3EEE0; }
-button.secondary { background:#EFEADD; } button.secondary:hover { background:#E4DDCB; }
+th, .cm-table th, .cm-hist th { background:var(--th); }
+tbody tr:hover td, .cm-table tbody tr:hover { background:var(--ui-slate-50); }
+.cal-cell:hover:not(.empty) { background:var(--ui-slate-100); }
+button.secondary { background:var(--ui-slate-100); } button.secondary:hover { background:var(--ui-slate-200); }
 </style>
+<script id="ui_theme">
+/* 분기별 화면 색: 1~3월 H 틸 / 4~6월 E 세이지 / 7~9월 G 로즈 / 10~12월 A 아이보리. 주소 끝에 ?theme=A~H 를 붙이면 미리보기(저장 안 됨) */
+(function(){
+  var P = {
+    A:{hdr:'#F5EFE1',hb:'#E3D9C3',paper:'#EFEADF',card:'#FFFEFB',s50:'#F7F3E9',s100:'#EFEADD',s200:'#E4DDCB',th:'#F4F0E4'},
+    B:{hdr:'#E6EBF4',hb:'#D3DBEA',paper:'#E9EDF4',card:'#FFFFFF',s50:'#F3F5FA',s100:'#E8ECF4',s200:'#D8DFEC',th:'#F0F3F9'},
+    C:{hdr:'#ECEAE4',hb:'#DAD7CE',paper:'#E7E5DF',card:'#FCFCFA',s50:'#F5F4F0',s100:'#EBE9E3',s200:'#DDDAD1',th:'#F1F0EB'},
+    D:{hdr:'#F3EAD3',hb:'#E2D5B4',paper:'#F0ECE0',card:'#FFFEFA',s50:'#F8F4E8',s100:'#EFE9D8',s200:'#E3DAC2',th:'#F5EFDF'},
+    E:{hdr:'#E9EEE3',hb:'#D4DDCA',paper:'#ECEFE6',card:'#FFFFFD',s50:'#F4F7F0',s100:'#E9EEE3',s200:'#D9E0D0',th:'#F1F5EC'},
+    F:{hdr:'#ECE9F5',hb:'#D8D3EA',paper:'#EFEEF6',card:'#FFFFFF',s50:'#F6F5FB',s100:'#ECEAF4',s200:'#DEDAEC',th:'#F3F1F9'},
+    G:{hdr:'#F3E8E4',hb:'#E5D3CC',paper:'#F1EBE8',card:'#FFFEFD',s50:'#F8F2EF',s100:'#EFE6E2',s200:'#E4D8D2',th:'#F6EEEA'},
+    H:{hdr:'#E1EEEE',hb:'#C9DDDD',paper:'#E7EFEF',card:'#FFFFFF',s50:'#F1F7F7',s100:'#E4EEEE',s200:'#D3E2E2',th:'#EDF4F4'}
+  };
+  var QUARTER = ['H','H','H','E','E','E','G','G','G','A','A','A'];   // 인덱스 0=1월 … 11=12월
+  var key = QUARTER[new Date().getMonth()];
+  try { var m = /[?&]theme=([A-Ha-h])\b/.exec(location.search); if (m) key = m[1].toUpperCase(); } catch(e){}
+  var c = P[key] || P.A, st = document.documentElement.style;
+  st.setProperty('--paper', c.paper); st.setProperty('--card', c.card); st.setProperty('--line', c.s200);
+  st.setProperty('--ui-slate-50', c.s50); st.setProperty('--ui-slate-100', c.s100); st.setProperty('--ui-slate-200', c.s200);
+  st.setProperty('--hdr', c.hdr); st.setProperty('--hdr-b', c.hb); st.setProperty('--th', c.th);
+})();
+</script>
 </head>
 <body>
 <div id="loginGate" class="card" style="max-width:340px;margin:80px auto;">
