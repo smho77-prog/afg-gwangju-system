@@ -612,7 +612,7 @@ tbody tr:hover td, .cm-table tbody tr:hover { background:var(--ui-slate-50); }
 button.secondary { background:var(--ui-slate-100); } button.secondary:hover { background:var(--ui-slate-200); }
 </style>
 <script id="ui_theme">
-/* 분기별 화면 색: 1~3월 H 틸 / 4~6월 E 세이지 / 7~9월 G 로즈 / 10~12월 A 아이보리. 주소 끝에 ?theme=A~H 를 붙이면 미리보기(저장 안 됨) */
+/* 분기별 화면 색: 1~3월 G 로즈 / 4~6월 E 세이지 / 7~9월 H 틸 / 10~12월 A 아이보리. 주소 끝에 ?theme=A~H 를 붙이면 미리보기(저장 안 됨) */
 (function(){
   var P = {
     A:{hdr:'#F5EFE1',hb:'#E3D9C3',paper:'#EFEADF',card:'#FFFEFB',s50:'#F7F3E9',s100:'#EFEADD',s200:'#E4DDCB',th:'#F4F0E4'},
@@ -624,7 +624,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     G:{hdr:'#F3E8E4',hb:'#E5D3CC',paper:'#F1EBE8',card:'#FFFEFD',s50:'#F8F2EF',s100:'#EFE6E2',s200:'#E4D8D2',th:'#F6EEEA'},
     H:{hdr:'#E1EEEE',hb:'#C9DDDD',paper:'#E7EFEF',card:'#FFFFFF',s50:'#F1F7F7',s100:'#E4EEEE',s200:'#D3E2E2',th:'#EDF4F4'}
   };
-  var QUARTER = ['H','H','H','E','E','E','G','G','G','A','A','A'];   // 인덱스 0=1월 … 11=12월
+  var QUARTER = ['G','G','G','E','E','E','H','H','H','A','A','A'];   // 인덱스 0=1월 … 11=12월
   var key = QUARTER[new Date().getMonth()];
   try { var m = /[?&]theme=([A-Ha-h])\b/.exec(location.search); if (m) key = m[1].toUpperCase(); } catch(e){}
   var c = P[key] || P.A, st = document.documentElement.style;
