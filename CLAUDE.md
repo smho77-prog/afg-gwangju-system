@@ -135,22 +135,23 @@
 - 모바일 화면에서도 깨지지 않게 한다.
 - 이 파일에는 비밀번호, 개인 사원번호, 시책 요율 같은 민감한 정보를 적지 않는다. 이 파일도 사이트 주소로 접근될 수 있기 때문이다.
 
-## 7. 화면 색 구성 (3가지 저장본)
+## 7. 화면 색 구성 (8가지 저장본 + 분기별 자동 적용)
 
-화면 색은 `index.html` 맨 아래쪽 `<style id="ui_modern">` 블록의 **"색 확정" 주석 구간**에서 정한다. 사용자가 "B로 바꿔줘"처럼 요청하면 그 구간의 값을 아래 표의 값으로 바꾸고, 반드시 미리보기(스크린샷)로 먼저 보여준 뒤 반영한다.
-공통: 왼쪽 메뉴 남색 `#0F1B3D`(로고 남색과 맞춤), 활성 탭 인디고 `#4F46E5`, 글자 `#0F172A`는 세 가지 모두 같다.
+화면 색은 `index.html`의 `<script id="ui_theme">`(8가지 색 값 `P`와 분기표 `QUARTER`)가 정한다. 페이지가 열릴 때 오늘 달에 맞는 색을 골라 CSS 변수(`--hdr --hdr-b --paper --card --line --ui-slate-50/100/200 --th`)에 넣고, CSS는 그 변수를 쓴다. 색을 바꾸거나 분기표를 바꿔 달라는 요청이 오면 이 스크립트의 값만 고친다. 반드시 미리보기(스크린샷)를 먼저 보여준 뒤 반영한다.
 
-| 항목 | **A 아이보리 (현재 적용)** | B 블루그레이 | C 스톤 |
-|---|---|---|---|
-| 상단 바 배경 `header#mainHeader` | `#F5EFE1` | `#E6EBF4` | `#ECEAE4` |
-| 상단 바 테두리 / 구분선 | `#E3D9C3` | `#D3DBEA` | `#DAD7CE` |
-| 본문 바탕 `--paper` | `#EFEADF` | `#E9EDF4` | `#E7E5DF` |
-| 카드 `--card` | `#FFFEFB` | `#FFFFFF` | `#FCFCFA` |
-| `--ui-slate-50` | `#F7F3E9` | `#F3F5FA` | `#F5F4F0` |
-| `--ui-slate-100` | `#EFEADD` | `#E8ECF4` | `#EBE9E3` |
-| `--ui-slate-200` / `--line` | `#E4DDCB` | `#D8DFEC` | `#DDDAD1` |
-| 표 머리글 `th` | `#F4F0E4` | `#F0F3F9` | `#F1F0EB` |
-| 느낌 | 포근한 베이지 | 로고 남색과 같은 계열(통일감) | 차분한 회갈색 |
+- **분기 자동 적용**: 1~3월 **G 로즈** / 4~6월 **E 세이지** / 7~9월 **H 틸** / 10~12월 **A 아이보리** (`QUARTER` 배열, 인덱스 0=1월). 바꾸려면 이 배열의 글자만 바꾼다.
+- **임시 미리보기**: 주소 끝에 `?theme=A` ~ `?theme=H`를 붙이면 그 색으로 보인다(저장 안 됨, 새로고침하면 원래 분기 색).
+- 공통(8가지 모두 같음): 왼쪽 메뉴 남색 `#0F1B3D`(로고 남색), 활성 탭 인디고 `#4F46E5`, 글자 `#0F172A`.
 
-- 바꿀 곳: `:root`의 `--paper/--card/--line/--ui-slate-*`, `header#mainHeader`, `#statusRow/#notifBtn/#menuToggle`의 테두리, `.brand-logo + h1`의 왼쪽 선, `th`, `tbody tr:hover td`, `.cm-table th`, `.cal-cell:hover`, `button.secondary`
-- 상단 바 로고: `afg-logo.jpg`(흰 배경 로고, 여백 포함 가로 5000px 원본 기준). 로고 틀은 `.brand-logo` CSS에서 원본 비율(여백 잘라내기)에 맞춰져 있으니 다른 비율의 파일로 바꾸면 틀 값도 함께 고친다.
+| 이름 | 느낌 | 상단 바 `hdr` | 상단 테두리 `hb` | 본문 바탕 `paper` | 카드 `card` | `s50` | `s100` | `s200`(=line) | 표 머리글 `th` |
+|---|---|---|---|---|---|---|---|---|---|
+| A 아이보리 | 포근한 베이지 | `#F5EFE1` | `#E3D9C3` | `#EFEADF` | `#FFFEFB` | `#F7F3E9` | `#EFEADD` | `#E4DDCB` | `#F4F0E4` |
+| B 블루그레이 | 로고 남색과 같은 계열 | `#E6EBF4` | `#D3DBEA` | `#E9EDF4` | `#FFFFFF` | `#F3F5FA` | `#E8ECF4` | `#D8DFEC` | `#F0F3F9` |
+| C 스톤 | 차분한 회갈색 | `#ECEAE4` | `#DAD7CE` | `#E7E5DF` | `#FCFCFA` | `#F5F4F0` | `#EBE9E3` | `#DDDAD1` | `#F1F0EB` |
+| D 샴페인 | 금빛 도는 고급스러움 | `#F3EAD3` | `#E2D5B4` | `#F0ECE0` | `#FFFEFA` | `#F8F4E8` | `#EFE9D8` | `#E3DAC2` | `#F5EFDF` |
+| E 세이지 | 눈이 편한 연한 올리브그린 | `#E9EEE3` | `#D4DDCA` | `#ECEFE6` | `#FFFFFD` | `#F4F7F0` | `#E9EEE3` | `#D9E0D0` | `#F1F5EC` |
+| F 라벤더 | 인디고와 통일감 | `#ECE9F5` | `#D8D3EA` | `#EFEEF6` | `#FFFFFF` | `#F6F5FB` | `#ECEAF4` | `#DEDAEC` | `#F3F1F9` |
+| G 로즈 | 살구빛 베이지 | `#F3E8E4` | `#E5D3CC` | `#F1EBE8` | `#FFFEFD` | `#F8F2EF` | `#EFE6E2` | `#E4D8D2` | `#F6EEEA` |
+| H 틸 | 깔끔한 청록빛 회색 | `#E1EEEE` | `#C9DDDD` | `#E7EFEF` | `#FFFFFF` | `#F1F7F7` | `#E4EEEE` | `#D3E2E2` | `#EDF4F4` |
+
+- 상단 바 로고: `afg-logo.jpg`(흰 배경 로고, 여백 포함 가로 5000px 원본 기준). 로고 틀은 `.brand-logo` CSS에서 원본 비율(여백 잘라내기)에 맞춰져 있으니 다른 비율의 파일로 바꾸면 틀 값도 함께 고친다. 파일이 없으면 기존 글자("AFG 광주센터 통합전산")로 대체 표시된다.
