@@ -1100,13 +1100,14 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 <!-- ===== 접속현황 (마스터 전용) ===== -->
 <div class="panel" id="panel-presence">
   <div class="card">
-    <div class="sub">팀장님들이 지금 접속 중인지, 마지막으로 언제 접속했는지 확인합니다. (마스터 전용 · 1분마다 자동 갱신 · 최근 3분 안에 화면이 열려 있으면 "접속 중")</div>
+    <div class="sub">팀장님들이 지금 접속 중인지, 마지막으로 언제 접속했는지 확인합니다. 팀장 이름을 누르면 최근 30일 접속 이력이 아래에 나옵니다. (마스터 전용 · 1분마다 자동 갱신 · 최근 3분 안에 화면이 열려 있으면 "접속 중")</div>
     <div id="pres_sql" style="display:none;"></div>
     <div id="pres_summary" style="margin:10px 0;font-weight:600;"></div>
     <div class="cm-tablewrap"><table class="cm-table">
       <thead><tr><th>팀장</th><th>상태</th><th>마지막 접속</th><th>이번 접속 시작</th></tr></thead>
       <tbody id="pres_body"><tr><td colspan="4" style="text-align:center;color:#888;">불러오는 중...</td></tr></tbody>
     </table></div>
+    <div id="pres_hist" style="display:none;margin-top:14px;"></div>
     <button class="secondary small" style="margin-top:10px;" onclick="presLoad()">🔄 지금 새로고침</button>
   </div>
 </div>
@@ -6911,7 +6912,22 @@ const PRES_SQL = `create table if not exists user_presence (
 );
 alter table user_presence disable row level security;
 grant select, insert, update on user_presence to anon, authenticated;`;
+const PRES_LOG_SQL = `create table if not exists user_presence_log (
+  employee_no text not null,
+  day date not null,
+  manager_name text,
+  first_seen timestamptz,
+  last_seen timestamptz,
+  primary key (employee_no, day)
+);
+alter table user_presence_log disable row level security;
+grant select, insert, update on user_presence_log to anon, authenticated;`;
 const PRES_ONLINE_MS = 3 * 60 * 1000;
+let presRows = [];
+function presDay(d){
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+}
 let presTimer = null, presListTimer = null;
 async function presBeat(isLogin){
   if (!sb || !currentUser) return;
@@ -6921,6 +6937,12 @@ async function presBeat(isLogin){
     const row = { employee_no: currentUser.employee_no, manager_name: currentUser.manager_name, last_seen: now };
     if (isLogin) row.last_login = now;
     await sb.from('user_presence').upsert(row, { onConflict: 'employee_no' });
+    /* 날짜별 이력: 그날 첫 기록만 만들고(이미 있으면 건너뜀), 이후엔 마지막 시각만 갱신 */
+    const day = presDay(new Date());
+    await sb.from('user_presence_log').upsert(
+      { employee_no: currentUser.employee_no, manager_name: currentUser.manager_name, day: day, first_seen: now, last_seen: now },
+      { onConflict: 'employee_no,day', ignoreDuplicates: true });
+    await sb.from('user_presence_log').update({ last_seen: now }).eq('employee_no', currentUser.employee_no).eq('day', day);
   } catch (e) { /* 접속 기록 실패는 화면 사용에 영향 없음 */ }
 }
 function presStart(){
@@ -6956,6 +6978,7 @@ async function presLoad(){
   }
   sqlBox.style.display = 'none';
   const rows = data || [];
+  presRows = rows;
   const now = Date.now();
   const online = rows.filter(r => r.last_seen && now - new Date(r.last_seen).getTime() <= PRES_ONLINE_MS);
   document.getElementById('pres_summary').textContent = `🟢 지금 접속 중 ${online.length}명 / 접속 기록이 있는 사용자 ${rows.length}명`;
@@ -6965,10 +6988,41 @@ async function presLoad(){
   }
   body.innerHTML = rows.map(r => {
     const on = r.last_seen && now - new Date(r.last_seen).getTime() <= PRES_ONLINE_MS;
-    return `<tr style="cursor:default;"><td>${escapeHtml(r.manager_name || r.employee_no)}</td>` +
+    return `<tr onclick="presShowHistory('${escAttr(r.employee_no)}')"><td>${escapeHtml(r.manager_name || r.employee_no)} <span style="color:#4F46E5;font-size:11px;">이력 ▸</span></td>` +
       `<td>${on ? '<b style="color:#16A34A;">🟢 접속 중</b>' : '<span style="color:#888;">⚪ 오프라인</span>'}</td>` +
       `<td>${presAgo(r.last_seen)}</td><td>${presAgo(r.last_login)}</td></tr>`;
   }).join('');
+}
+async function presShowHistory(no){
+  const box = document.getElementById('pres_hist');
+  const r = presRows.find(x => x.employee_no === no) || {};
+  const title = '<b>' + escapeHtml(r.manager_name || no) + '</b> 최근 30일 접속 이력';
+  box.style.display = 'block';
+  box.innerHTML = title + '<div style="color:#888;margin-top:6px;">불러오는 중...</div>';
+  const since = new Date(); since.setDate(since.getDate() - 30);
+  const { data, error } = await sb.from('user_presence_log').select('*').eq('employee_no', no)
+    .gte('day', presDay(since)).order('day', { ascending: false });
+  if (error) {
+    box.innerHTML = '<div style="background:#FFF4E5;border:1px solid #F0C98A;border-radius:8px;padding:12px;">' +
+      '<b>⚠ 먼저 아래 SQL을 Supabase SQL Editor에 붙여넣어 실행해 주세요.</b> (한 번만 하면 됩니다)' +
+      '<pre style="white-space:pre-wrap;font-size:12px;margin:8px 0 0;">' + escapeHtml(PRES_LOG_SQL) + '</pre></div>';
+    return;
+  }
+  const p = n => String(n).padStart(2, '0');
+  const hm = iso => { const d = new Date(iso); return p(d.getHours()) + ':' + p(d.getMinutes()); };
+  const wd = ['일','월','화','수','목','금','토'];
+  const rows = data || [];
+  let html = title + ` · <span style="color:#666;">접속한 날 ${rows.length}일</span>`;
+  if (!rows.length) {
+    html += '<div style="color:#888;margin-top:6px;">아직 이력이 없습니다. 이력 기능 반영 이후 접속분부터 쌓입니다.</div>';
+  } else {
+    html += '<div class="cm-tablewrap" style="margin-top:8px;"><table class="cm-table"><thead><tr><th>날짜</th><th>처음 접속</th><th>마지막 확인</th></tr></thead><tbody>' +
+      rows.map(x => {
+        const d = new Date(x.day + 'T00:00:00');
+        return `<tr style="cursor:default;"><td>${d.getMonth()+1}/${d.getDate()} (${wd[d.getDay()]})</td><td>${hm(x.first_seen)}</td><td>${hm(x.last_seen)}</td></tr>`;
+      }).join('') + '</tbody></table></div>';
+  }
+  box.innerHTML = html;
 }
 function presOpenTab(){
   presLoad();
