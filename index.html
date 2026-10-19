@@ -707,6 +707,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     <div class="sg-items">
       <button class="tabbtn" data-tab="callmon" onclick="switchTab('callmon')">📈 콜 모니터링</button>
       <button class="tabbtn" data-tab="salary" id="tabBtnSalary" onclick="switchTab('salary')">💰 급여계산기</button>
+      <button class="tabbtn" data-tab="presence" onclick="switchTab('presence')">🟢 접속현황</button>
     </div>
   </div>
 </aside>
@@ -1094,6 +1095,20 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div id="mon_viewImpact" style="display:none;"></div>
   <div id="mon_viewTrend" style="display:none;"></div>
   <div id="mon_viewUpload" style="display:none;"></div>
+</div>
+
+<!-- ===== 접속현황 (마스터 전용) ===== -->
+<div class="panel" id="panel-presence">
+  <div class="card">
+    <div class="sub">팀장님들이 지금 접속 중인지, 마지막으로 언제 접속했는지 확인합니다. (마스터 전용 · 1분마다 자동 갱신 · 최근 3분 안에 화면이 열려 있으면 "접속 중")</div>
+    <div id="pres_sql" style="display:none;"></div>
+    <div id="pres_summary" style="margin:10px 0;font-weight:600;"></div>
+    <div class="cm-tablewrap"><table class="cm-table">
+      <thead><tr><th>팀장</th><th>상태</th><th>마지막 접속</th><th>이번 접속 시작</th></tr></thead>
+      <tbody id="pres_body"><tr><td colspan="4" style="text-align:center;color:#888;">불러오는 중...</td></tr></tbody>
+    </table></div>
+    <button class="secondary small" style="margin-top:10px;" onclick="presLoad()">🔄 지금 새로고침</button>
+  </div>
 </div>
 
 <!-- ===== 급여계산기 (마스터 전용) ===== -->
@@ -1985,6 +2000,7 @@ function switchTab(name) {
   if (name === 'dbmgmt') dbOpenTab();
   if (name === 'proposal') propOpenTab();
   if (name === 'callmon') monOpenTab();
+  if (name === 'presence') presOpenTab();
   if (name === 'salary') setupSalaryAutoCalc();
   if (name === 'kcd') renderKcdResults();
   if (name === 'newsscrap') loadScrapedNews();
@@ -6868,6 +6884,7 @@ async function startApp(){
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { global: { fetch: noCacheFetch } });
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
+    presStart();
     const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties(), loadIssues(), loadCallCenters(), loadCallCenterFiles(), loadIndustryLimits(), loadForeignUw(), loadUwFiles('industry_limit'), loadUwFiles('foreign'), loadDutiesNotice(), loadSurgeryGrades()];
     if (currentUser.role === 'master') loaders.push(loadCommissionRates());
     await Promise.all(loaders);
@@ -6879,6 +6896,87 @@ async function startApp(){
     console.error(e);
     setStatus('error','⚠ 연결 실패: '+e.message);
   }
+}
+
+/* ============================================================
+   접속현황 (마스터 전용) — user_presence 테이블
+   · 모든 사용자가 화면을 열어두는 동안 1분마다 last_seen 갱신
+   · 마스터 탭에서 최근 3분 안이면 "접속 중"
+============================================================ */
+const PRES_SQL = `create table if not exists user_presence (
+  employee_no text primary key,
+  manager_name text,
+  last_login timestamptz,
+  last_seen timestamptz
+);
+alter table user_presence disable row level security;
+grant select, insert, update on user_presence to anon, authenticated;`;
+const PRES_ONLINE_MS = 3 * 60 * 1000;
+let presTimer = null, presListTimer = null;
+async function presBeat(isLogin){
+  if (!sb || !currentUser) return;
+  if (document.hidden && !isLogin) return;
+  try {
+    const now = new Date().toISOString();
+    const row = { employee_no: currentUser.employee_no, manager_name: currentUser.manager_name, last_seen: now };
+    if (isLogin) row.last_login = now;
+    await sb.from('user_presence').upsert(row, { onConflict: 'employee_no' });
+  } catch (e) { /* 접속 기록 실패는 화면 사용에 영향 없음 */ }
+}
+function presStart(){
+  presBeat(true);
+  if (presTimer) clearInterval(presTimer);
+  presTimer = setInterval(() => presBeat(false), 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) presBeat(false); });
+}
+function presAgo(iso){
+  if (!iso) return '-';
+  const d = new Date(iso), diff = Date.now() - d.getTime();
+  const m = Math.floor(diff / 60000);
+  let ago;
+  if (m < 1) ago = '방금 전';
+  else if (m < 60) ago = m + '분 전';
+  else if (m < 1440) ago = Math.floor(m / 60) + '시간 전';
+  else ago = Math.floor(m / 1440) + '일 전';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())} (${ago})`;
+}
+async function presLoad(){
+  if (!sb || !currentUser || currentUser.role !== 'master') return;
+  const body = document.getElementById('pres_body');
+  const sqlBox = document.getElementById('pres_sql');
+  const { data, error } = await sb.from('user_presence').select('*').order('last_seen', { ascending: false });
+  if (error) {
+    sqlBox.style.display = 'block';
+    sqlBox.innerHTML = '<div style="background:#FFF4E5;border:1px solid #F0C98A;border-radius:8px;padding:12px;margin:10px 0;">' +
+      '<b>⚠ 먼저 아래 SQL을 Supabase SQL Editor에 붙여넣어 실행해 주세요.</b> (한 번만 하면 됩니다)' +
+      '<pre style="white-space:pre-wrap;font-size:12px;margin:8px 0 0;">' + escapeHtml(PRES_SQL) + '</pre></div>';
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;">테이블이 아직 없습니다.</td></tr>';
+    return;
+  }
+  sqlBox.style.display = 'none';
+  const rows = data || [];
+  const now = Date.now();
+  const online = rows.filter(r => r.last_seen && now - new Date(r.last_seen).getTime() <= PRES_ONLINE_MS);
+  document.getElementById('pres_summary').textContent = `🟢 지금 접속 중 ${online.length}명 / 접속 기록이 있는 사용자 ${rows.length}명`;
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;">아직 접속 기록이 없습니다. 팀장님들이 다시 접속하면 쌓이기 시작합니다.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(r => {
+    const on = r.last_seen && now - new Date(r.last_seen).getTime() <= PRES_ONLINE_MS;
+    return `<tr style="cursor:default;"><td>${escapeHtml(r.manager_name || r.employee_no)}</td>` +
+      `<td>${on ? '<b style="color:#16A34A;">🟢 접속 중</b>' : '<span style="color:#888;">⚪ 오프라인</span>'}</td>` +
+      `<td>${presAgo(r.last_seen)}</td><td>${presAgo(r.last_login)}</td></tr>`;
+  }).join('');
+}
+function presOpenTab(){
+  presLoad();
+  if (presListTimer) clearInterval(presListTimer);
+  presListTimer = setInterval(() => {
+    const p = document.getElementById('panel-presence');
+    if (p && p.classList.contains('active')) presLoad();
+  }, 60000);
 }
 
 function updateNotifBtn(){
