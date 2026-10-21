@@ -1057,7 +1057,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="secondary small" data-v="mgr" onclick="monSetView('mgr')">👤 팀장별 분석</button>
       <button class="secondary small" data-v="pick" onclick="monSetView('pick')">🎧 점검 콜·코딩</button>
       <button class="secondary small" data-v="daily" onclick="monSetView('daily')">✏️ 일일 입력</button>
-      <button class="secondary small" data-v="impact" onclick="monSetView('impact')">🔗 콜시간·가망→실적</button>
+      <button class="secondary small" data-v="impact" onclick="monSetView('impact')">🔗 콜시간·시도·가망→실적</button>
       <button class="secondary small" data-v="trend" onclick="monSetView('trend')">📈 추이</button>
       <button class="secondary small" data-v="upload" onclick="monSetView('upload')">📥 DB 업로드</button>
     </div>
@@ -2661,11 +2661,13 @@ create table if not exists daily_activity (
   manager_name text not null,
   call_count integer not null default 0,
   call_seconds integer,
+  call_attempts integer,
   memo text,
   updated_at timestamptz not null default now(),
   unique (activity_date, manager_name)
 );
 alter table daily_activity add column if not exists call_seconds integer;
+alter table daily_activity add column if not exists call_attempts integer;
 
 -- 4) 일일 가망고객 발굴 (이름/생년월일)
 create table if not exists daily_prospects (
@@ -3328,7 +3330,13 @@ function monRenderCodeStats(){
    3) 일일 입력 (콜량 · 가망고객 발굴)
 ============================================================ */
 /* 콜시간: 초 단위 정수로 저장·계산하고, 화면에는 시:분:초로 보여준다 */
-const MON_ALTER_SQL = 'alter table daily_activity add column if not exists call_seconds integer;';
+const MON_ALTER_SQL = 'alter table daily_activity add column if not exists call_seconds integer; alter table daily_activity add column if not exists call_attempts integer;';
+/* 콜 시도 횟수(통): 하루 동안 전화를 건 횟수(부재·통화 모두 포함). 비어 있으면 null */
+function monAttOf(d){
+  if (!d || d.call_attempts === null || d.call_attempts === undefined || d.call_attempts === '') return null;
+  const n = Number(d.call_attempts);
+  return isNaN(n) || n < 0 ? null : n;
+}
 function monSecOf(d){
   if (!d || d.call_seconds === null || d.call_seconds === undefined || d.call_seconds === '') return null;
   const n = Number(d.call_seconds);
@@ -3383,17 +3391,18 @@ function monRenderDaily(){
     <b>${escapeHtml(dow)}요일</b>
     <button class="secondary small" onclick="monShiftDaily(1)">다음날 ▶</button>
     <button class="secondary small" onclick="monSetDailyDate(monToday())">오늘</button></div>
-    <div class="sub" style="margin:8px 0 0;">팀장님들께 받은 하루 콜시간(통화한 총 시간)을 시·분·초로 입력하세요. 시·분·초를 모두 비워둔 줄은 저장하지 않습니다. 이미 저장한 날짜는 불러와서 수정할 수 있습니다.</div></div>`;
+    <div class="sub" style="margin:8px 0 0;">팀장님들께 받은 하루 콜시간(통화한 총 시간)을 시·분·초로, 콜 시도 횟수(전화를 건 횟수, 부재 포함)를 통 단위로 입력하세요. 콜시간과 시도 횟수를 모두 비워둔 줄은 저장하지 않습니다. 이미 저장한 날짜는 불러와서 수정할 수 있습니다.</div></div>`;
   const durIn = (cls, n, v, ph, mx) => `<input type="number" class="${cls}" data-m="${escAttr(n)}" min="0" ${mx ? 'max="' + mx + '"' : ''} step="1" inputmode="numeric" value="${v}" style="width:64px;text-align:center;" placeholder="${ph}">`;
   const rowsHtml = mgrs.map(n => {
     const dp = monDurParts(monSecOf(byM[n]));
     return `<tr><td><b>${escapeHtml(n)}</b>${monExcl.indexOf(n) >= 0 ? ' <span style="font-size:11px;color:var(--muted);">(분석 제외)</span>' : ''}</td>
     <td style="white-space:nowrap;">${durIn('mon-dur-h', n, dp.h, '00')} : ${durIn('mon-dur-m', n, dp.m, '00', 59)} : ${durIn('mon-dur-s', n, dp.s, '00', 59)}<span style="font-size:11px;color:var(--muted);margin-left:6px;">시 : 분 : 초</span></td>
+    <td style="white-space:nowrap;"><input type="number" class="mon-att" data-m="${escAttr(n)}" min="0" step="1" inputmode="numeric" value="${monAttOf(byM[n]) === null ? '' : monAttOf(byM[n])}" style="width:80px;text-align:center;" placeholder="0"> <span style="font-size:11px;color:var(--muted);">통</span></td>
     <td>${pCnt[n] || 0}명</td></tr>`;
   }).join('');
-  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">${escapeHtml(date)} 콜시간</div><div style="overflow-x:auto;"><table style="min-width:420px;">
-    <thead><tr><th>팀장</th><th>콜시간 (시:분:초)</th><th>가망고객 발굴</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
-    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="act" onclick="monSaveDaily()">콜시간 저장</button><span id="mon_dMsg" style="font-size:12.5px;color:var(--muted);"></span></div></div>`;
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">${escapeHtml(date)} 콜시간 · 시도 횟수</div><div style="overflow-x:auto;"><table style="min-width:520px;">
+    <thead><tr><th>팀장</th><th>콜시간 (시:분:초)</th><th>콜 시도 횟수</th><th>가망고객 발굴</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="act" onclick="monSaveDaily()">콜시간·시도 횟수 저장</button><span id="mon_dMsg" style="font-size:12.5px;color:var(--muted);"></span></div></div>`;
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">가망고객 발굴 입력 — ${escapeHtml(date)}</div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:6px;"><label style="margin:0;">팀장</label>
       <select id="mon_pMgr" style="width:auto;">${mgrs.map(n => `<option value="${escAttr(n)}">${escapeHtml(n)}</option>`).join('')}</select></div>
@@ -3407,34 +3416,36 @@ function monRenderDaily(){
   html += `</div>`;
   /* 최근 7일 입력 현황 */
   const days = []; for (let i = 6; i >= 0; i--) days.push(monAddDays(monToday(), -i));
-  const dMap = {}; monDaily.forEach(d => { const sc = monSecOf(d); if (sc !== null) dMap[d.manager_name + '|' + d.activity_date] = sc; });
+  const dMap = {}, aMap = {}; monDaily.forEach(d => { const sc = monSecOf(d), at = monAttOf(d); if (sc !== null) dMap[d.manager_name + '|' + d.activity_date] = sc; if (at !== null) aMap[d.manager_name + '|' + d.activity_date] = at; });
   const pMap = {}; monProspects.forEach(p => { const k = p.manager_name + '|' + p.activity_date; pMap[k] = (pMap[k] || 0) + 1; });
   const head = days.map(d => `<th style="font-size:11.5px;">${escapeHtml(d.slice(5))}</th>`).join('');
   const body = mgrs.map(n => `<tr><td>${escapeHtml(n)}</td>` + days.map(d => {
-    const c = dMap[n + '|' + d], p = pMap[n + '|' + d] || 0;
-    return `<td style="font-size:12px;">${c === undefined ? '<span style="color:var(--muted);">-</span>' : monFmtDur(c)}${p ? `<div style="font-size:11px;color:var(--green);">가망 ${p}</div>` : ''}</td>`;
+    const c = dMap[n + '|' + d], a = aMap[n + '|' + d], p = pMap[n + '|' + d] || 0;
+    return `<td style="font-size:12px;">${c === undefined ? '<span style="color:var(--muted);">-</span>' : monFmtDur(c)}${a === undefined ? '' : `<div style="font-size:11px;color:#2F5FA8;">${a}통</div>`}${p ? `<div style="font-size:11px;color:var(--green);">가망 ${p}</div>` : ''}</td>`;
   }).join('') + `</tr>`).join('');
-  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">최근 7일 입력 현황</div><div style="overflow-x:auto;"><table style="min-width:520px;"><thead><tr><th>팀장</th>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">최근 7일 입력 현황 <span style="font-weight:400;font-size:12px;color:var(--muted);">(콜시간 / 시도 횟수 / 가망 발굴)</span></div><div style="overflow-x:auto;"><table style="min-width:520px;"><thead><tr><th>팀장</th>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
   el.innerHTML = html;
 }
 async function monSaveDaily(){
   const msg = document.getElementById('mon_dMsg');
   const items = [], bad = [], g = {};
-  document.querySelectorAll('#mon_viewDaily input.mon-dur-h, #mon_viewDaily input.mon-dur-m, #mon_viewDaily input.mon-dur-s').forEach(inp => {
+  document.querySelectorAll('#mon_viewDaily input.mon-dur-h, #mon_viewDaily input.mon-dur-m, #mon_viewDaily input.mon-dur-s, #mon_viewDaily input.mon-att').forEach(inp => {
     const n = inp.dataset.m;
-    const part = inp.classList.contains('mon-dur-h') ? 'h' : (inp.classList.contains('mon-dur-m') ? 'm' : 's');
+    const part = inp.classList.contains('mon-dur-h') ? 'h' : (inp.classList.contains('mon-dur-m') ? 'm' : (inp.classList.contains('mon-dur-s') ? 's' : 'a'));
     (g[n] = g[n] || {})[part] = inp.value.trim();
   });
   Object.keys(g).forEach(n => {
     const p = g[n];
-    if (p.h === '' && p.m === '' && p.s === '') return;
+    const noTime = p.h === '' && p.m === '' && p.s === '', noAtt = p.a === '';
+    if (noTime && noAtt) return;
     const toN = v => v === '' ? 0 : Number(v);
-    const h = toN(p.h), m = toN(p.m), s = toN(p.s);
-    if ([h, m, s].some(x => isNaN(x) || x < 0 || Math.floor(x) !== x) || m > 59 || s > 59) { bad.push(n); return; }
-    items.push({ activity_date: monDailyDate, manager_name: n, call_seconds: h * 3600 + m * 60 + s, updated_at: new Date().toISOString() });
+    const h = toN(p.h), m = toN(p.m), s = toN(p.s), a = toN(p.a);
+    if ([h, m, s, a].some(x => isNaN(x) || x < 0 || Math.floor(x) !== x) || m > 59 || s > 59) { bad.push(n); return; }
+    /* 두 칸을 항상 함께 보낸다(한쪽만 비워도 저장 가능). 비운 칸은 null */
+    items.push({ activity_date: monDailyDate, manager_name: n, call_seconds: noTime ? null : h * 3600 + m * 60 + s, call_attempts: noAtt ? null : a, updated_at: new Date().toISOString() });
   });
-  if (bad.length) { msg.style.color = 'var(--red)'; msg.textContent = '시·분·초는 0 이상의 정수로, 분과 초는 59 이하로 입력해주세요: ' + bad.join(', '); return; }
-  if (!items.length) { msg.style.color = 'var(--amber)'; msg.textContent = '입력된 콜시간이 없습니다.'; return; }
+  if (bad.length) { msg.style.color = 'var(--red)'; msg.textContent = '시·분·초와 시도 횟수는 0 이상의 정수로, 분과 초는 59 이하로 입력해주세요: ' + bad.join(', '); return; }
+  if (!items.length) { msg.style.color = 'var(--amber)'; msg.textContent = '입력된 콜시간·시도 횟수가 없습니다.'; return; }
   const { error } = await sb.from('daily_activity').upsert(items, { onConflict: 'activity_date,manager_name' });
   if (error) {
     msg.style.color = 'var(--red)';
@@ -3504,15 +3515,17 @@ function monScatter(pts, xl, yl){
 function monRenderImpact(){
   const el = document.getElementById('mon_viewImpact');
   const monTimed = monDaily.filter(d => monSecOf(d) !== null);
-  if (!monTimed.length) { el.innerHTML = monEmpty('아직 입력된 일일 콜시간이 없습니다. "일일 입력"에서 콜시간(시:분:초)을 입력하면 이 화면이 채워집니다.'); return; }
+  const monAtts = monDaily.filter(d => monAttOf(d) !== null);
+  if (!monTimed.length && !monAtts.length) { el.innerHTML = monEmpty('아직 입력된 일일 콜시간·시도 횟수가 없습니다. "일일 입력"에서 콜시간(시:분:초)과 시도 횟수(통)를 입력하면 이 화면이 채워집니다.'); return; }
   const today = monToday();
-  const minD = monTimed.map(d => d.activity_date).sort()[0];
+  const minD = monTimed.concat(monAtts).map(d => d.activity_date).sort()[0];
   if (!monImpFrom) monImpFrom = minD;
   if (!monImpTo) monImpTo = today;
   const incl = monIncluded();
   const inSet = new Set(incl);
   const inP = d => d >= monImpFrom && d <= monImpTo;
   const dRows = monTimed.filter(d => inSet.has(d.manager_name) && inP(d.activity_date));
+  const aRows = monAtts.filter(d => inSet.has(d.manager_name) && inP(d.activity_date));
   const pRows = monProspects.filter(p => inSet.has(p.manager_name) && inP(p.activity_date));
   const cRows = (allContracts || []).filter(c => inSet.has(c.manager_name) && c.contract_date && inP(String(c.contract_date).slice(0, 10)));
   let html = `<div class="card"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;"><b style="font-size:13px;">기간</b>
@@ -3521,21 +3534,98 @@ function monRenderImpact(){
     <span class="sub" style="margin:0;">실적은 계약관리 탭의 계약(계약일 기준)을 사용합니다.</span></div></div>`;
 
   /* A. 팀장별 합계 */
-  const mgrs = incl.filter(n => dRows.some(d => d.manager_name === n));
-  if (!mgrs.length) { el.innerHTML = html + monEmpty('선택한 기간·팀장에 입력된 콜시간이 없습니다.'); return; }
+  const mgrs = incl.filter(n => dRows.some(d => d.manager_name === n) || aRows.some(d => d.manager_name === n));
+  if (!mgrs.length) { el.innerHTML = html + monEmpty('선택한 기간·팀장에 입력된 콜시간·시도 횟수가 없습니다.'); return; }
+  const consOf = (n, from, to) => (allContracts || []).filter(c => c.manager_name === n && c.contract_date && String(c.contract_date).slice(0, 10) >= from && String(c.contract_date).slice(0, 10) <= to);
   const aBody = mgrs.map(n => {
     const ds = dRows.filter(d => d.manager_name === n), calls = ds.reduce((s, d) => s + (monSecOf(d) || 0), 0), days = ds.length;
     const pc = pRows.filter(p => p.manager_name === n).length;
     const cs = cRows.filter(c => c.manager_name === n), prem = cs.reduce((s, c) => s + (Number(c.premium) || 0), 0);
-    return `<tr><td><b>${escapeHtml(n)}</b></td><td>${days}일</td><td>${monFmtDur(calls)}</td><td>${days ? monFmtDur(calls / days) : '-'}</td><td>${pc}명${days ? `<div style="font-size:11px;color:var(--muted);">일 ${(pc / days).toFixed(2)}명</div>` : ''}</td>
+    return `<tr><td><b>${escapeHtml(n)}</b></td><td>${days ? days + '일' : '-'}</td><td>${days ? monFmtDur(calls) : '-'}</td><td>${days ? monFmtDur(calls / days) : '-'}</td><td>${pc}명${days ? `<div style="font-size:11px;color:var(--muted);">일 ${(pc / days).toFixed(2)}명</div>` : ''}</td>
       <td>${cs.length}건</td><td>${prem ? Math.round(prem).toLocaleString('ko-KR') : '-'}</td><td>${calls ? (cs.length / (calls / 3600)).toFixed(2) : '-'}</td></tr>`;
   }).join('');
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">팀장별 활동량과 실적</div><div style="overflow-x:auto;"><table style="min-width:720px;">
     <thead><tr><th>팀장</th><th>입력일수</th><th>콜시간 합계<br>(시:분:초)</th><th>일평균 콜시간<br>(시:분:초)</th><th>가망고객 발굴</th><th>계약</th><th>보험료 합계(원)</th><th>콜 1시간당<br>계약(건)</th></tr></thead><tbody>${aBody}</tbody></table></div></div>`;
 
-  /* B. 주 단위 관계 */
+  /* A2. 콜 시도 횟수 → 실적 (시도가 많을수록 실적이 좋은가?) */
   const weeks = [];
   for (let w = monWeekStart(monImpFrom); w <= monImpTo; w = monAddDays(w, 7)) weeks.push(w);
+  const attMgrs = mgrs.filter(n => aRows.some(d => d.manager_name === n));
+  const perM = attMgrs.map(n => {
+    const ds = aRows.filter(d => d.manager_name === n), att = ds.reduce((s, d) => s + monAttOf(d), 0);
+    let bothSec = 0, bothAtt = 0;
+    ds.forEach(d => { const sc = monSecOf(d); if (sc !== null && monAttOf(d) > 0) { bothSec += sc; bothAtt += monAttOf(d); } });
+    return { n: n, days: ds.length, att: att, avg: ds.length ? att / ds.length : null, cons: cRows.filter(c => c.manager_name === n).length, perCall: bothAtt ? bothSec / bothAtt : null };
+  });
+  const medAvg = perM.length >= 3 ? monMedian(perM.map(x => x.avg)) : null;
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">콜 시도 횟수 — 팀장별 <span style="font-weight:400;font-size:12px;color:var(--muted);">(하루에 몇 통을 걸었나)</span></div>`;
+  if (!perM.length) html += `<div class="sub" style="margin:0;">이 기간에 입력된 시도 횟수가 없습니다. "일일 입력"에서 팀장님별 시도 횟수(통)를 입력해 주세요.</div>`;
+  else {
+    const bodyA = perM.map(x => {
+      const ratio = medAvg ? x.avg / medAvg : null;
+      const low = ratio !== null && ratio < 0.7;
+      return `<tr><td><b>${escapeHtml(x.n)}</b></td><td>${x.days}일</td><td>${x.att.toLocaleString('ko-KR')}통</td>
+        <td style="${low ? 'color:var(--red);font-weight:700;' : ''}">${x.avg.toFixed(1)}통</td>
+        <td style="${low ? 'color:var(--red);font-weight:700;' : ''}">${ratio === null ? '-' : Math.round(ratio * 100) + '%' + (low ? ' · 적음' : '')}</td>
+        <td>${x.cons}건</td><td>${x.att ? (x.cons / x.att * 100).toFixed(2) + '건' : '-'}</td><td>${x.cons ? Math.round(x.att / x.cons).toLocaleString('ko-KR') + '통' : '-'}</td><td>${x.perCall === null ? '-' : monFmtDur(x.perCall)}</td></tr>`;
+    }).join('');
+    html += `<div style="overflow-x:auto;"><table style="min-width:760px;"><thead><tr><th>팀장</th><th>입력일수</th><th>시도 합계</th><th>일평균 시도</th><th>팀 중앙값 대비</th><th>계약</th><th>시도 100통당<br>계약</th><th>계약 1건당<br>시도</th><th>1통당 평균<br>통화시간</th></tr></thead><tbody>${bodyA}</tbody></table></div>
+      <div class="sub" style="margin:8px 0 0;">"팀 중앙값 대비"가 70% 미만이면 빨간색 "적음"으로 표시합니다(팀장 3명 이상일 때). 계약은 계약관리 탭의 계약일 기준이라, 시도 횟수를 입력하지 않은 날이 많으면 "100통당 계약"이 실제보다 높게 나옵니다. 1통당 평균 통화시간은 콜시간과 시도 횟수를 둘 다 입력한 날만 계산합니다.</div>`;
+  }
+  html += `</div>`;
+
+  /* A3. 가설 검증: 시도 횟수가 많은 주에 계약도 많았나 */
+  const wkS = (n, w) => {
+    const end = monAddDays(w, 6);
+    const ds = aRows.filter(d => d.manager_name === n && d.activity_date >= w && d.activity_date <= end);
+    const ts = dRows.filter(d => d.manager_name === n && d.activity_date >= w && d.activity_date <= end);
+    return { days: ds.length, att: ds.reduce((s, d) => s + monAttOf(d), 0), tDays: ts.length, hrs: ts.reduce((s, d) => s + monSecOf(d), 0) / 3600, cons: consOf(n, w, end).length, done: end < today };
+  };
+  const P = [];
+  attMgrs.forEach(n => weeks.forEach(w => {
+    const a = wkS(n, w);
+    if (!a.done || a.days < MON_CFG.minDays) return;
+    const b = wkS(n, monAddDays(w, 7));
+    P.push({ n: n, w: w, att: a.att, cons: a.cons, hrs: a.tDays >= MON_CFG.minDays ? a.hrs : null, next: b.done ? b.cons : null });
+  }));
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">시도 횟수가 많은 주에 계약도 많았나? <span style="font-weight:400;font-size:12px;color:var(--muted);">(“시도가 많아야 실적이 오른다”는 생각 확인)</span></div>`;
+  if (P.length < 3) html += `<div class="sub" style="margin:0;">비교할 수 있는 "팀장님×주" 자료가 ${P.length}개입니다. 주 ${MON_CFG.minDays}일 이상 시도 횟수가 입력된, 이미 끝난 주만 비교하므로 몇 주 더 쌓이면 나옵니다.</div>`;
+  else {
+    const rAtt = monCorr(P.map(p => p.att), P.map(p => p.cons));
+    const lagP = P.filter(p => p.next !== null), rLag = monCorr(lagP.map(p => p.att), lagP.map(p => p.next));
+    /* 같은 팀장님 안에서만 비교: 팀장별 평균을 뺀 값으로 상관 → 경력·DB 차이 영향 제거 */
+    const dx = [], dy = [];
+    attMgrs.forEach(n => { const q = P.filter(p => p.n === n); if (q.length < 2) return; const mx = monAvg(q.map(p => p.att)), my = monAvg(q.map(p => p.cons)); q.forEach(p => { dx.push(p.att - mx); dy.push(p.cons - my); }); });
+    const rIn = monCorr(dx, dy);
+    const both = P.filter(p => p.hrs !== null);
+    const rBoth = monCorr(both.map(p => p.att), both.map(p => p.cons)), rHrs = monCorr(both.map(p => p.hrs), both.map(p => p.cons));
+    const sl = monSlope(P.map(p => p.att), P.map(p => p.cons));
+    const sorted = P.slice().sort((a, b) => a.att - b.att), h = Math.floor(sorted.length / 2);
+    const lo = sorted.slice(0, h), hi = sorted.slice(sorted.length - h);
+    let verdict;
+    if (rAtt === null) verdict = '시도 횟수 값이 모두 같거나 계약이 모두 같아 관계를 계산할 수 없습니다.';
+    else if (P.length < MON_CFG.smallN) verdict = `자료가 ${P.length}개뿐이라 아직 결론을 내리기 이릅니다(참고용). 입력이 몇 주 더 쌓이면 다시 확인하세요.`;
+    else if (rAtt >= 0.4) verdict = (rIn !== null && rIn >= 0.3)
+      ? '시도가 많은 주에 계약도 많았고, 같은 팀장님 안에서 주별로 비교해도 그랬습니다. “시도 횟수가 실적과 함께 움직인다”는 생각과 일치하는 자료입니다.'
+      : '시도가 많은 팀장님이 계약도 많은 경향은 보입니다. 다만 한 팀장님 안에서 주별로 비교하면 뚜렷하지 않아, 시도 횟수 외에 경력·DB 질 같은 차이가 섞여 있을 수 있습니다.';
+    else if (rAtt >= 0.2) verdict = '시도가 많을수록 계약이 조금 많아지는 약한 경향은 있지만 뚜렷하지는 않습니다. 표본이 늘면 달라질 수 있습니다.';
+    else verdict = '현재 자료에서는 시도 횟수와 계약 사이에 뚜렷한 관계가 보이지 않습니다. 통화 질이나 DB 질 같은 다른 요인이 더 클 수 있어, 표본이 쌓인 뒤 다시 보세요.';
+    const hiLoTxt = h >= 2 ? `시도 상위 절반(주 평균 ${monAvg(hi.map(p => p.att)).toFixed(0)}통) 평균 계약 <b>${monAvg(hi.map(p => p.cons)).toFixed(2)}건</b> vs 하위 절반(주 평균 ${monAvg(lo.map(p => p.att)).toFixed(0)}통) <b>${monAvg(lo.map(p => p.cons)).toFixed(2)}건</b>` : '';
+    html += `<div style="background:var(--ui-slate-50,#F7F5EF);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13.5px;line-height:1.7;"><b>한 줄 결과</b> · ${escapeHtml(verdict)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;"><div style="flex:1;min-width:300px;">${monScatter(P.map(p => ({ x: p.att, y: p.cons, t: `${p.n} ${p.w}주: 시도 ${p.att}통 → 계약 ${p.cons}건` })), '주간 시도 횟수(통)', '그 주 계약(건)')}</div>
+      <div style="flex:1;min-width:260px;font-size:13px;line-height:1.9;">
+        <div><b>같은 주</b> 시도 ↔ 계약: ${escapeHtml(monCorrText(rAtt, P.length))}</div>
+        <div><b>다음 주</b> 계약과의 관계: ${escapeHtml(monCorrText(rLag, lagP.length))}</div>
+        <div><b>같은 팀장님 안에서</b> 주별 비교: ${escapeHtml(monCorrText(rIn, dx.length))}</div>
+        ${sl !== null ? `<div>추세선 기울기: 시도가 주 100통 늘면 계약 약 ${(sl * 100).toFixed(2)}건</div>` : ''}
+        ${hiLoTxt ? `<div>${hiLoTxt}</div>` : ''}
+        ${both.length >= 3 ? `<div style="margin-top:4px;"><b>시도 횟수 vs 콜시간</b> (둘 다 입력된 ${both.length}개 기준, 계약과의 상관)<br>시도 횟수 ${rBoth === null ? '-' : 'r = ' + rBoth.toFixed(2)} · 콜시간 ${rHrs === null ? '-' : 'r = ' + rHrs.toFixed(2)}${rBoth !== null && rHrs !== null ? ' → ' + (Math.abs(rBoth - rHrs) < 0.1 ? '둘의 설명력이 비슷합니다' : (rBoth > rHrs ? '이 자료에서는 시도 횟수가 콜시간보다 계약과 더 가깝게 움직였습니다' : '이 자료에서는 콜시간이 시도 횟수보다 계약과 더 가깝게 움직였습니다')) : ''}</div>` : ''}
+      </div></div>
+      <div class="sub" style="margin:8px 0 0;">점 하나는 "팀장님 1명의 1주"입니다(주 ${MON_CFG.minDays}일 이상 시도 횟수가 입력된, 이미 끝난 주만). r은 -1~1 사이 값으로 1에 가까울수록 함께 늘고 줄었다는 뜻이며, 함께 움직였다는 것이지 시도가 계약을 만들었다는 증명은 아닙니다. 표본이 ${MON_CFG.smallN}개 미만이면 참고용입니다.</div>`;
+  }
+  html += `</div>`;
+
+  /* B. 주 단위 관계 */
   const pts = [], ptsP = [], lag = [];
   const wk = (n, w) => {
     const end = monAddDays(w, 6);
@@ -3992,23 +4082,26 @@ function monRenderMgr(){
     const end = monAddDays(w, 6);
     const ds = monDaily.filter(d => d.manager_name === n && d.activity_date >= w && d.activity_date <= end && monSecOf(d) !== null);
     const sec = ds.reduce((s, d) => s + monSecOf(d), 0);
+    const as = monDaily.filter(d => d.manager_name === n && d.activity_date >= w && d.activity_date <= end && monAttOf(d) !== null);
     return {
-      days: ds.length, sec: sec,
+      days: ds.length, sec: sec, aDays: as.length, att: as.reduce((s, d) => s + monAttOf(d), 0),
       pros: monProspects.filter(p => p.manager_name === n && p.activity_date >= w && p.activity_date <= end).length,
       cons: (allContracts || []).filter(c => c.manager_name === n && c.contract_date && String(c.contract_date).slice(0, 10) >= w && String(c.contract_date).slice(0, 10) <= end).length
     };
   };
-  const hasAct = monDaily.some(d => d.manager_name === name && monSecOf(d) !== null);
+  const hasAct = monDaily.some(d => d.manager_name === name && (monSecOf(d) !== null || monAttOf(d) !== null));
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">활동량 — 최근 4주 (일일 입력 기준)</div>`;
-  if (!hasAct) html += `<div class="sub" style="margin:0;">이 팀장님의 일일 콜시간 입력이 아직 없습니다. "일일 입력"에서 콜시간을 입력하면 주별로 표시됩니다.</div>`;
+  if (!hasAct) html += `<div class="sub" style="margin:0;">이 팀장님의 일일 콜시간·시도 횟수 입력이 아직 없습니다. "일일 입력"에서 입력하면 주별로 표시됩니다.</div>`;
   else {
     const aBody = wk.map(w => {
       const a = weekOf(name, w);
       const teamAvgs = incl.map(n => weekOf(n, w)).filter(x => x.days > 0).map(x => x.sec / x.days);
       const tAvg = teamAvgs.length ? monAvg(teamAvgs) : null;
-      return `<tr><td>${escapeHtml(w.slice(5))} 주</td><td>${a.days}일</td><td>${a.days ? monFmtDur(a.sec) : '-'}</td><td>${a.days ? monFmtDur(a.sec / a.days) : '-'}</td><td style="color:var(--muted);">${tAvg === null ? '-' : monFmtDur(tAvg)}</td><td>${a.pros}명</td><td>${a.cons}건</td></tr>`;
+      const teamAtt = incl.map(n => weekOf(n, w)).filter(x => x.aDays > 0).map(x => x.att / x.aDays);
+      const tAtt = teamAtt.length ? monAvg(teamAtt) : null;
+      return `<tr><td>${escapeHtml(w.slice(5))} 주</td><td>${a.days}일</td><td>${a.days ? monFmtDur(a.sec) : '-'}</td><td>${a.days ? monFmtDur(a.sec / a.days) : '-'}</td><td style="color:var(--muted);">${tAvg === null ? '-' : monFmtDur(tAvg)}</td><td>${a.aDays ? (a.att / a.aDays).toFixed(1) + '통' : '-'}</td><td style="color:var(--muted);">${tAtt === null ? '-' : tAtt.toFixed(1) + '통'}</td><td>${a.pros}명</td><td>${a.cons}건</td></tr>`;
     }).join('');
-    html += `<div style="overflow-x:auto;"><table style="min-width:600px;"><thead><tr><th>주(월요일)</th><th>입력일수</th><th>콜시간 합계</th><th>일평균 콜시간</th><th>팀 일평균<br>(포함 팀장)</th><th>가망 발굴</th><th>계약(계약일 기준)</th></tr></thead><tbody>${aBody}</tbody></table></div>
+    html += `<div style="overflow-x:auto;"><table style="min-width:720px;"><thead><tr><th>주(월요일)</th><th>입력일수</th><th>콜시간 합계</th><th>일평균 콜시간</th><th>팀 일평균<br>(포함 팀장)</th><th>일평균<br>시도 횟수</th><th>팀 일평균<br>시도</th><th>가망 발굴</th><th>계약(계약일 기준)</th></tr></thead><tbody>${aBody}</tbody></table></div>
       <div class="sub" style="margin:8px 0 0;">입력일수가 ${MON_CFG.minDays}일 미만인 주는 비교하지 마세요. 계약은 계약관리 탭 자료입니다. 활동량과 실적의 관계는 "콜시간·가망→실적" 화면에서 봅니다.</div>`;
   }
   html += `</div>`;
