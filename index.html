@@ -610,6 +610,54 @@ th, .cm-table th, .cm-hist th { background:var(--th); }
 tbody tr:hover td, .cm-table tbody tr:hover { background:var(--ui-slate-50); }
 .cal-cell:hover:not(.empty) { background:var(--ui-slate-100); }
 button.secondary { background:var(--ui-slate-100); } button.secondary:hover { background:var(--ui-slate-200); }
+
+/* --- 오늘의 할 일 (홈) --- */
+.hm-head { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:10px 14px; margin-bottom:14px; }
+.hm-title { margin:0; font-size:24px; font-weight:800; letter-spacing:-.02em; color:var(--ui-slate-900,#0F172A); }
+.hm-date { font-size:13px; color:var(--muted); margin-top:2px; }
+.hm-mgrsel { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
+.hm-mgrsel select { width:auto; min-width:140px; }
+.hm-tiles { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+.hm-tile { flex:1 1 120px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+.hm-tile b { display:block; font-size:28px; line-height:1.15; font-weight:800; }
+.hm-tile span { font-size:12.5px; color:var(--muted); }
+.hm-next { background:#0F1B3D; color:#fff; border-radius:14px; padding:14px 18px; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:6px 16px; justify-content:space-between; align-items:center; font-size:14.5px; font-weight:700; }
+.hm-next small { font-weight:400; color:#C7CEDF; font-size:12.5px; }
+.hm-prog { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:14px; }
+.hm-prog h3 { margin:0 0 10px; font-size:14px; }
+.hm-prog-grid { display:flex; flex-wrap:wrap; gap:10px 18px; }
+.hm-prog-it { flex:1 1 200px; min-width:0; font-size:13px; }
+.hm-prog-it div { display:flex; justify-content:space-between; margin-bottom:4px; }
+.hm-prog-it progress { width:100%; height:9px; accent-color:#3C6E52; }
+.hm-chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+.hm-fchip { border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; }
+.hm-fchip.on { background:#1B1B1B; border-color:#1B1B1B; color:#fff; font-weight:700; }
+.hm-sec { font-size:12.5px; font-weight:700; color:var(--muted); margin:16px 0 8px; }
+.hm-item { border:1px solid var(--line); border-radius:12px; background:var(--card); padding:12px 14px; margin-bottom:8px; }
+.hm-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; }
+.hm-when { width:90px; flex:none; font-size:13.5px; font-weight:700; }
+.hm-main { flex:1 1 220px; min-width:0; }
+.hm-main .t { font-size:15px; font-weight:500; word-break:break-word; }
+.hm-main .s { font-size:12.5px; color:var(--muted); }
+.hm-item.done .t { text-decoration:line-through; color:var(--muted); }
+.hm-chip { display:inline-block; padding:3px 9px; border-radius:999px; font-size:11.5px; font-weight:700; margin-right:4px; white-space:nowrap; }
+.hm-appt { background:#E3ECF8; color:#1F4E8C; }
+.hm-contract { background:#DCEFE9; color:#0F5F52; }
+.hm-event { background:#FBEAD0; color:#8A4B00; }
+.hm-late { background:var(--red-bg); color:var(--red); }
+.hm-acts { display:flex; flex-wrap:wrap; gap:6px; flex:none; }
+.hm-acts button { min-height:36px; }
+.hm-detail { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.hm-box { flex:1 1 220px; background:var(--ui-slate-50,#F7F3E9); border-radius:10px; padding:12px 14px; font-size:13.5px; line-height:1.6; }
+.hm-box h4 { margin:0 0 4px; font-size:12px; color:var(--muted); }
+.hm-overdue { border:1px solid #E7C9C4; background:#FBF1EF; border-radius:14px; padding:14px 16px; margin-bottom:14px; }
+.hm-overdue .hm-item { background:#fff; }
+.hm-mhead { font-size:13px; font-weight:700; margin:14px 0 6px; }
+.hm-clean { background:#fff; border:1px dashed #D9B8B2; border-radius:10px; padding:10px 12px; margin-top:10px; font-size:13px; display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; }
+.hm-clean select { width:auto; padding:5px 8px; }
+.hm-note { color:var(--muted); font-size:12.5px; }
+.hm-sql { background:var(--amber-bg); color:#6E4B12; border-radius:12px; padding:12px 14px; margin-bottom:14px; font-size:13px; }
+.hm-sql pre { background:#fff; border-radius:8px; padding:8px 10px; margin:8px 0; white-space:pre-wrap; font-size:12.5px; }
 </style>
 <script id="ui_theme">
 /* 분기별 화면 색: 1~3월 G 로즈 / 4~6월 E 세이지 / 7~9월 H 틸 / 10~12월 A 아이보리. 주소 끝에 ?theme=A~H 를 붙이면 미리보기(저장 안 됨) */
@@ -663,10 +711,15 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 
 <div id="appLayout">
 <aside id="sideMenu">
+  <div class="sg" data-group="home">
+    <div class="sg-items">
+      <button class="tabbtn active" data-tab="home" onclick="switchTab('home')">🏠 오늘의 할 일<span id="hm_badge"></span></button>
+    </div>
+  </div>
   <div class="sg" data-group="manage">
     <button class="sg-head" onclick="toggleSideGroup('manage')"><span>📋 관리</span><span class="arr">▼</span></button>
     <div class="sg-items">
-      <button class="tabbtn active" data-tab="reserve" onclick="switchTab('reserve')">📅 예약관리<span id="r_todayCount"></span></button>
+      <button class="tabbtn" data-tab="reserve" onclick="switchTab('reserve')">📅 예약관리<span id="r_todayCount"></span></button>
       <button class="tabbtn" data-tab="contract" onclick="switchTab('contract')">📄 계약관리</button>
       <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
       <button class="tabbtn" data-tab="dbmgmt" onclick="switchTab('dbmgmt')">🗃️ DB관리</button>
@@ -714,8 +767,13 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 <div id="sideOverlay" onclick="toggleSideMenu(false)"></div>
 <main id="mainContent" style="display:none;">
 
+<!-- ===== 오늘의 할 일 (홈) ===== -->
+<div class="panel active" id="panel-home">
+  <div id="hm_root"><div class="card"><div class="sub" style="margin:0;">오늘의 할 일을 불러오는 중...</div></div></div>
+</div>
+
 <!-- ===== 예약관리 ===== -->
-<div class="panel active" id="panel-reserve">
+<div class="panel" id="panel-reserve">
   <div class="card">
     <div class="sub">상담 후 예약을 등록하면, 예정 5분 전에 이 화면에서 알림이 울립니다. (화면을 열어두셔야 알람이 동작해요)</div>
     <div id="alarmBanner" class="alarm-banner"></div>
@@ -2009,6 +2067,7 @@ function switchTab(name) {
   if (name === 'practice') initPracticeSetup();
   if (name === 'hospmap') loadHospMap();
   if (name === 'cancertl') loadCancerTimeline();
+  if (name === 'home') hmRender();
 }
 
 /* ============================================================
@@ -5042,6 +5101,7 @@ async function loadReservations() {
   allReservations = rows;
   updateManagerFilterOptions('r_filterManager', allReservations.map(r=>r.manager_name));
   renderReservations();
+  hmRender();
 }
 function updateManagerFilterOptions(selectId, names) {
   const sel = document.getElementById(selectId);
@@ -5222,7 +5282,7 @@ function checkContractAlarms(){
 
   allContracts.forEach(c=>{
     [[1,'checked_1m'],[2,'checked_2m'],[4,'checked_4m'],[6,'checked_6m']].forEach(([n,field])=>{
-      if(c[field]) return;
+      if(c[field] || hmSkipped(c,field)) return;
       const target=addMonths(c.contract_date,n); target.setHours(0,0,0,0);
       if(target<=today){
         const key = `${c.id}_${field}`;
@@ -5492,6 +5552,7 @@ async function loadContracts(){
   renderContracts();
   if (contractView === 'map') renderContractMap();
   updateOccupationList();
+  hmRender();
 }
 // ===== 월별 보기 =====
 function currentYM(){ const n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0'); }
@@ -5524,31 +5585,26 @@ function updateOccupationList(){
 }
 function renderDueBox(){
   const box=document.getElementById('c_dueBox');
+  if(!box) return;
+  // 오늘 확인할 항목의 상세 목록과 관리멘트는 "🏠 오늘의 할 일" 탭으로 옮겼다 — 여기서는 건수만 알려준다
   const today=new Date(); today.setHours(0,0,0,0);
-  const dueItems=[];
+  let due=0, late=0, bday=0;
   allContracts.forEach(c=>{
-    [[1,'checked_1m'],[2,'checked_2m'],[4,'checked_4m'],[6,'checked_6m']].forEach(([n,field])=>{
-      if(c[field]) return;
+    HM_CHECKS.forEach(([n,field])=>{
+      if(c[field] || hmSkipped(c,field)) return;
       const target=addMonths(c.contract_date,n); target.setHours(0,0,0,0);
-      if(target<=today) dueItems.push(`${c.customer_name} (${c.manager_name}) - ${n}개월 확인 (${fmtDate(target)})`);
+      if(target.getTime()===today.getTime()) due++; else if(target<today) late++;
     });
-  });
-  const bdayItems=[];
-  allContracts.forEach(c=>{
-    if(!c.customer_birthday) return;
-    const b=new Date(c.customer_birthday);
-    if(b.getMonth()===today.getMonth() && b.getDate()===today.getDate()){
-      bdayItems.push(`🎂 ${c.customer_name} (${c.manager_name}) 고객 생일`);
+    if(c.customer_birthday){
+      const b=new Date(c.customer_birthday);
+      if(b.getMonth()===today.getMonth() && b.getDate()===today.getDate()) bday++;
     }
   });
-  if(dueItems.length===0 && bdayItems.length===0){
+  if(due===0 && late===0 && bday===0){
     box.className='due-box empty'; box.innerHTML='오늘 확인할 항목이 없습니다.'; return;
   }
-  let html='';
-  if(bdayItems.length){ html+=`<div><b>오늘 생일인 고객</b><ul>${bdayItems.map(t=>`<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`; }
-  if(dueItems.length){ html+=`<div style="margin-top:${bdayItems.length?'10px':'0'};"><b>확인 필요한 계약</b><ul>${dueItems.map(t=>`<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`; }
-  box.className = 'due-box' + (bdayItems.length && !dueItems.length ? ' birthday' : '');
-  box.innerHTML = html;
+  box.className='due-box' + (bday && !due && !late ? ' birthday' : '');
+  box.innerHTML='오늘 확인 '+due+'건 · 생일 '+bday+'건 · 지연 '+late+'건 — 목록과 관리멘트는 <a href="#" onclick="switchTab(\'home\');return false;" style="font-weight:700;color:inherit;text-decoration:underline;">🏠 오늘의 할 일</a>에서 확인하세요.';
 }
 // 팀장별·월별 계약 순번 (계약일 오름차순 1,2,3...) — 검색/필터와 무관하게 전체 기준으로 계산
 let contractSeqMap = {};
@@ -5593,8 +5649,9 @@ function renderContractRow(c){
   const today=new Date(); today.setHours(0,0,0,0);
   const cellFor=(n,field)=>{
     const target=addMonths(c.contract_date,n); target.setHours(0,0,0,0);
-    const overdue = !c[field] && target<=today;
-    return `<td style="${overdue?'background:var(--amber-bg);':''}">
+    const skipped = hmSkipped(c, field);
+    const overdue = !c[field] && !skipped && target<=today;
+    return `<td title="${skipped && !c[field] ? '확인 불필요로 정리됨' : ''}" style="${overdue?'background:var(--amber-bg);':(skipped && !c[field] ? 'background:var(--ui-slate-100,#EFEDE6);' : '')}">
       <input type="checkbox" ${c[field]?'checked':''} onchange="toggleContractCheck(${c.id},'${field}',this.checked)">
     </td>`;
   };
@@ -6990,6 +7047,406 @@ async function startApp(){
     console.error(e);
     setStatus('error','⚠ 연결 실패: '+e.message);
   }
+}
+
+/* ============================================================
+   오늘의 할 일 (홈)
+   · 예약관리(reservations) + 계약관리(contracts: 1·2·4·6개월 확인, 생일) + DB관리 재터치 필요 건을 한 화면에
+   · 완료 처리는 원본 테이블(reservations.done / contracts.checked_*)에 그대로 저장된다
+   · 오래 밀린 계약 확인은 "확인 불필요"로 정리할 수 있다 → contracts.check_skipped (완료와 구분해서 기록)
+   · 새 SQL 한 줄 필요: alter table contracts add column if not exists check_skipped text;
+============================================================ */
+const HM_SQL = 'alter table contracts add column if not exists check_skipped text;';
+const HM_CHECKS = [[1,'checked_1m'],[2,'checked_2m'],[4,'checked_4m'],[6,'checked_6m']];
+const HM_WD = ['일','월','화','수','목','금','토'];
+let hmKind = 'all';          // all | appt | contract | event
+let hmMgr = '__all__';       // 마스터 전용 팀장 필터
+let hmOpenKey = null;        // 펼친 항목
+let hmOverdueOpen = false;   // 지연 목록 펼침 여부
+let hmOverdueAll = false;    // 지연 목록 전체 보기
+let hmEventAll = false;      // 재터치 목록 전체 보기
+let hmCleanDays = 14;        // 일괄 정리 기준(며칠 이상 지난 건)
+let hmDbState = 'idle';      // idle | loading | done | error
+let hmDbErr = '';
+let hmSqlNote = false;       // check_skipped 칸이 없을 때 SQL 안내
+let hmLast = {};             // 마지막으로 그린 항목 (key → item)
+
+function hmSkipped(c, field){
+  return !!(c && c.check_skipped && String(c.check_skipped).split(',').indexOf(field) >= 0);
+}
+function hmPad(n){ return String(n).padStart(2,'0'); }
+function hmHM(d){ return hmPad(d.getHours()) + ':' + hmPad(d.getMinutes()); }
+function hmMD(d){ return (d.getMonth()+1) + '/' + d.getDate(); }
+function hmDayStart(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+/* 생일 완료 표시는 "그날 하루"만 필요해서 이 브라우저에만 저장한다 */
+function hmBdayKey(){ const t = new Date(); return 'afg_hm_bday_' + t.getFullYear() + '-' + (t.getMonth()+1) + '-' + t.getDate(); }
+function hmBdayDoneGet(){ try { return JSON.parse(localStorage.getItem(hmBdayKey()) || '[]'); } catch(e) { return []; } }
+function hmBdayDoneSet(arr){
+  try {
+    const cur = hmBdayKey();
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('afg_hm_bday_') === 0 && k !== cur) localStorage.removeItem(k);
+    }
+    localStorage.setItem(cur, JSON.stringify(arr));
+  } catch(e) {}
+}
+
+/* 관리멘트 — 시점별 기본 문구 (Claude API 호출 없음, 미리 준비된 문구) */
+function hmScript(kind, n, c){
+  const name = (c.customer_name || '고객') + ' 고객님';
+  const mgr = c.manager_name || '담당';
+  if (kind === 'bday') {
+    return `${name}, 안녕하세요. ${mgr} 팀장입니다. 오늘 생일이시라고 알고 있어서 축하 인사 드리려고 연락드렸습니다. 생일 축하드립니다! 보험 관련해서 궁금하신 점이 있으시면 언제든 편하게 말씀해 주세요.`;
+  }
+  if (n === 1) return `${name}, 안녕하세요. ${mgr} 팀장입니다. 가입하신 지 한 달이 되어 연락드렸습니다. 증권은 잘 받아보셨는지, 보험료 납입에는 불편하신 점이 없으신지 확인차 전화드렸습니다.`;
+  if (n === 2) return `${name}, 안녕하세요. ${mgr} 팀장입니다. 가입 2개월 차 안부 연락입니다. 보험료 자동이체와 증권 내용에 이상은 없으신지 확인드리고, 궁금하신 점이 있으면 말씀해 주세요.`;
+  if (n === 4) return `${name}, 안녕하세요. ${mgr} 팀장입니다. 가입 후 4개월이 지나 연락드렸습니다. 혹시 병원 이용하실 일이 있으셨는지, 있으셨다면 보험금 청구 방법은 알고 계신지 안내드리려고 합니다.`;
+  return `${name}, 안녕하세요. ${mgr} 팀장입니다. 가입 6개월 시점이라 점검 차원에서 연락드렸습니다. 가입하신 보장 내용을 한 번 더 같이 확인해 보시고, 가족분들 보장도 필요하시면 점검 도와드리겠습니다.`;
+}
+const HM_NOTE_SWITCH = '※ 기존 계약의 해지·교체를 권유하게 될 때는 비교안내와 불이익 설명 의무를 반드시 확인하세요.';
+
+function hmLoadDb(){
+  if (hmDbState === 'loading' || hmDbState === 'done') return;
+  if (typeof dbLoaded !== 'undefined' && dbLoaded) { hmDbState = 'done'; return; }
+  hmDbState = 'loading';
+  loadDbCustomers().then(function(){
+    if (dbLoaded) { hmDbState = 'done'; hmDbErr = ''; }
+    else { hmDbState = 'error'; hmDbErr = dbLoadError || ''; }
+    hmRender();
+  }).catch(function(e){
+    hmDbState = 'error'; hmDbErr = (e && e.message) ? e.message : String(e);
+    hmRender();
+  });
+}
+
+/* 오늘/지연/재터치 항목 만들기 */
+function hmBuild(){
+  const now = new Date();
+  const today = hmDayStart(now);
+  const tMs = today.getTime(), tomMs = tMs + 86400000;
+  const isMaster = currentUser && currentUser.role === 'master';
+  const mgrOk = m => !isMaster || hmMgr === '__all__' || m === hmMgr;
+  const out = { today: [], overdue: [], events: [], managers: [] };
+  const bdayDone = hmBdayDoneGet();
+  const mset = {};
+
+  (Array.isArray(allReservations) ? allReservations : []).forEach(r => {
+    if (r.manager_name) mset[r.manager_name] = 1;
+    if (!mgrOk(r.manager_name)) return;
+    const t = new Date(r.scheduled_at);
+    const ms = t.getTime();
+    if (isNaN(ms)) return;
+    const base = {
+      key: 'r' + r.id, kind: 'appt', rid: r.id, manager: r.manager_name || '', customer: '',
+      title: r.memo || '예약', detail: '예약 시각 ' + hmMD(t) + ' ' + hmHM(t),
+      script: r.memo || '', scriptLabel: '예약 메모', phone: '', note: '', sort: ms
+    };
+    if (ms >= tMs && ms < tomMs) {
+      out.today.push(Object.assign(base, { when: hmHM(t), done: !!r.done }));
+    } else if (ms < tMs && !r.done) {
+      const late = Math.round((tMs - hmDayStart(t).getTime()) / 86400000);
+      out.overdue.push(Object.assign(base, { when: hmMD(t) + ' ' + hmHM(t), done: false, daysLate: late }));
+    }
+  });
+
+  (Array.isArray(allContracts) ? allContracts : []).forEach(c => {
+    if (c.manager_name) mset[c.manager_name] = 1;
+    if (!mgrOk(c.manager_name) || !c.contract_date) return;
+    const dtxt = String(c.contract_date).slice(0, 10);
+    const detailParts = [c.insurer, c.product_name, c.premium ? Number(c.premium).toLocaleString('ko-KR') + '원' : '', '계약일 ' + dtxt].filter(Boolean);
+    const detail = detailParts.join(' · ') + (c.address ? '\n주소 ' + c.address : '') + (c.occupation ? '\n직업 ' + c.occupation : '');
+    HM_CHECKS.forEach(([n, field]) => {
+      if (hmSkipped(c, field)) return;
+      const target = hmDayStart(addMonths(c.contract_date, n));
+      const ms = target.getTime();
+      const checked = !!c[field];
+      const it = {
+        key: 'c' + c.id + '_' + field, kind: 'contract', cid: c.id, field: field, n: n,
+        manager: c.manager_name || '', customer: c.customer_name || '',
+        title: '가입 후 ' + n + '개월 확인', detail: detail, phone: '',
+        script: hmScript('check', n, c), scriptLabel: '관리멘트 (자동 추천)',
+        note: n === 6 ? HM_NOTE_SWITCH : '', sort: ms
+      };
+      if (ms === tMs) {
+        out.today.push(Object.assign(it, { when: '종일', done: checked }));
+      } else if (ms < tMs && !checked) {
+        out.overdue.push(Object.assign(it, { when: hmMD(target), done: false, daysLate: Math.round((tMs - ms) / 86400000), skippable: true }));
+      }
+    });
+    if (c.customer_birthday) {
+      const b = new Date(c.customer_birthday);
+      if (!isNaN(b.getTime()) && b.getMonth() === today.getMonth() && b.getDate() === today.getDate()) {
+        out.today.push({
+          key: 'b' + c.id, kind: 'contract', bday: true, cid: c.id, manager: c.manager_name || '', customer: c.customer_name || '',
+          title: '🎂 오늘 생일', detail: detail, phone: '', script: hmScript('bday', 0, c), scriptLabel: '관리멘트 (자동 추천)',
+          note: '', sort: 0, when: '종일', done: bdayDone.indexOf(c.id) >= 0
+        });
+      }
+    }
+  });
+
+  if (hmDbState === 'done' && Array.isArray(dbRows)) {
+    const nowD = new Date();
+    dbRows.forEach(r => {
+      if (r.manager_name) mset[r.manager_name] = 1;
+      if (!dbTracked(r) || !mgrOk(r.manager_name)) return;
+      const a = dbAnalyze(r, nowD);
+      if (a.closed) return;
+      const hit = a.reasons.filter(x => x.code === 'resv' || x.code === 'retouch');
+      if (!hit.length) return;
+      const cust = r.customer_name || '(이름 없음)';
+      out.events.push({
+        key: 'd' + r.id, kind: 'event', manager: r.manager_name || '', customer: cust,
+        title: (r.status || '') + ' · ' + hit[0].label,
+        detail: [r.status, r.db_type, r.region].filter(Boolean).join(' · ') + '\n마지막 터치 ' + (a.lastT ? dbFmt(a.lastT) : '-') + ' · 터치 ' + a.touches + '회',
+        phone: r.phone || '', script: `${cust} 고객님, 안녕하세요. ${r.manager_name || '담당'} 팀장입니다. 지난번 상담 이후 궁금하신 점은 없으신지 안부 겸 연락드렸습니다. 이전에 말씀하신 부분부터 다시 편하게 설명드리겠습니다.`,
+        scriptLabel: '안내 멘트 (자동 추천)', note: HM_NOTE_SWITCH, when: '', done: false,
+        prio: hit[0].code === 'resv' ? 0 : 1, since: a.sinceTouch || 0
+      });
+    });
+    out.events.sort((a, b) => (a.prio - b.prio) || (b.since - a.since));
+  }
+  out.managers = Object.keys(mset).sort();
+  return out;
+}
+
+function hmItemHtml(it){
+  hmLast[it.key] = it;
+  const open = hmOpenKey === it.key;
+  const chip = it.kind === 'appt' ? '<span class="hm-chip hm-appt">예약</span>'
+    : it.kind === 'contract' ? '<span class="hm-chip hm-contract">계약관리</span>'
+    : '<span class="hm-chip hm-event">재터치</span>';
+  const late = it.daysLate ? `<span class="hm-chip hm-late">${it.daysLate}일 지연</span>` : '';
+  const sub = escapeHtml((it.customer ? it.customer + ' 고객 · ' : '') + it.manager + ' 팀장');
+  let acts = `<button class="small secondary" onclick="hmOpen('${it.key}')">${open ? '접기' : '상세 보기'}</button>`;
+  if (it.kind === 'event') {
+    acts += `<button class="small act" onclick="switchTab('dbmgmt')">DB관리에서 열기</button>`;
+  } else if (it.done) {
+    acts += `<button class="small secondary" onclick="hmDone('${it.key}',false)">완료 취소</button>`;
+  } else {
+    acts += `<button class="small act" onclick="hmDone('${it.key}',true)">완료 처리</button>`;
+    if (it.skippable) acts += `<button class="small secondary" onclick="hmSkipOne('${it.key}')" title="확인할 필요가 없는 건은 정리해 두세요 (완료와 구분되어 기록됩니다)">확인 불필요</button>`;
+  }
+  let detail = '';
+  if (open) {
+    const left = `<div class="hm-box"><h4>${it.kind === 'event' ? '고객 정보' : '상세'}</h4>${escapeHtml(it.detail).replace(/\n/g, '<br>')}${it.phone ? '<br>📞 ' + escapeHtml(it.phone) : ''}</div>`;
+    const scr = it.script ? escapeHtml(it.script) : '<span style="color:var(--muted)">등록된 메모가 없습니다.</span>';
+    const copy = (it.script && it.kind !== 'appt') ? `<div style="margin-top:8px;"><button class="small secondary" onclick="hmCopy('${it.key}',this)">멘트 복사</button></div>` : '';
+    const note = it.note ? `<div style="margin-top:6px;font-size:12.5px;color:var(--amber);">${escapeHtml(it.note)}</div>` : '';
+    detail = `<div class="hm-detail">${left}<div class="hm-box"><h4>${escapeHtml(it.scriptLabel)}</h4>${scr}${copy}${note}</div></div>`;
+  }
+  return `<div class="hm-item${it.done ? ' done' : ''}">
+    <div class="hm-row">
+      ${it.when ? `<div class="hm-when">${escapeHtml(it.when)}</div>` : ''}
+      <div>${chip}${late}</div>
+      <div class="hm-main"><div class="t">${escapeHtml(it.title)}</div><div class="s">${sub}</div></div>
+      <div class="hm-acts">${acts}</div>
+    </div>${detail}</div>`;
+}
+
+function hmRender(){
+  const root = document.getElementById('hm_root');
+  if (!root) return;
+  try {
+    if (!currentUser) return;
+    if (typeof sb !== 'undefined' && sb && hmDbState === 'idle') hmLoadDb();
+    hmLast = {};
+    const b = hmBuild();
+    const isMaster = currentUser.role === 'master';
+    const now = new Date();
+
+    const todayDone = b.today.filter(x => x.done).length;
+    const todayRemain = b.today.length - todayDone;
+    const badge = document.getElementById('hm_badge');
+    if (badge) badge.textContent = ' (' + (todayRemain + b.overdue.length) + '건)';
+
+    const cnt = k => b.today.filter(x => x.kind === k).length + b.overdue.filter(x => x.kind === k).length;
+    const kinds = [
+      ['all', '전체', b.today.length + b.overdue.length + b.events.length],
+      ['appt', '예약', cnt('appt')],
+      ['contract', '계약관리', cnt('contract')],
+      ['event', '재터치 필요', b.events.length]
+    ];
+    const chips = kinds.map(k => `<button type="button" class="hm-fchip${hmKind === k[0] ? ' on' : ''}" onclick="hmSetKind('${k[0]}')">${k[1]} ${k[2]}</button>`).join('');
+
+    let h = '';
+    if (hmSqlNote) {
+      h += `<div class="hm-sql"><b>먼저 Supabase에서 SQL을 한 번 실행해 주세요.</b> "확인 불필요" 정리 기능에 필요한 칸이 아직 없습니다.
+        <pre>${escapeHtml(HM_SQL)}</pre>
+        <button class="small secondary" onclick="hmCopySql(this)">SQL 복사</button>
+        <button class="small secondary" onclick="hmSqlNote=false;hmRender();">닫기</button>
+        <div style="margin-top:6px;">Supabase → SQL Editor에 붙여넣고 Run 한 뒤, 이 화면에서 다시 눌러주세요.</div></div>`;
+    }
+    const wd = HM_WD[now.getDay()];
+    let mgrSel = '';
+    if (isMaster) {
+      mgrSel = `<div class="hm-mgrsel"><label style="margin:0;">팀장</label><select onchange="hmSetMgr(this.value)"><option value="__all__">전체 팀장</option>` +
+        b.managers.map(m => `<option value="${escAttr(m)}"${hmMgr === m ? ' selected' : ''}>${escapeHtml(m)}</option>`).join('') + `</select></div>`;
+    }
+    h += `<div class="hm-head"><div><h2 class="hm-title">오늘의 할 일</h2><div class="hm-date">${now.getMonth() + 1}월 ${now.getDate()}일 ${wd}요일 · ${escapeHtml(currentUser.manager_name)}${isMaster ? ' (센터장 보기)' : ' 팀장'}</div></div>${mgrSel}</div>`;
+
+    h += `<div class="hm-tiles">
+      <div class="hm-tile"><b>${b.today.length}</b><span>오늘 할 일</span></div>
+      <div class="hm-tile"><b style="color:var(--green);">${todayDone}</b><span>완료</span></div>
+      <div class="hm-tile"><b>${todayRemain}</b><span>남은 일</span></div>
+      <div class="hm-tile"><b style="color:var(--red);">${b.overdue.length}</b><span>지연</span></div>
+      <div class="hm-tile"><b style="color:#8A4B00;">${hmDbState === 'done' ? b.events.length : '-'}</b><span>재터치 필요</span></div>
+    </div>`;
+
+    const nextR = b.today.filter(x => x.kind === 'appt' && !x.done).sort((a, c) => a.sort - c.sort).filter(x => x.sort >= now.getTime() - 30 * 60000)[0];
+    if (nextR) {
+      h += `<div class="hm-next"><div>다음 예약 · ${escapeHtml(nextR.when)} · ${escapeHtml(nextR.title)}</div><small>${escapeHtml(nextR.manager)} 팀장 · 예약 시간 전에 브라우저 알림이 뜹니다</small></div>`;
+    }
+
+    if (isMaster && hmMgr === '__all__') {
+      const per = {};
+      b.today.forEach(x => { const p = per[x.manager] = per[x.manager] || { t: 0, d: 0 }; p.t++; if (x.done) p.d++; });
+      const names = Object.keys(per).sort();
+      if (names.length) {
+        h += `<div class="hm-prog"><h3>팀장님별 오늘 진행 현황</h3><div class="hm-prog-grid">` +
+          names.map(n => `<div class="hm-prog-it"><div><span>${escapeHtml(n)}</span><span style="color:var(--muted);">${per[n].d} / ${per[n].t} 완료</span></div><progress value="${per[n].d}" max="${per[n].t}"></progress></div>`).join('') +
+          `</div></div>`;
+      }
+    }
+
+    h += `<div class="card"><div class="hm-chips">${chips}</div>`;
+
+    /* ---- 지연 ---- */
+    const od = b.overdue.filter(x => hmKind === 'all' || x.kind === hmKind);
+    if (od.length) {
+      const byM = {};
+      od.forEach(x => { (byM[x.manager] = byM[x.manager] || []).push(x); });
+      const mn = Object.keys(byM).sort((a, c) => byM[c].length - byM[a].length || a.localeCompare(c));
+      const mtxt = (isMaster && mn.length > 1) ? ' · ' + mn.map(n => escapeHtml(n) + ' ' + byM[n].length).join(' · ') : '';
+      h += `<div class="hm-overdue"><div class="hm-row" style="justify-content:space-between;">
+        <div><b style="color:var(--red);">지연 ${od.length}건</b> <span class="hm-note">어제까지 처리하지 못한 예약·계약 확인${mtxt}</span></div>
+        <button class="small secondary" onclick="hmToggleOverdue()">${hmOverdueOpen ? '접기' : '펼쳐서 보기'}</button></div>`;
+      if (hmOverdueOpen) {
+        const oldC = od.filter(x => x.kind === 'contract' && x.skippable && x.daysLate >= hmCleanDays);
+        if (od.some(x => x.skippable)) {
+          h += `<div class="hm-clean"><span>쌓인 계약 확인 정리:</span>
+            <select onchange="hmSetCleanDays(this.value)">${[7, 14, 30, 60].map(d => `<option value="${d}"${hmCleanDays === d ? ' selected' : ''}>${d}일</option>`).join('')}</select>
+            <span>이상 지난 계약 확인 <b>${oldC.length}건</b>을</span>
+            <button class="small act" ${oldC.length ? '' : 'disabled'} onclick="hmCleanOld()">확인 불필요로 정리</button>
+            <span class="hm-note">완료와 구분되어 기록되며, 계약 정보와 실적에는 영향이 없습니다.</span></div>`;
+        }
+        mn.forEach(n => {
+          const list = byM[n].slice().sort((a, c) => (c.daysLate - a.daysLate) || (a.sort - c.sort));
+          const shown = hmOverdueAll ? list : list.slice(0, 15);
+          h += `<div class="hm-mhead">${escapeHtml(n)} 팀장 · ${list.length}건 <span class="hm-note">(오래된 순)</span></div>` + shown.map(hmItemHtml).join('');
+          if (!hmOverdueAll && list.length > 15) h += `<div class="hm-note" style="margin:4px 0 0;">${list.length - 15}건 더 있음</div>`;
+        });
+        if (!hmOverdueAll && mn.some(n => byM[n].length > 15)) h += `<div style="margin-top:8px;"><button class="small secondary" onclick="hmOverdueAll=true;hmRender();">지연 전체 보기</button></div>`;
+        else if (hmOverdueAll) h += `<div style="margin-top:8px;"><button class="small secondary" onclick="hmOverdueAll=false;hmRender();">15건씩 보기</button></div>`;
+      }
+      h += `</div>`;
+    }
+
+    /* ---- 오늘 ---- */
+    const showA = hmKind === 'all' || hmKind === 'appt';
+    const showC = hmKind === 'all' || hmKind === 'contract';
+    const showE = hmKind === 'all' || hmKind === 'event';
+    const tA = b.today.filter(x => x.kind === 'appt').sort((a, c) => a.sort - c.sort);
+    const tC = b.today.filter(x => x.kind === 'contract').sort((a, c) => ((a.done ? 1 : 0) - (c.done ? 1 : 0)) || a.manager.localeCompare(c.manager));
+    let any = od.length > 0;
+    if (showA && tA.length) { any = true; h += `<div class="hm-sec">오늘 예약 · 시간순 (${tA.length}건)</div>` + tA.map(hmItemHtml).join(''); }
+    if (showC && tC.length) { any = true; h += `<div class="hm-sec">오늘 챙길 고객 · 계약 확인과 생일 (${tC.length}건)</div>` + tC.map(hmItemHtml).join(''); }
+    if (showE) {
+      if (hmDbState === 'loading' || hmDbState === 'idle') {
+        h += `<div class="hm-sec">다시 연락할 고객 · DB관리 재터치 필요</div><div class="hm-note">불러오는 중...</div>`;
+      } else if (hmDbState === 'error') {
+        h += `<div class="hm-sec">다시 연락할 고객 · DB관리 재터치 필요</div><div class="hm-note">DB관리 데이터를 불러오지 못했습니다.${hmDbErr ? ' (' + escapeHtml(hmDbErr) + ')' : ''}</div>`;
+      } else if (b.events.length) {
+        any = true;
+        const evs = (hmEventAll || hmKind === 'event') ? b.events : b.events.slice(0, 10);
+        h += `<div class="hm-sec">다시 연락할 고객 · DB관리 재터치 필요 (${b.events.length}건, 예약일 지난 건 먼저)</div>` + evs.map(hmItemHtml).join('');
+        if (!(hmEventAll || hmKind === 'event') && b.events.length > 10) h += `<div style="margin-top:4px;"><button class="small secondary" onclick="hmEventAll=true;hmRender();">${b.events.length - 10}건 더 보기</button></div>`;
+      }
+    }
+    if (!any) h += `<div style="padding:28px 0;text-align:center;color:var(--muted);font-size:14px;">표시할 할 일이 없습니다. 🎉</div>`;
+    h += `</div>`;
+    root.innerHTML = h;
+  } catch (e) {
+    console.error(e);
+    root.innerHTML = `<div class="card">오늘의 할 일을 그리는 중 오류가 났어요. 새로고침(F5) 해주세요.<div class="hm-note" style="margin-top:6px;">${escapeHtml(e && e.message ? e.message : String(e))}</div></div>`;
+  }
+}
+
+function hmSetKind(k){ hmKind = k; hmOpenKey = null; hmRender(); }
+function hmSetMgr(m){ hmMgr = m; hmOpenKey = null; hmRender(); }
+function hmOpen(key){ hmOpenKey = (hmOpenKey === key) ? null : key; hmRender(); }
+function hmToggleOverdue(){ hmOverdueOpen = !hmOverdueOpen; hmRender(); }
+function hmSetCleanDays(v){ hmCleanDays = Number(v) || 14; hmRender(); }
+
+async function hmDone(key, val){
+  const it = hmLast[key];
+  if (!it) return;
+  if (it.kind === 'appt') { await toggleResDone(it.rid, val); return; }
+  if (it.bday) {
+    const arr = hmBdayDoneGet().filter(id => id !== it.cid);
+    if (val) arr.push(it.cid);
+    hmBdayDoneSet(arr);
+    hmRender();
+    return;
+  }
+  if (it.kind === 'contract') { await toggleContractCheck(it.cid, it.field, val); }
+}
+
+/* "확인 불필요"로 정리 — contracts.check_skipped(쉼표로 구분한 필드명)에 기록 */
+async function hmSkip(list){
+  if (!list.length) return;
+  const by = {};
+  list.forEach(x => { (by[x.cid] = by[x.cid] || []).push(x.field); });
+  const ids = Object.keys(by);
+  let fail = 0, sqlNeeded = false, firstErr = '';
+  for (let i = 0; i < ids.length; i += 10) {
+    await Promise.all(ids.slice(i, i + 10).map(async id => {
+      const c = allContracts.find(z => String(z.id) === String(id));
+      if (!c) return;
+      const cur = c.check_skipped ? String(c.check_skipped).split(',').filter(Boolean) : [];
+      by[id].forEach(f => { if (cur.indexOf(f) < 0) cur.push(f); });
+      const { error } = await sb.from('contracts').update({ check_skipped: cur.join(',') }).eq('id', c.id);
+      if (error) {
+        fail++;
+        if (!firstErr) firstErr = error.message || '';
+        if (/check_skipped/i.test(error.message || '')) sqlNeeded = true;
+      }
+    }));
+    if (sqlNeeded) break;
+  }
+  if (sqlNeeded) hmSqlNote = true;
+  try { await loadContracts(); } catch (e) { console.error(e); }
+  hmRender();
+  if (fail && !sqlNeeded) alert('일부 정리에 실패했습니다: ' + firstErr);
+  if (sqlNeeded) window.scrollTo(0, 0);
+}
+function hmSkipOne(key){
+  const it = hmLast[key];
+  if (!it || !it.skippable) return;
+  hmSkip([{ cid: it.cid, field: it.field }]);
+}
+function hmCleanOld(){
+  const list = hmBuild().overdue.filter(x => (hmKind === 'all' || x.kind === hmKind) && x.kind === 'contract' && x.skippable && x.daysLate >= hmCleanDays);
+  if (!list.length) return;
+  if (!confirm(`${hmCleanDays}일 이상 지난 계약 확인 ${list.length}건을 "확인 불필요"로 정리할까요?\n\n· 완료가 아니라 "정리됨"으로 따로 기록됩니다.\n· 계약 정보와 실적에는 영향이 없습니다.`)) return;
+  hmSkip(list.map(x => ({ cid: x.cid, field: x.field })));
+}
+
+async function hmCopy(key, btn){
+  const it = hmLast[key];
+  if (!it || !it.script) return;
+  try {
+    await navigator.clipboard.writeText(it.script);
+    if (btn) { const o = btn.textContent; btn.textContent = '복사됨 ✓'; setTimeout(() => { btn.textContent = o; }, 1500); }
+  } catch (e) { alert('복사에 실패했습니다. 문구를 직접 드래그해서 복사해 주세요.'); }
+}
+async function hmCopySql(btn){
+  try {
+    await navigator.clipboard.writeText(HM_SQL);
+    if (btn) { const o = btn.textContent; btn.textContent = '복사됨 ✓'; setTimeout(() => { btn.textContent = o; }, 1500); }
+  } catch (e) { alert('복사에 실패했습니다. SQL을 직접 드래그해서 복사해 주세요.'); }
 }
 
 /* ============================================================
