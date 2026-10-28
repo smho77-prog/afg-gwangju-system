@@ -1814,7 +1814,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div id="db_viewUpload" style="display:none;">
     <div class="card">
       <label>회사 전산에서 내려받은 DB 엑셀 업로드</label>
-      <div class="sub" style="margin-bottom:8px;">고객코드 기준으로 처리합니다. 새 고객은 추가하고, 이미 있는 고객은 상담상태·터치횟수·예약일시·계약건수·메모를 최신 값으로 갱신합니다. 매일 같은 파일 형식으로 올리시면 됩니다. (회사 전산 데이터가 기준이므로, 수기로 기록한 터치보다 엑셀 값이 우선합니다.)</div>
+      <div class="sub" style="margin-bottom:8px;">고객코드 기준으로 처리합니다. 새 고객은 추가하고, 이미 있는 고객은 상담상태·터치횟수·예약일시·계약건수·메모를 최신 값으로 갱신합니다. 매일 같은 파일 형식으로 올리시면 됩니다. (회사 전산 데이터가 기준이므로, 수기로 기록한 터치보다 엑셀 값이 우선합니다.) 마스터 계정은 파일을 고른 뒤 미리보기에서 “교체”를 선택하면 파일에 없는 기존 DB를 삭제해 정리할 수 있습니다.</div>
       <input type="file" id="db_excelFile" accept=".xlsx,.xls,.csv" onchange="dbHandleExcel(event)">
       <div id="db_excelStatus" style="font-size:12.5px;color:var(--muted);margin-top:8px;"></div>
     </div>
@@ -2112,6 +2112,14 @@ let dbLoadError = '';
 let dbView = 'dash';
 let dbPending = null;
 let dbTouchId = null;
+let dbUpMode = 'add';   /* 'add' = 추가·갱신(기본) / 'replace' = 교체(마스터 전용: 파일에 없는 기존 건 삭제) */
+/* 교체 모드에서 지울 대상: 파일에 없는 기존 건 중, 이 탭에서 집계하는 건(신규·카카오페이 제외)이고 수기 등록이 아닌 것 */
+function dbStaleRows(){
+  if (!dbPending || dbUpMode !== 'replace' || !(currentUser && currentUser.role === 'master')) return [];
+  const codes = new Set(dbPending.list.map(x => x.customer_code));
+  return dbRows.filter(r => dbTracked(r) && r.source !== 'manual' && !codes.has(r.customer_code));
+}
+function dbSetUpMode(v){ dbUpMode = v; if (dbPending) dbRenderPreview(); }
 
 function dbPad(n){ return String(n).padStart(2,'0'); }
 function dbTs(v){ if(!v) return null; const d = new Date(v); return isNaN(d.getTime()) ? null : d; }
@@ -2598,7 +2606,14 @@ function dbRenderPreview(){
   const byMgr = {}, bySt = {};
   p.list.forEach(x => { byMgr[x.manager_name] = (byMgr[x.manager_name] || 0) + 1; bySt[x.status] = (bySt[x.status] || 0) + 1; });
   const chips = o => Object.keys(o).map(k => `<span class="badge" style="background:#EFEDE6;margin-right:4px;">${escapeHtml(k)} ${o[k]}</span>`).join('');
-  document.getElementById('db_previewSummary').innerHTML =
+  const isMaster = currentUser && currentUser.role === 'master';
+  const stale = dbStaleRows().length;
+  const modeBox = isMaster ? `<div style="margin-bottom:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;">
+      <label style="display:flex;gap:6px;align-items:flex-start;margin:0 0 4px;font-weight:600;"><input type="radio" name="db_upMode" value="add" style="width:auto;margin-top:3px;" ${dbUpMode === 'add' ? 'checked' : ''} onchange="dbSetUpMode(this.value)"><span>추가·갱신 <span style="font-weight:400;color:var(--muted);">— 기존 DB는 그대로 두고 같은 고객코드만 덮어씁니다 (평소 매일 올릴 때)</span></span></label>
+      <label style="display:flex;gap:6px;align-items:flex-start;margin:0;font-weight:600;"><input type="radio" name="db_upMode" value="replace" style="width:auto;margin-top:3px;" ${dbUpMode === 'replace' ? 'checked' : ''} onchange="dbSetUpMode(this.value)"><span>교체 <span style="font-weight:400;color:var(--muted);">— 파일에 없는 기존 DB는 삭제합니다 (수기 등록·신규·카카오페이는 삭제 안 함)</span></span></label>
+      ${dbUpMode === 'replace' ? `<div style="margin-top:6px;color:${stale ? 'var(--red)' : 'var(--muted)'};">교체 모드: 파일에 없는 기존 <b>${stale.toLocaleString('ko-KR')}건</b>이 삭제됩니다.</div>` : ''}
+    </div>` : '';
+  document.getElementById('db_previewSummary').innerHTML = modeBox +
     `반영 대상 <b>${p.list.length}건</b> (신규 <b style="color:var(--green);">${nNew}</b> · 갱신 <b>${p.list.length - nNew}</b>)` +
     `<br>팀장별: ${chips(byMgr)}<br>상태별: ${chips(bySt)}` +
     ((p.invalid || p.dup || p.otherMgr) ? `<br><span style="color:var(--amber);font-size:12px;">제외/정리: 고객코드·담당자 없음 ${p.invalid}행 · 파일 내 중복 ${p.dup}행(마지막 값 사용)${p.otherMgr ? ` · 다른 담당자 ${p.otherMgr}건(본인 건만 반영)` : ''}</span>` : '');
@@ -2612,12 +2627,15 @@ function dbRenderPreview(){
 function dbStripNewCols(o){ const c = Object.assign({}, o); delete c.partner_memo; delete c.birth; delete c.gender; delete c.has_recording; return c; }
 function dbCancelExcel(){
   dbPending = null;
+  dbUpMode = 'add';
   document.getElementById('db_previewCard').style.display = 'none';
   document.getElementById('db_excelFile').value = '';
   document.getElementById('db_excelStatus').textContent = '';
 }
 async function dbCommitExcel(){
   if (!dbPending) return;
+  const stale = dbStaleRows();
+  if (stale.length && !confirm(`파일에 없는 기존 DB ${stale.length.toLocaleString('ko-KR')}건이 삭제됩니다.\n(수기 등록·신규·카카오페이 DB는 삭제되지 않습니다)\n계속할까요?`)) return;
   const btn = document.getElementById('db_commitBtn');
   btn.disabled = true;
   const st = document.getElementById('db_excelStatus');
@@ -2639,11 +2657,18 @@ async function dbCommitExcel(){
       }
       if (error) throw error;
     }
+    /* 새 데이터를 먼저 저장한 뒤 파일에 없는 옛 건을 지운다 (저장이 실패해도 기존 데이터가 비지 않게) */
+    for (let i = 0; i < stale.length; i += 200) {
+      st.textContent = `정리 중... ${Math.min(i + 200, stale.length)} / ${stale.length}`;
+      const { error } = await sb.from('db_customers').delete().in('id', stale.slice(i, i + 200).map(r => r.id));
+      if (error) throw error;
+    }
     const n = payload.length;
     dbCancelExcel();
+    const delMsg = stale.length ? ` (기존 ${stale.length.toLocaleString('ko-KR')}건 삭제)` : '';
     st.textContent = strip
-      ? `✓ ${n}건 반영 완료 (단, 협력사메모·생년월일·성별·녹취 O/X는 저장되지 않았습니다 — 제안 준비 탭 또는 콜 모니터링 탭의 SQL을 먼저 실행해주세요)`
-      : `✓ ${n}건 반영 완료`;
+      ? `✓ ${n}건 반영 완료${delMsg} (단, 협력사메모·생년월일·성별·녹취 O/X는 저장되지 않았습니다 — 제안 준비 탭 또는 콜 모니터링 탭의 SQL을 먼저 실행해주세요)`
+      : `✓ ${n}건 반영 완료${delMsg}`;
     await dbReload();
   }catch(e){
     console.error(e);
