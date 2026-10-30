@@ -3295,8 +3295,8 @@ function monRenderPick(){
 
   /* 코딩 줄 붙여넣기 */
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">코딩 줄 저장</div>
-    <div class="sub" style="margin:0 0 8px;">프로젝트 대화창에서 받은 <b>CODE|v1|…</b> 줄을 여러 줄 그대로 붙여넣으세요. 저장해 두면 PC가 바뀌어도 남고, 아래에서 체결/미체결 비교가 자동으로 나옵니다.</div>
-    <textarea id="mon_codeIn" rows="5" placeholder="CODE|v1|DB-00504578.mp3|2026-10|안세현|상품광고DB|미체결|분석전달|…" style="width:100%;font-size:12px;"></textarea>
+    <div class="sub" style="margin:0 0 8px;">프로젝트 대화창에서 받은 <b>CODE|v2|…</b>(또는 예전 CODE|v1|…) 줄을 여러 줄 그대로 붙여넣으세요. 저장해 두면 PC가 바뀌어도 남고, 아래에서 체결/미체결 비교가 자동으로 나옵니다.</div>
+    <textarea id="mon_codeIn" rows="5" placeholder="CODE|v2|DB-00504578.mp3|2026-10|OOO|상품광고DB|미체결|분석전달|…" style="width:100%;font-size:12px;"></textarea>
     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="act" onclick="monSaveCodes()">코딩 줄 저장</button><span id="mon_codeMsg" style="font-size:12.5px;color:var(--muted);"></span></div></div>`;
   html += `<div id="mon_codeStats">${monRenderCodeStats()}</div>`;
   el.innerHTML = html;
@@ -3321,14 +3321,18 @@ function monParseCode(line){
     const res = g[2] === '체결' ? '체결' : '미체결';
     const ym = monToday().slice(0, 7);
     const id = 'M' + monToday().replace(/-/g, '') + '-' + Date.now().toString(36) + (monManualSeq++);
-    const f = ['CODE', 'v1', id, ym, g[0], g[1], res, g[3], g[5], g[6], g[7], g[8], g[9], g[10], g[11], g[12], g[13], g[14], g[15]];
+    /* 이탈지점(g[4])은 v2 23번 칸에 보존, 1차클로징·걱정환기·직전반응·예산일치·최종클로징횟수는 이 형식에 없으므로 '-'(미기재) */
+    const f = ['CODE', 'v2', id, ym, g[0], g[1], res, g[3], g[5], g[6], g[7], g[8], g[9], g[10], g[11], g[12], g[13], g[14], g[15], '-', '-', '-', '-', g[4] || '-', '-'];
     return { f: f, line: f.join('|') };
   }
   if (t.indexOf('CODE|') < 0) return null;
-  if (t.indexOf('CODE|v1|') !== 0) return { err: 'CODE|v1| 로 시작하지 않음: ' + t.slice(0, 40) };
-  const f = t.split('|');
-  if (f.length !== 19) return { err: `칸이 ${f.length}개 (19개여야 함): ${t.slice(0, 40)}` };
-  return { f: f, line: t };
+  /* v1 = 19칸, v2 = 25칸(앞 19칸은 v1과 같고 뒤에 6칸: 1차클로징|걱정환기|직전반응|예산일치|이탈지점|최종클로징횟수) */
+  const ver = t.indexOf('CODE|v2|') === 0 ? 'v2' : (t.indexOf('CODE|v1|') === 0 ? 'v1' : '');
+  if (!ver) return { err: 'CODE|v1| 또는 CODE|v2| 로 시작하지 않음: ' + t.slice(0, 40) };
+  const f = t.split('|').map(x => x.trim());
+  const need = ver === 'v2' ? 25 : 19;
+  if (f.length !== need) return { err: `칸이 ${f.length}개 (${ver}는 ${need}개여야 함): ${t.slice(0, 40)}` };
+  return { f: f, line: f.join('|') };
 }
 async function monSaveCodes(){
   const msg = document.getElementById('mon_codeMsg');
@@ -3342,7 +3346,7 @@ async function monSaveCodes(){
     const old = monChecks.find(c => c.customer_code === code);
     rows.push({ customer_code: code, manager_name: p.f[4] || null, db_type: p.f[5] || null, pick_type: old ? (old.pick_type || null) : null, result: p.f[6] || null, code_line: p.line, checked_at: new Date().toISOString() });
   });
-  if (!rows.length) { msg.style.color = 'var(--red)'; msg.textContent = errs.length ? '저장할 수 있는 줄이 없습니다. ' + errs[0] : '붙여넣은 내용에서 코딩 줄을 찾지 못했습니다. (CODE|v1|… 줄 또는 프로젝트 코딩 모드의 한 줄을 그대로 붙여넣어주세요)'; return; }
+  if (!rows.length) { msg.style.color = 'var(--red)'; msg.textContent = errs.length ? '저장할 수 있는 줄이 없습니다. ' + errs[0] : '붙여넣은 내용에서 코딩 줄을 찾지 못했습니다. (CODE|v2|… 또는 CODE|v1|… 줄, 또는 프로젝트 코딩 모드의 한 줄을 그대로 붙여넣어주세요)'; return; }
   const seen = {}; rows.forEach(r => { seen[r.customer_code] = r; });
   const uniq = Object.keys(seen).map(k => seen[k]);
   const { error } = await sb.from('call_checks').upsert(uniq, { onConflict: 'customer_code' });
@@ -3356,7 +3360,7 @@ async function monSaveCodes(){
   document.getElementById('mon_codeMsg').textContent = msg.textContent;
 }
 function monCodeRecords(){
-  return monChecks.filter(c => c.code_line).map(c => ({ c: c, f: c.code_line.split('|') })).filter(x => x.f.length === 19);
+  return monChecks.filter(c => c.code_line).map(c => ({ c: c, f: c.code_line.split('|') })).filter(x => x.f.length === 19 || x.f.length === 25);
 }
 function monCopyCodes(btn){ monCopy(monCodeRecords().map(x => x.c.code_line).join('\n'), btn); }
 let monCodeMgr = '';
