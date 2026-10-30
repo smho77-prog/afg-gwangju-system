@@ -1156,6 +1156,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 
   <div id="mon_viewStatus"></div>
   <div id="mon_viewMgr" style="display:none;"></div>
+  <div id="mon_evalHost" style="display:none;"></div>
   <div id="mon_viewPick" style="display:none;"></div>
   <div id="mon_viewDaily" style="display:none;"></div>
   <div id="mon_viewImpact" style="display:none;"></div>
@@ -3160,6 +3161,7 @@ function monRender(){
     const el = document.getElementById('mon_view' + k.charAt(0).toUpperCase() + k.slice(1));
     if (el) el.style.display = (k === monView) ? '' : 'none';
   });
+  monShowEval(monView === 'pick');
   document.getElementById('mon_filterCard').style.display = (monView === 'daily' || monView === 'upload') ? 'none' : '';
   document.getElementById('mon_rangeWrap').style.display = (monView === 'status' || monView === 'mgr') ? 'flex' : 'none';
   monRenderMgrChecks();
@@ -3296,7 +3298,7 @@ function monRenderPick(){
   /* 코딩 줄 붙여넣기 */
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">코딩 줄 저장</div>
     <div class="sub" style="margin:0 0 8px;">프로젝트 대화창에서 받은 <b>CODE|v2|…</b>(이름표 형식 또는 예전 형식, CODE|v1|…도 가능) 줄을 여러 줄 그대로 붙여넣으세요. 저장해 두면 PC가 바뀌어도 남고, 아래에서 체결/미체결 비교가 자동으로 나옵니다.</div>
-    <textarea id="mon_codeIn" rows="5" placeholder="CODE|v2|DB-00504578.mp3|2026-10|OOO|상품광고DB|미체결|분석전달|…" style="width:100%;font-size:12px;"></textarea>
+    <textarea id="mon_codeIn" rows="5" placeholder="CODE|v2|콜ID=DB-00504578|통화월=2026-10|팀장=OOO|DB유형=상품광고DB|결과=미체결|도달단계=분석전달|…" style="width:100%;font-size:12px;"></textarea>
     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="act" onclick="monSaveCodes()">코딩 줄 저장</button><span id="mon_codeMsg" style="font-size:12.5px;color:var(--muted);"></span></div></div>`;
   html += `<div id="mon_codeStats">${monRenderCodeStats()}</div>`;
   el.innerHTML = html;
@@ -3309,6 +3311,77 @@ async function monMarkChecked(code, pickKey){
   monChecks = monChecks.filter(c => c.customer_code !== code).concat([row]);
   monRenderPick();
 }
+
+/* ============================================================
+   녹취 코딩 평가기 (call-eval.html 을 화면 안에 끼워 넣음)
+   - 녹취 변환·평가 요청문 만들기는 평가기가 그대로 하고,
+     통합전산은 파일명 속 고객코드/이름으로 이 탭의 DB(monRows)에서 고객을 찾아 팀장·DB유형·체결 여부를 넘겨준다.
+   - 평가기는 화면을 접어도 계속 살아 있어야 해서(변환 중단 방지) 다시 그리지 않는다.
+============================================================ */
+let monEvalReady = false;
+function monShowEval(on){
+  const host = document.getElementById('mon_evalHost');
+  if (!host) return;
+  if (on && !monEvalReady) {
+    monEvalReady = true;
+    host.innerHTML = `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div><b>🎧 녹취 코딩 평가기</b> <span class="sub" style="margin:0;">녹취 파일을 끌어다 놓으면 이 탭의 DB에서 고객을 찾아 팀장·DB유형·체결 여부를 자동으로 채웁니다. 녹취는 이 PC 밖으로 나가지 않습니다.</span></div>
+      <button class="secondary small" id="mon_evalBtn" onclick="monToggleEval()">접기</button></div>
+      <div id="mon_evalBody" style="margin-top:8px;"><iframe id="mon_evalFrame" src="call-eval.html" allow="clipboard-write" style="width:100%;height:760px;border:1px solid var(--line);border-radius:8px;background:#fff;"></iframe></div></div>`;
+  }
+  host.style.display = on ? '' : 'none';
+}
+function monToggleEval(){
+  const b = document.getElementById('mon_evalBody'), btn = document.getElementById('mon_evalBtn');
+  const open = b.style.display === 'none';
+  b.style.display = open ? '' : 'none';
+  btn.textContent = open ? '접기' : '펼치기';
+}
+let monNameIdx = null, monNameIdxSrc = null;
+function monBuildNameIdx(){
+  if (monNameIdx && monNameIdxSrc === monRows) return monNameIdx;
+  const m = {};
+  monRows.forEach(r => { const n = String(r.customer_name || '').trim(); if (n.length >= 2) (m[n] = m[n] || []).push(r); });
+  monNameIdx = m; monNameIdxSrc = monRows;
+  return m;
+}
+function monLookupCall(name){
+  const base = String(name || '').replace(/\.[A-Za-z0-9]{2,4}$/, '');
+  let rows = [];
+  const dm = base.match(/DB[-_]?(\d{5,})/i);
+  if (dm) rows = monRows.filter(r => /^DB/i.test(String(r.customer_code || '')) && String(r.customer_code).replace(/\D/g, '') === dm[1]);
+  if (!rows.length) {
+    const idx = monBuildNameIdx();
+    Object.keys(idx).forEach(nm => {
+      const i = base.indexOf(nm);
+      if (i < 0) return;
+      const before = i > 0 ? base[i - 1] : '';
+      const after = base.slice(i + nm.length, i + nm.length + 2);
+      if (before && /[가-힣]/.test(before)) return;
+      if (after && after.indexOf('고객') !== 0 && after[0] !== '님' && /[가-힣]/.test(after[0])) return;
+      rows = rows.concat(idx[nm]);
+    });
+  }
+  const seen = {}, out = [];
+  rows.forEach(r => {
+    if (seen[r.customer_code]) return; seen[r.customer_code] = 1;
+    const result = r.status === '계약완료' ? '체결' : '미체결';
+    const phone4 = String(r.phone || '').slice(-4);
+    out.push({ code: r.customer_code, manager: r.manager_name || '', db_type: r.db_type || '', result: result,
+      label: [r.db_type || '-', r.manager_name || '-', phone4 ? '연락처 끝 ' + phone4 : '', result].filter(Boolean).join(' · ') });
+  });
+  return out.slice(0, 10);
+}
+window.addEventListener('message', ev => {
+  if (ev.origin !== location.origin) return;
+  const fr = document.getElementById('mon_evalFrame');
+  if (!fr || ev.source !== fr.contentWindow) return;
+  const d = ev.data;
+  if (!d || d.type !== 'afg-eval-lookup') return;
+  let rows = [];
+  try { rows = monLoaded ? monLookupCall(d.name) : []; } catch (e) { rows = []; }
+  fr.contentWindow.postMessage({ type: 'afg-eval-info', id: d.id, rows: rows }, location.origin);
+});
 let monManualSeq = 0;
 function monParseCode(line){
   const t = line.trim();
