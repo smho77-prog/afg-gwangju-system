@@ -4468,6 +4468,58 @@ function monMgrMemo(name, typeLabel, rangeText, m, med, co){
    파트 2 = 콜 내용 (코딩한 콜 · 시간에 따른 변화 · 같이 바꿔볼 것)  — 점검 콜·코딩 + 일일 입력
    점수가 아니라 "이야기를 시작할 단서". Claude API 호출 없음(규칙 기반 문구). 새 창에 열어 인쇄/PDF 저장.
 ============================================================ */
+/* 면담 보고서 파트 2용: 항목별 "한 번 더 묻기 → 되받기 → 복귀" 예시 문장 (고정 문구, Claude API 호출 없음)
+   0~6번은 MON_CODE_ITEMS와 같은 순서, 7번은 보고서 전용(v2 걱정환기). 항목을 바꾸면 MON_CODE_ITEMS·MON_COACH와 함께 고친다. */
+const MON_REP_TEXT = [
+  { head: '도입에서 반론이 나오면, 설명 대신 질문 하나로 받으세요',
+    ask: '바쁘신 거 알아요. 딱 하나만 여쭤볼게요. 신청하실 때 제일 궁금하셨던 게 뭐예요?', recv: '(들은 뒤) 아, 그러셨구나. 그 부분이 제일 중요하시죠.', back: '그럼 그 부분부터 먼저 확인해 드릴게요. 금방 끝나요.',
+    hit: f => `반론 "${f[8]}" → ${f[9]} → 극복`, miss: f => `반론 "${f[8]}" → ${f[9]} → ${f[10]}` },
+  { head: '병력을 묻기 전에, 왜 묻는지 한 문장을 먼저 말하세요',
+    ask: '병력에 따라 가입 가능한 상품과 보험료가 달라져서요. 몇 가지만 편하게 여쭤볼게요.', recv: '(망설이면) 말씀하기 불편하시면 아시는 만큼만 말씀해 주셔도 돼요.', back: '그 정도면 충분해요. 이 내용으로 가입 가능한 쪽부터 찾아볼게요.',
+    hit: f => '병력 질문 전에 이유를 먼저 말함', miss: f => '병력 질문 전에 이유를 말하지 않음' },
+  { head: '30초 넘게 말이 이어질 때, 중간에 질문 하나를 넣으세요',
+    ask: '여기까지 괜찮으세요? 지금 제일 마음에 걸리는 게 어느 쪽이세요?', recv: '(들은 뒤) 그 부분이 제일 걱정되시는 거네요.', back: '그럼 그 부분을 먼저 숫자로 보여드릴게요.',
+    hit: f => '30초 넘는 일방 설명이 없음', miss: f => '30초 이상 일방 설명 구간이 있었음' },
+  { head: '분석 설명 전에, 고객이 자기 걱정을 직접 말하게 하세요',
+    ask: '지금 가입하신 보험 중에 제일 마음에 걸리는 게 뭐예요? 왜 그게 걸리세요?', recv: '(들은 뒤) 그러셨구나. 그런 상황이면 충분히 그러실 수 있어요.', back: '그 걱정을 기준으로 먼저 살펴볼게요.',
+    hit: f => '고객이 자기 걱정을 직접 말함', miss: f => '고객이 걱정을 말하지 않은 채 진행됨' },
+  { head: '막연한 말 대신, 고객 증권의 시점과 금액으로 보여주세요',
+    ask: '혹시 갱신 때 보험료가 얼마로 바뀌는지 알고 계세요?', recv: '(들은 뒤) 대부분 처음엔 잘 모르세요. 그래서 한 번 짚어보는 거예요.', back: '○○세 갱신 때 월 ○○원이 ○○원으로 바뀌는 구조예요. (○는 실제 분석표 숫자)',
+    hit: f => '위험을 숫자·시점으로 보여줌', miss: f => '숫자·시점 없이 설명함' },
+  { head: '"고민해보시겠어요?" 대신, 둘 중 하나를 고르게 하세요',
+    ask: '두 가지 중에 어느 쪽이 더 마음에 드세요? 전체를 바꾸는 쪽, 일부만 조정하는 쪽이 있어요.', recv: '(고민하면) 어떤 부분이 걸리세요? 보험료예요, 보장 내용이에요?', back: '그럼 그 부분 맞춰서 다시 정리해 드릴게요. 어느 쪽으로 할지는 표 보시고 정하시죠.',
+    hit: f => `선택형으로 클로징함 (${f[16]})`, miss: f => `클로징 형태: ${f[16]}` },
+  { head: '전화를 끊기 전에, 다음 행동 하나는 꼭 확정하세요',
+    ask: '제가 내일 12시에 분석표 정리해서 전화드려도 될까요, 아니면 오후가 편하세요?', recv: '(고객이 시각을 말하면) 네, 그 시간으로 맞출게요.', back: '그럼 내일 ○시에 제가 전화드릴게요. 그때까지 보험증권만 옆에 두세요.',
+    hit: f => `다음 행동 확정 (${f[17]})`, miss: f => `끝날 때 다음 행동: ${f[17]}` }
+];
+const MON_REP_ITEMS = MON_CODE_ITEMS.map((it, i) => Object.assign({ den: it.den, num: it.num, short: MON_COACH[i].short, lowGood: !!MON_COACH[i].lowGood, prio: MON_COACH[i].prio }, MON_REP_TEXT[i])).concat([
+  { short: '걱정 환기 (고객이 한 말 다시 언급)', lowGood: false, prio: 5.5,
+    den: f => f.length === 25 && (f[14] === '끌어냄' || /^있음/.test(f[14])) && f[20] !== '해당없음' && f[20] !== '-',
+    num: f => f[20] === '고객말인용',
+    head: '고객이 앞서 한 말을 다시 꺼내서, 제안과 이어주세요',
+    ask: '아까 걱정된다고 하셨던 게 어떤 상황이셨어요?', recv: '(들은 뒤) 아, 그러셨구나. 그 마음이 제일 크시겠어요.', back: '그 부분 기준으로 이 제안이 맞는지 같이 볼게요.',
+    hit: f => '고객이 한 말을 다시 언급해 제안과 연결함', miss: f => `고객이 걱정을 말했는데 다시 언급하지 않음 (${f[20]})` }
+]);
+function monRepCards(recs, x, good){
+  const it = x.it;
+  const pool = recs.filter(r => it.den(r.f)).filter(r => { const m = it.lowGood ? it.num(r.f) : !it.num(r.f); return good ? !m : m; });
+  const q = r => (r.f[18] && r.f[18] !== '-') ? 2 : 0;
+  const sc = r => q(r) + (good ? (r.f[6] === '체결' ? 1 : 0) : (r.f[6] === '미체결' ? 1 : 0));
+  pool.sort((a, b) => sc(b) - sc(a));
+  return pool.slice(0, good ? 1 : 2).map(r => {
+    const m = /^\d{4}-\d{2}$/.test(r.f[3]) ? parseInt(r.f[3].slice(5), 10) + '월' : '';
+    return { label: [r.f[5] ? r.f[5] + ' 콜' : '콜', m, r.f[6]].filter(Boolean).join(' · '), tag: x.it.short, quote: (r.f[18] && r.f[18] !== '-') ? r.f[18] : '', line: good ? it.hit(r.f) : it.miss(r.f) };
+  });
+}
+function monRepTeamEv(it){
+  const all = monCodeRecords();
+  const rate = arr => { const dn = arr.filter(x => it.den(x.f)); return { n: dn.length, k: dn.filter(x => it.num(x.f)).length }; };
+  const a = rate(all.filter(x => x.f[6] === '체결')), b = rate(all.filter(x => x.f[6] === '미체결'));
+  if (!a.n || !b.n) return '';
+  const pc = r => Math.round(r.k / r.n * 100) + '%';
+  return `팀 코딩 기준 체결콜 ${pc(a)}(${a.k}/${a.n}) · 미체결콜 ${pc(b)}(${b.k}/${b.n})` + ((a.n < MON_CFG.smallN || b.n < MON_CFG.smallN) ? ' — 건수가 적어 참고용' : '');
+}
 function monImpSummaryData(mgr){
   const recs = monCodeRecords().filter(x => monCodeMgrOf(x) === mgr).map(x => ({ c: x.c, f: x.f, m: monImpMonth(x) }));
   const dated = recs.filter(x => x.m);
@@ -4558,7 +4610,23 @@ function monReportData(name, contractsRows){
   const recs = monMgrRecs(name);
   const won = recs.filter(x => x.f[6] === '체결').length;
   const co = monBuildCoach(name, null, null, recs);
-  const improves = co.improves.filter(x => x.src === 'code').slice(0, 3);
+  const ritems = MON_REP_ITEMS.map(it => {
+    const den = recs.filter(x => it.den(x.f)), kk = den.filter(x => it.num(x.f)).length;
+    const miss = it.lowGood ? kk : den.length - kk;
+    return { it: it, n: den.length, k: kk, miss: miss, ratio: den.length ? miss / den.length : 0 };
+  });
+  const weakI = ritems.filter(x => x.n >= 2 && x.ratio >= 0.5).sort((p, q) => q.it.prio - p.it.prio);
+  const strongI = ritems.filter(x => x.n >= 2 && x.ratio <= 0.3).sort((p, q) => p.ratio - q.ratio || q.n - p.n);
+  weakI.forEach(x => { x.cards = monRepCards(recs, x, false); });
+  const greens = [], reds = [];
+  strongI.slice(0, 4).forEach(x => { monRepCards(recs, x, true).forEach(c => greens.push(Object.assign({}, c, { tag: x.it.short + ` (${x.n - x.miss}/${x.n}건)` }))); });
+  weakI.slice(0, 3).forEach(x => { (x.cards || []).forEach(c => reds.push(Object.assign({}, c, { tag: x.it.short + ` (놓침 ${x.miss}/${x.n}건)` }))); });
+  const improves = weakI.slice(0, 3).map(x => ({ title: x.it.short, change: x.it.head, sample: x.it.ask }));
+  let top = null;
+  if (weakI.length) {
+    const t0 = weakI[0], ev = monRepTeamEv(t0.it);
+    top = { head: t0.it.head, why: `${t0.it.short}: 해당되는 ${t0.n}건 중 ${t0.it.lowGood ? t0.k + '건에서 30초 이상 일방 설명이 있었어요' : t0.miss + '건을 놓쳤어요'}.` + (ev ? ' ' + ev + '.' : '') + (t0.n < 5 ? ' (건수가 적어 참고용)' : '') + (weakI.length > 1 ? ` 아쉬운 항목이 ${weakI.length}개 나왔고, 센터 코칭 우선순위가 가장 높은 것부터 골랐어요.` : '') };
+  }
   const imp = monImpSummaryData(name);
   const v2l = recs.filter(x => x.f.length === 25 && x.f[6] !== '체결');
   const ex = {}; v2l.forEach(x => { const e = x.f[23]; if (MON_IMP_EXITS.indexOf(e) >= 0) ex[e] = (ex[e] || 0) + 1; });
@@ -4568,7 +4636,7 @@ function monReportData(name, contractsRows){
   qs.push('다음 한 달 동안 하나만 바꾼다면 무엇을 해보고 싶으세요?');
   return {
     name: name, today: today, from: from, othersN: othersN, me: me, tm: tm, dbOk: dbOk, a: a, t: t, leaks: leaks, lowRate: lowRate, teamLow: teamLow,
-    finds: finds, nRecs: recs.length, nWon: won, strengths: co.strengths, improves: improves, imp: imp,
+    finds: finds, nRecs: recs.length, nWon: won, strengths: co.strengths, improves: improves, imp: imp, top: top, weakI: weakI, greens: greens, reds: reds,
     exit: (exTop && v2l.length >= 3) ? { name: exTop, n: ex[exTop], total: v2l.length } : null, qs: qs.slice(0, 5)
   };
 }
@@ -4584,6 +4652,7 @@ function monReportText(d){
   d.finds.slice(0, 3).forEach(x => L.push('· ' + x.x));
   L.push('');
   L.push('■ 파트 2 · 콜 내용 (코딩 ' + d.nRecs + '건)');
+  if (d.top) L.push('· 최우선 과제: ' + d.top.head);
   d.strengths.slice(0, 3).forEach(s => L.push('· 잘하고 있는 것: ' + s));
   d.improves.forEach(x => L.push('· 같이 바꿔볼 것: ' + x.title + ' — ' + x.change));
   if (d.imp.status === 'ok') d.imp.good.slice(0, 3).forEach(s => L.push('· 늘어난 것: ' + s));
@@ -4626,9 +4695,17 @@ function monReportHtml(d){
       <div class="three"><div><h4 class="gd">늘어난 것</h4>${li(d.imp.good)}</div><div><h4 class="wn">같이 살펴볼 것</h4>${li(d.imp.bad)}</div><div><h4>제자리인 것 (오래된 습관 후보)</h4>${li(d.imp.habit)}</div></div>`;
   } else if (d.imp.status === 'nobase') chg = '<div class="mut">기준으로 쓸 이전 달이 없어요. 콜 개선 추이에서 기준 구간을 정해 저장하면 변화가 보여요.</div>';
   else chg = `<div class="mut">코딩한 콜이 2개월 이상 쌓이면 달라진 점이 여기에 정리돼요. (지금 ${d.imp.nMonths}개월 · ${d.imp.nRecs}건)</div>`;
-  const imps = d.improves.length ? d.improves.map((x, i) => `<div class="step"><div class="sh"><span class="n">${i + 1}</span><b>${E(x.title)}</b></div>
-      <div><b>지금</b> ${E(x.observe)}</div><div><b>이렇게 바꿔보면</b> ${E(x.change)}</div>${x.sample ? `<div class="ex"><b>예시 문장</b> ${E(x.sample)}</div>` : ''}</div>`).join('')
-    : '<div class="mut">코딩한 콜에서 눈에 띄게 아쉬운 항목이 아직 없어요. 코딩이 쌓이면 표시돼요.</div>';
+  const evc = (cls, x) => `<div class="ev ${cls}"><div class="lb">${E(x.label)} · ${E(x.tag)}</div>${x.quote ? `<div class="q">"${E(x.quote)}"</div>` : ''}<div>${E(x.line)}</div></div>`;
+  const hero = d.top
+    ? `<div class="hero"><div class="k">🎯 최우선 과제</div><h3>${E(d.top.head)}</h3><div>${E(d.top.why)}</div></div>`
+    : `<div class="hero"><div class="k">🎯 최우선 과제</div><h3>눈에 띄게 아쉬운 항목이 아직 없어요</h3><div>코딩한 콜이 더 쌓이면 가장 먼저 손볼 한 가지를 골라서 보여드려요.</div></div>`;
+  const gcol = d.greens.length ? d.greens.map(x => evc('g', x)).join('') : '<div class="mut">아직 뚜렷하게 잘하는 항목이 보이지 않아요(해당 콜 2건 이상 필요).</div>';
+  const rcol = d.reds.length ? d.reds.map(x => evc('r', x)).join('') : '<div class="mut">눈에 띄게 놓친 순간이 아직 없어요.</div>';
+  const flows = d.weakI.length ? d.weakI.slice(0, 3).map((x, i) => `<div class="flowc"><div class="fh"><span class="n">${i + 1}</span><b>${E(x.it.short)}</b><span class="bd${i ? ' b2' : ''}">${i === 0 ? '최우선' : (i + 1) + '순위'}</span></div>
+      ${(x.cards && x.cards[0]) ? evc('r', Object.assign({}, x.cards[0], { tag: '이 팀장님 콜에서 놓친 순간' })) : ''}
+      <div class="fr"><span class="t">한 번 더 묻기</span><span>${E(x.it.ask)}</span></div><div class="fr"><span class="t">되받기</span><span>${E(x.it.recv)}</span></div><div class="fr"><span class="t">복귀</span><span>${E(x.it.back)}</span></div>
+      <div class="mymemo">내 멘트로 적어두기</div></div>`).join('') + '<div class="hint">예시 문장은 센터 상담 원칙에 맞춘 참고 문구예요. 본인 말투로 바꿔 쓰세요.</div>'
+    : '<div class="mut">코딩이 쌓이면 고쳐 볼 순간과 다시 해보는 흐름이 여기에 나와요.</div>';
   const exitTxt = d.exit ? `<div class="find muted">체결되지 않은 콜 ${d.exit.total}건 중 ${d.exit.n}건이 <b>${E(d.exit.name)}</b> 단계에서 멈췄어요. 아직 진행 중인 콜이 섞여 있을 수 있어요.</div>` : '';
   const css = `:root{--bg:#EDF1F5;--sf:#fff;--ink:#18212F;--mut:#5A6576;--line:#D5DCE5;--ac:#7A3E6B;--acs:#F4E6F0;--gd:#1F7A45;--gds:#E4F4EA;--wn:#B4410C;--wns:#FBEBE2;--am:#8A6100;--ams:#FFF4D6}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;font-size:15px;line-height:1.65}
@@ -4641,16 +4718,23 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{padding:8px 8px
 .note{background:var(--ams);border-radius:8px;padding:8px 12px;font-size:13px;margin-top:8px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}ul{margin:4px 0 0;padding-left:18px;font-size:13.5px}
 .step{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:14px}.sh{margin-bottom:4px}.n{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--ac);color:#fff;align-items:center;justify-content:center;font-size:12px;margin-right:6px}.ex{background:var(--ams);border-radius:8px;padding:6px 10px;margin-top:4px}
 .memo{border:1px dashed var(--line);border-radius:10px;min-height:90px;padding:8px 12px;font-size:13px;color:var(--mut)}footer{font-size:12px;color:var(--mut);margin-top:18px;line-height:1.7}
-@media(max-width:640px){.three{grid-template-columns:1fr}}
-@media print{body{background:#fff;font-size:12.5px}.bar{display:none}.wrap{padding:0}.card{break-inside:avoid;border-color:#bbb}.pt{border:1px solid #333;color:#000;background:#fff}}`;
+ .hero{background:var(--acs);border:1px solid #E3C6DA;border-radius:12px;padding:12px 16px;margin:10px 0}.hero .k{font-size:12px;font-weight:700;color:var(--ac)}.hero h3{margin:2px 0 6px;font-size:17px;color:var(--ink)}.hero div{font-size:13.5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.ev{border-left:4px solid;border-radius:6px;padding:8px 10px;margin:8px 0;font-size:13.5px}.ev.g{background:var(--gds);border-color:var(--gd)}.ev.r{background:var(--wns);border-color:var(--wn)}.ev .lb{font-size:11.5px;color:var(--mut)}.ev .q{font-weight:700}
+.flowc{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:10px 0}.fh{display:flex;align-items:center;gap:6px;margin-bottom:2px}.bd{margin-left:auto;background:var(--ac);color:#fff;border-radius:999px;font-size:11.5px;font-weight:700;padding:1px 10px}.bd.b2{background:#fff;color:var(--ac);border:1px solid var(--ac)}
+.fr{display:flex;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line);font-size:13.5px}.fr .t{flex:0 0 76px;font-weight:700;color:var(--ac);font-size:12.5px}.mymemo{border:1px dashed var(--line);border-radius:8px;min-height:52px;padding:6px 10px;color:var(--mut);font-size:12.5px;margin-top:8px}
+@media(max-width:640px){.three,.two{grid-template-columns:1fr}}
+@media print{body{background:#fff;font-size:12.5px}.bar{display:none}.wrap{padding:0}.card{break-inside:avoid;border-color:#bbb}.card.p2{break-before:page;break-inside:auto}.flowc,.ev,.hero{break-inside:avoid}.pt{border:1px solid #333;color:#000;background:#fff}}`;
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${E(d.name)} 팀장님 면담 자료 ${E(d.today)}</title><style>${css}</style></head><body><div class="wrap">
   <div class="top"><h1>${E(d.name)} 팀장님 면담 자료</h1><p>${E(d.today)} 기준 · 활동량은 ${E(d.from)} ~ ${E(d.today)} (최근 30일). 점수가 아니라 이야기를 시작할 단서입니다. 팀 평균은 같은 기간 다른 팀장님들의 평균이에요(이름은 표시하지 않음).</p></div>
   <div class="bar"><button class="btn" id="rp_print">인쇄 / PDF 저장</button><button class="btn g" id="rp_copy">카톡용 요약 복사</button><span id="rp_msg" class="mut" style="align-self:center;font-size:13px;"></span></div>
   <section class="card"><span class="pt">파트 1</span><h2>활동량과 DB 관리</h2><div class="hint">콜 시도 · 콜량 · 3회 미만 터치율 · 누수 목록을 함께 봅니다 (일일 입력 + DB관리 탭 DB 기준)</div>
     <h3>한눈에 비교</h3>${p1}<h3>종합 판단 (자료에서 읽은 단서)</h3>${fl}<h3>지금 챙길 누수 목록</h3>${leak}</section>
-  <section class="card"><span class="pt">파트 2</span><h2>콜 내용</h2><div class="hint">점검 콜·코딩 ${d.nRecs}건 (체결 ${d.nWon} · 미체결 ${d.nRecs - d.nWon}) 기준${d.nRecs < 3 ? ' · 건수가 적어 참고용' : ''}</div>
-    <h3>이미 잘하고 있는 것</h3>${li(d.strengths)}<h3>시간에 따른 변화</h3>${chg}${exitTxt}
-    <h3>같이 바꿔볼 것 (3개 이내)</h3>${imps}${d.improves.length ? `<h3>이번 주 연습 한 가지</h3><div>${E(d.improves[0].title)}${d.improves[0].sample ? ' — ' + E(d.improves[0].sample) : ''}</div>` : ''}
+  <section class="card p2"><span class="pt">파트 2</span><h2>콜 내용</h2><div class="hint">점검 콜·코딩 ${d.nRecs}건 (체결 ${d.nWon} · 미체결 ${d.nRecs - d.nWon}) 기준${d.nRecs < 3 ? ' · 건수가 적어 참고용' : ''}</div>
+    ${hero}
+    <div class="two"><div><h3 class="gd">이미 탄탄한 것</h3>${gcol}</div><div><h3 class="wn">놓친 순간</h3>${rcol}</div></div>
+    <div class="hint">따옴표 안은 코딩할 때 기록한 "이 콜의 흐름을 가른 상담원 발화"예요. 항목과 딱 맞지 않을 수 있어요. 고객 이름은 넣지 않았어요.</div>
+    <h3>고쳐 볼 순간, 이렇게 다시 해보세요</h3>${flows}
+    <h3>시간에 따른 변화</h3>${chg}${exitTxt}
     <h3>면담에서 이렇게 물어보세요</h3>${li(d.qs)}</section>
   <section class="card"><h2>오늘 정한 것</h2><div class="memo">1.<br><br>2.<br><br>3.</div></section>
   <footer>고객 이름·전화번호는 포함하지 않았습니다. 코딩이 적거나 입력이 5일 미만이면 참고용이에요. 미체결 콜은 아직 진행 중일 수 있어요. 이 자료는 규칙에 따라 자동으로 정리한 것으로, 판단은 면담에서 함께 합니다.</footer></div></body></html>`;
