@@ -3238,17 +3238,6 @@ function monRenderStatus(){
       진단은 "어느 팀장님 콜을 먼저 들어볼지" 정하는 단서일 뿐 원인 판정이 아닙니다. 상담상태는 팀장님이 직접 입력하는 값이고, 최근 분배분은 아직 터치할 시간이 적어 수치가 낮게 보일 수 있습니다.
     </div></div>`;
 
-  /* 분배 주차별(코호트) */
-  const byW = {};
-  sub.forEach(r => { const d = dbTs(r.distributed_at); if (!d) return; const w = monWeekStart(monYmd(d)); (byW[w] = byW[w] || []).push(r); });
-  const weeks = Object.keys(byW).sort().reverse().slice(0, MON_CFG.maxCohortWeeks);
-  const wBody = weeks.map(w => {
-    const m = monRatios(monAgg(byW[w], now)), a = m.a;
-    return `<tr><td>${escapeHtml(w)} 주</td><td>${a.total}</td><td>${f1(m.low)}</td><td>${f1(m.want)}</td><td>${f1(m.conv)}</td></tr>`;
-  }).join('');
-  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">분배 주차별 변화 (지금 시점 기준)</div><div style="overflow-x:auto;"><table style="min-width:520px;">
-    <thead><tr><th>분배 주(월요일)</th><th>분배</th><th>3회 미만 터치율</th><th>가망화율</th><th>계약전환</th></tr></thead><tbody>${wBody}</tbody></table></div>
-    <div class="sub" style="margin:8px 0 0;">같은 주에 분배된 DB가 지금 어떤 상태인지 보여줍니다. 최근 주일수록 터치·전환할 시간이 짧아 낮게 보이는 것이 정상입니다. 시간에 따른 실제 변화는 "추이" 화면의 주간 요약 저장으로 쌓입니다.</div></div>`;
   el.innerHTML = html;
 }
 
@@ -3804,25 +3793,10 @@ function monRenderImpact(){
     return { n: n, days: ds.length, att: att, avg: ds.length ? att / ds.length : null, cons: cRows.filter(c => c.manager_name === n).length, perCall: bothAtt ? bothSec / bothAtt : null };
   });
   const medAvg = perM.length >= 3 ? monMedian(perM.map(x => x.avg)) : null;
-  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">콜 시도 횟수 — 팀장별 <span style="font-weight:400;font-size:12px;color:var(--muted);">(하루에 몇 통을 걸었나)</span></div>`;
-  if (!perM.length) html += `<div class="sub" style="margin:0;">이 기간에 입력된 시도 횟수가 없습니다. "일일 입력"에서 팀장님별 시도 횟수(통)를 입력해 주세요.</div>`;
-  else {
-    const bodyA = perM.map(x => {
-      const ratio = medAvg ? x.avg / medAvg : null;
-      const low = ratio !== null && ratio < 0.7;
-      return `<tr><td><b>${escapeHtml(x.n)}</b></td><td>${x.days}일</td><td>${x.att.toLocaleString('ko-KR')}통</td>
-        <td style="${low ? 'color:var(--red);font-weight:700;' : ''}">${x.avg.toFixed(1)}통</td>
-        <td style="${low ? 'color:var(--red);font-weight:700;' : ''}">${ratio === null ? '-' : Math.round(ratio * 100) + '%' + (low ? ' · 적음' : '')}</td>
-        <td>${x.cons}건</td><td>${x.att ? (x.cons / x.att * 100).toFixed(2) + '건' : '-'}</td><td>${x.cons ? Math.round(x.att / x.cons).toLocaleString('ko-KR') + '통' : '-'}</td><td>${x.perCall === null ? '-' : monFmtDur(x.perCall)}</td></tr>`;
-    }).join('');
-    html += `<div style="overflow-x:auto;"><table style="min-width:760px;"><thead><tr><th>팀장</th><th>입력일수</th><th>시도 합계</th><th>일평균 시도</th><th>팀 중앙값 대비</th><th>계약</th><th>시도 100통당<br>계약</th><th>계약 1건당<br>시도</th><th>1통당 평균<br>통화시간</th></tr></thead><tbody>${bodyA}</tbody></table></div>
-      <div class="sub" style="margin:8px 0 0;">"팀 중앙값 대비"가 70% 미만이면 빨간색 "적음"으로 표시합니다(팀장 3명 이상일 때). 계약은 계약관리 탭의 계약일 기준이라, 시도 횟수를 입력하지 않은 날이 많으면 "100통당 계약"이 실제보다 높게 나옵니다. 1통당 평균 통화시간은 콜시간과 시도 횟수를 둘 다 입력한 날만 계산합니다.</div>`;
-  }
-  html += `</div>`;
-
   /* A2-2. 팀 평균 대비 한눈에: 시도 횟수와 계약이 팀 평균보다 많은지/적은지 (이름 대신 성만 표시) */
   html += monPerfVsAvgCard(perM);
 
+  html += `<details style="margin-bottom:14px;"><summary style="cursor:pointer;font-weight:700;padding:10px 4px;">시도·콜시간과 계약의 관계 (점 그래프, 눌러서 펼치기)</summary>`;
   /* A3. 가설 검증: 시도 횟수가 많은 주에 계약도 많았나 */
   const wkS = (n, w) => {
     const end = monAddDays(w, 6);
@@ -3911,6 +3885,8 @@ function monRenderImpact(){
       <div class="sub" style="margin:8px 0 0;">점 하나는 "팀장님 1명의 1주"입니다(주 ${MON_CFG.minDays}일 이상 입력, 이미 끝난 주만). 함께 움직였는지를 보여줄 뿐 콜량이 계약을 만들었다는 증명은 아닙니다. 표본이 ${MON_CFG.smallN}개 미만이면 참고용입니다.</div>`;
   }
   html += `</div>`;
+
+  html += `</details>`;
 
   /* C. 가망 발굴 → 계약 연결 */
   const cKey = new Map();
@@ -4647,52 +4623,11 @@ function monRenderMgr(){
     kpiCard('재터치 필요 합계', m.a.follow + '건', '3회 미만 제외 기준', '') + `</div>
     <div class="sub" style="margin:8px 0 0;">고객별 목록은 DB관리 탭(팀장님들이 올린 최근 월 데이터 기준)에서 확인하세요.</div></div>`;
 
-  /* F. 활동량 (최근 4주) */
-  const today = monToday(), w0 = monAddDays(monWeekStart(today), -21), wk = [];
-  for (let i = 0; i < 4; i++) wk.push(monAddDays(w0, i * 7));
-  const incl = monIncluded();
-  const weekOf = (n, w) => {
-    const end = monAddDays(w, 6);
-    const ds = monDaily.filter(d => d.manager_name === n && d.activity_date >= w && d.activity_date <= end && monSecOf(d) !== null);
-    const sec = ds.reduce((s, d) => s + monSecOf(d), 0);
-    const as = monDaily.filter(d => d.manager_name === n && d.activity_date >= w && d.activity_date <= end && monAttOf(d) !== null);
-    return {
-      days: ds.length, sec: sec, aDays: as.length, att: as.reduce((s, d) => s + monAttOf(d), 0),
-      pros: monProspects.filter(p => p.manager_name === n && p.activity_date >= w && p.activity_date <= end).length,
-      cons: (allContracts || []).filter(c => c.manager_name === n && c.contract_date && String(c.contract_date).slice(0, 10) >= w && String(c.contract_date).slice(0, 10) <= end).length
-    };
-  };
-  const hasAct = monDaily.some(d => d.manager_name === name && (monSecOf(d) !== null || monAttOf(d) !== null));
-  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">활동량 — 최근 4주 (일일 입력 기준)</div>`;
-  if (!hasAct) html += `<div class="sub" style="margin:0;">이 팀장님의 일일 콜시간·시도 횟수 입력이 아직 없습니다. "일일 입력"에서 입력하면 주별로 표시됩니다.</div>`;
-  else {
-    const aBody = wk.map(w => {
-      const a = weekOf(name, w);
-      const teamAvgs = incl.map(n => weekOf(n, w)).filter(x => x.days > 0).map(x => x.sec / x.days);
-      const tAvg = teamAvgs.length ? monAvg(teamAvgs) : null;
-      const teamAtt = incl.map(n => weekOf(n, w)).filter(x => x.aDays > 0).map(x => x.att / x.aDays);
-      const tAtt = teamAtt.length ? monAvg(teamAtt) : null;
-      return `<tr><td>${escapeHtml(w.slice(5))} 주</td><td>${a.days}일</td><td>${a.days ? monFmtDur(a.sec) : '-'}</td><td>${a.days ? monFmtDur(a.sec / a.days) : '-'}</td><td style="color:var(--muted);">${tAvg === null ? '-' : monFmtDur(tAvg)}</td><td>${a.aDays ? (a.att / a.aDays).toFixed(1) + '통' : '-'}</td><td style="color:var(--muted);">${tAtt === null ? '-' : tAtt.toFixed(1) + '통'}</td><td>${a.pros}명</td><td>${a.cons}건</td></tr>`;
-    }).join('');
-    html += `<div style="overflow-x:auto;"><table style="min-width:720px;"><thead><tr><th>주(월요일)</th><th>입력일수</th><th>콜시간 합계</th><th>일평균 콜시간</th><th>팀 일평균<br>(포함 팀장)</th><th>일평균<br>시도 횟수</th><th>팀 일평균<br>시도</th><th>가망 발굴</th><th>계약(계약일 기준)</th></tr></thead><tbody>${aBody}</tbody></table></div>
-      <div class="sub" style="margin:8px 0 0;">입력일수가 ${MON_CFG.minDays}일 미만인 주는 비교하지 마세요. 계약은 계약관리 탭 자료입니다. 활동량과 실적의 관계는 "콜시간·가망→실적" 화면에서 봅니다.</div>`;
-  }
-  html += `</div>`;
-
   /* G. 코딩한 콜 */
   const own = monChecks.filter(c => (c.manager_name || '') === name);
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">점검·코딩한 콜 <span style="font-weight:400;font-size:12px;color:var(--muted);">(점검 ${own.length}건 · 코딩 저장 ${recs.length}건)</span></div>`;
   if (!recs.length) html += `<div class="sub" style="margin:0;">코딩 줄이 저장된 콜이 아직 없습니다. "점검 콜·코딩" 화면에서 점검 → 굿콜평가기 → 코딩 줄 저장 순서로 쌓입니다.</div>`;
   else {
-    const teamRecs = monCodeRecords();
-    const small = recs.length < 3;
-    const iBody = MON_CODE_ITEMS.map((it, i) => {
-      const a = monCodeRate(recs, i), t = monCodeRate(teamRecs, i);
-      const fc = c => c.p === null ? '-' : `${c.p.toFixed(0)}% <span style="font-size:11px;color:var(--muted);">(${c.k}/${c.n})</span>`;
-      return `<tr><td>${escapeHtml(it.label)}</td><td>${fc(a)}</td><td>${fc(t)}</td></tr>`;
-    }).join('');
-    html += `<div style="overflow-x:auto;"><table style="min-width:520px;"><thead><tr><th>항목</th><th>${escapeHtml(name)} (${recs.length}건)</th><th>팀 전체 (${teamRecs.length}건)</th></tr></thead><tbody>${iBody}</tbody></table></div>`;
-    if (small) html += `<div class="sub" style="margin:8px 0 0;color:var(--amber);">이 팀장님 코딩이 ${recs.length}건뿐이라 <b>참고용</b>입니다.</div>`;
     const sorted = recs.slice().sort((a, b) => String(b.c.checked_at || '').localeCompare(String(a.c.checked_at || '')));
     const callCard = x => {
       const f = x.f, won = f[6] === '체결';
