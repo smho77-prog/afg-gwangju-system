@@ -4486,6 +4486,55 @@ function monMgrMemo(name, typeLabel, rangeText, m, med, co){
   return L.join('\n');
 }
 
+/* 팀장별 분석 화면용: 콜 개선 추이 요약 (기준 구간 vs 가장 최근 1개월). 자세한 내용은 콜 개선 추이 화면에서 본다. */
+function monGoImp(n){ monImpMgr = n; monImpSel = null; monImpMsg = null; monSetView('improve'); window.scrollTo(0, 0); }
+function monImpSummaryCard(mgr){
+  const title = `<div style="font-weight:700;margin-bottom:2px;">시간에 따른 변화 요약 <span style="font-weight:400;font-size:12px;color:var(--muted);">(콜 코딩 + 일일 입력 · 기준 구간 vs 가장 최근 1개월)</span></div>`;
+  const go = `<div style="margin-top:8px;"><button class="secondary small" data-n="${escAttr(mgr)}" onclick="monGoImp(this.dataset.n)">🧭 콜 개선 추이에서 자세히 보기</button></div>`;
+  const recs = monCodeRecords().filter(x => monCodeMgrOf(x) === mgr).map(x => ({ c: x.c, f: x.f, m: monImpMonth(x) }));
+  const dated = recs.filter(x => x.m);
+  const months = Array.from(new Set(dated.map(x => x.m))).sort();
+  if (months.length < 2) return `<div class="card">${title}<div class="sub" style="margin:6px 0 0;">코딩한 콜이 2개월 이상 쌓이면 달라진 점이 여기에 요약돼요. (지금 ${months.length}개월, ${recs.length}건)</div>${go}</div>`;
+  const recM = months.slice(-1);
+  const saved = monBaselines.find(b => b.manager_name === mgr);
+  const savedM = saved ? String(saved.months || '').split(',').filter(m => months.indexOf(m) >= 0) : [];
+  const auto = !savedM.length;
+  const baseM = (auto ? [months[0]] : savedM).filter(m => recM.indexOf(m) < 0);
+  if (!baseM.length) return `<div class="card">${title}<div class="sub" style="margin:6px 0 0;">기준으로 쓸 이전 달이 없어요. 콜 개선 추이에서 기준 구간을 정해 저장해 주세요.</div>${go}</div>`;
+  const baseRecs = dated.filter(x => baseM.indexOf(x.m) >= 0), recRecs = dated.filter(x => recM.indexOf(x.m) >= 0);
+  const lbl = arr => arr.map(m => m.slice(5).replace(/^0/, '') + '월').join('·');
+  const rows = MON_CODE_ITEMS.map((it, i) => {
+    const low = !!MON_COACH[i].lowGood;
+    const p = monImpRate(baseRecs, it), r = monImpRate(recRecs, it);
+    const ser = months.map(m => monImpRate(dated.filter(x => x.m === m), it));
+    const ref = p.v === null || r.v === null || p.n < 5 || r.n < 5;
+    let kind = 'same', diff = null;
+    if (!ref) { diff = r.v - p.v; const e = low ? -diff : diff; kind = e >= 10 ? 'good' : (e <= -10 ? 'bad' : 'same'); }
+    const st = monImpStreak(ser, low);
+    const poor = r.v !== null && (low ? r.v >= 40 : r.v < 50);
+    return { i: i, low: low, p: p, r: r, ref: ref, kind: kind, st: st, habit: st >= 3 && poor };
+  });
+  const dRows = monImpDailyRows(mgr, baseM, recM);
+  const li = t => `<div style="margin-bottom:3px;">· ${t}</div>`;
+  const hl = t => `<span style="background:#FFF1B8;padding:1px 4px;border-radius:3px;">${t}</span>`;
+  const f0 = v => v.toFixed(0) + '%';
+  const goodC = rows.filter(x => x.kind === 'good').map(x => li(`${escapeHtml(MON_COACH[x.i].short)}: ${f0(x.p.v)} → ${f0(x.r.v)}`));
+  const goodD = dRows.filter(x => x.kind === 'good').map(x => li(`${escapeHtml(x.def.label)}: ${x.def.fmt(x.p.v)} → ${x.def.fmt(x.r.v)} (+${Math.round(x.dBase)}%)`));
+  const badC = rows.filter(x => x.kind === 'bad').map(x => li(`${escapeHtml(MON_COACH[x.i].short)}: ${f0(x.p.v)} → ${f0(x.r.v)}`));
+  const badD = dRows.filter(x => x.kind === 'bad').map(x => li(`${escapeHtml(x.def.label)}: ${x.def.fmt(x.p.v)} → ${x.def.fmt(x.r.v)} (${Math.round(x.dBase)}%)`));
+  const habC = rows.filter(x => x.habit).map(x => li(hl(`${escapeHtml(MON_COACH[x.i].short)}: ${x.st}개월째 제자리 · 지금 ${f0(x.r.v)}`)));
+  const habD = dRows.filter(x => x.habit).map(x => li(hl(`${escapeHtml(x.def.label)}: ${x.st}개월째 제자리·하락`)));
+  const nRef = rows.filter(x => x.ref).length;
+  const box = (head, color, arr) => `<div style="flex:1 1 220px;min-width:200px;"><div style="font-weight:700;font-size:13px;color:${color};margin-bottom:4px;">${head}</div><div style="font-size:12.5px;line-height:1.65;">${arr.length ? arr.join('') : '<span class="sub" style="margin:0;">아직 없어요.</span>'}</div></div>`;
+  return `<div class="card">${title}
+    <div class="sub" style="margin:2px 0 10px;">기준 구간(${escapeHtml(lbl(baseM))}${auto ? ' · 저장된 기준이 없어 가장 오래된 달로 임시 비교' : ''}) vs 최근 구간(${escapeHtml(lbl(recM))}). 콜이 5건 미만인 항목은 비교에서 빠졌어요(${nRef}개).</div>
+    <div style="display:flex;flex-wrap:wrap;gap:14px;">
+      ${box('늘어난 것', 'var(--green)', goodC.concat(goodD))}
+      ${box('같이 살펴볼 것', 'var(--amber)', badC.concat(badD))}
+      ${box('제자리인 것 (오래된 습관 후보)', '#5E4300', habC.concat(habD))}
+    </div>
+    <div class="sub" style="margin:10px 0 0;">점수가 아니라 이야기를 시작할 단서예요. 미체결 콜은 아직 진행 중일 수 있어요. 노란 표시는 최근 3번의 달별 변화가 거의 없었다는 뜻이에요.</div>${go}</div>`;
+}
 /* ----- 화면 ----- */
 function monGoMgr(n){
   monMgr = n; monMgrType = '__all__';
@@ -4566,6 +4615,9 @@ function monRenderMgr(){
   html += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);"><div style="font-size:13px;font-weight:700;margin-bottom:6px;">팀장님께 전달할 메모 (고객 정보 없음)</div>
     <textarea readonly rows="12" style="width:100%;font-size:12.5px;line-height:1.6;">${escapeHtml(monMgrMemoText)}</textarea>
     <div style="margin-top:6px;"><button class="act small" onclick="monCopyMemo(this)">📋 메모 복사</button> <span class="sub" style="margin:0 0 0 6px;">복사해서 카톡 등으로 전달하세요. 상담상태가 직접 입력값이라는 점과 참고용 문구가 함께 들어갑니다.</span></div></div></div>`;
+
+  /* B2. 시간에 따른 변화 요약 (콜 개선 추이) */
+  html += monImpSummaryCard(name);
 
   /* C. DB유형별 (팀 전체 대비) */
   const byT = {};
