@@ -3941,7 +3941,7 @@ function monLineChart(dates, series, unit){
    - 사람 이름을 기준으로 삼지 않는다. 비교 대상은 그 팀장님의 과거 콜뿐이다.
 ============================================================ */
 let monBaselines = [];
-let monImpMgr = '', monImpWin = 1, monImpSel = null, monImpEff = [], monImpBaseM = [];
+let monImpMgr = '', monImpWin = 1, monImpSel = null, monImpEff = [], monImpBaseM = [], monImpMsg = null;
 function monImpMonth(x){
   const m = String(x.f[3] || '');
   if (/^\d{4}-\d{2}$/.test(m)) return m;
@@ -3964,22 +3964,24 @@ function monImpStreak(ser, low){
   return c;
 }
 function monImpIsV2(f){ return f.length === 25; }
-function monImpSetMgr(v){ monImpMgr = v; monImpSel = null; monRenderImprove(); }
-function monImpSetWin(n){ monImpWin = n; monImpSel = null; monRenderImprove(); }
+function monImpSetMgr(v){ monImpMgr = v; monImpSel = null; monImpMsg = null; monRenderImprove(); }
+function monImpSetWin(n){ monImpWin = n; monImpSel = null; monImpMsg = null; monRenderImprove(); }
 function monImpToggle(m){
   const cur = (monImpSel !== null ? monImpSel : monImpEff).slice();
   const i = cur.indexOf(m);
   if (i >= 0) cur.splice(i, 1); else cur.push(m);
   monImpSel = cur.sort();
+  monImpMsg = null;
   monRenderImprove();
 }
 async function monImpSave(){
-  if (!monImpBaseM.length) { alert('기준 구간으로 쓸 달을 하나 이상 골라주세요. (최근 구간에 들어간 달은 기준이 될 수 없어요)'); return; }
+  if (!monImpBaseM.length) { monImpMsg = { ok: false, text: '저장하지 않았어요. 기준으로 쓸 달이 없어요. 최근 구간을 뺀 이전 달(코딩한 콜이 있는 달)을 하나 이상 골라야 저장돼요.' }; monRenderImprove(); return; }
   const row = { manager_name: monImpMgr, months: monImpBaseM.join(','), updated_at: new Date().toISOString() };
   const { error } = await sb.from('mon_baseline').upsert([row], { onConflict: 'manager_name' });
-  if (error) { alert('저장 실패: ' + error.message + '\n(화면 위 안내의 SQL을 먼저 실행했는지 확인해주세요)'); return; }
+  if (error) { monImpMsg = { ok: false, text: '저장 실패: ' + error.message + ' (화면 위 안내의 SQL을 먼저 실행했는지 확인해주세요)' }; monRenderImprove(); return; }
   monBaselines = monBaselines.filter(b => b.manager_name !== monImpMgr).concat([row]);
   monImpSel = null;
+  monImpMsg = { ok: true, text: '✓ 저장했어요. ' + monImpMgr + ' 팀장님의 기준 구간: ' + monImpBaseM.map(m => m.slice(5).replace(/^0/, '') + '월').join('·') + ' (' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ')' };
   monRenderImprove();
 }
 function monImpBars(ser){
@@ -4116,6 +4118,7 @@ function monRenderImprove(){
       <button class="${winN === 1 ? 'act' : 'secondary'} small" onclick="monImpSetWin(1)">가장 최근 1개월</button>
       <button class="${winN === 2 ? 'act' : 'secondary'} small" onclick="monImpSetWin(2)">최근 2개월</button>
       <button class="act small" onclick="monImpSave()" style="margin-left:auto;">이 기준으로 저장</button></div>
+    ${monImpMsg ? `<div role="status" style="margin-top:8px;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:700;background:${monImpMsg.ok ? 'var(--green-bg)' : 'var(--red-bg)'};color:${monImpMsg.ok ? 'var(--green)' : 'var(--red)'};">${escapeHtml(monImpMsg.text)}</div>` : ''}
     ${overlap ? '<div class="sub" style="margin:8px 0 0;color:var(--amber);">기준 구간이 최근 구간과 겹쳐서, 겹친 달은 기준에서 뺐어요.</div>' : ''}
     ${!baseM.length ? '<div class="sub" style="margin:8px 0 0;color:var(--amber);">기준 구간이 비어 있어요. 기준 이후에 콜이 더 쌓이면 비교가 시작됩니다.</div>' : ''}</div>`;
 
