@@ -3990,6 +3990,75 @@ function monImpBars(ser){
     return `<span title="${s.v === null ? '자료 없음' : s.v.toFixed(0) + '% (콜 ' + s.n + '건)'}" style="display:inline-block;width:9px;height:${h}px;background:${col};border-radius:2px;"></span>`;
   }).join('') + `</span>`;
 }
+/* 일일 활동량(일일 입력) — 하루 단위 숫자를 기준 구간 vs 최근 구간으로 비교 */
+const MON_IMP_DAILY = [
+  { key: 'sec', label: '하루 평균 콜시간', hint: '입력한 날 하루 콜시간의 평균', fmt: v => monImpDur(v) },
+  { key: 'att', label: '하루 평균 콜 시도', hint: '입력한 날 하루 시도 통수의 평균', fmt: v => v.toFixed(1) + '통' },
+  { key: 'per', label: '통당 평균 통화시간', hint: '콜시간 ÷ 시도 횟수 (둘 다 입력한 날)', fmt: v => monImpDur(v) },
+  { key: 'pro', label: '하루 평균 가망 발굴', hint: '입력한 날 발굴한 가망고객 수의 평균', fmt: v => v.toFixed(1) + '명' }
+];
+function monImpDur(sec){
+  sec = Math.round(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), r = sec % 60;
+  return h > 0 ? h + '시간 ' + m + '분' : (m + '분 ' + (r ? r + '초' : ''));
+}
+function monImpDaily(mgr, monthSet){
+  const ds = monDaily.filter(d => d.manager_name === mgr && monthSet.indexOf(String(d.activity_date).slice(0, 7)) >= 0);
+  const proBy = {};
+  monProspects.forEach(p => { if (p.manager_name === mgr && monthSet.indexOf(String(p.activity_date).slice(0, 7)) >= 0) { const k = String(p.activity_date).slice(0, 10); proBy[k] = (proBy[k] || 0) + 1; } });
+  let sSum = 0, sN = 0, aSum = 0, aN = 0, pSec = 0, pAtt = 0, pN = 0, prSum = 0, prN = 0;
+  ds.forEach(d => {
+    const sec = Number(d.call_seconds) || 0, att = Number(d.call_attempts) || 0;
+    if (sec > 0) { sSum += sec; sN++; }
+    if (att > 0) { aSum += att; aN++; }
+    if (sec > 0 && att > 0) { pSec += sec; pAtt += att; pN++; }
+    prSum += proBy[String(d.activity_date).slice(0, 10)] || 0; prN++;
+  });
+  return {
+    sec: { v: sN ? sSum / sN : null, n: sN }, att: { v: aN ? aSum / aN : null, n: aN },
+    per: { v: pAtt ? pSec / pAtt : null, n: pN }, pro: { v: prN ? prSum / prN : null, n: prN }
+  };
+}
+function monImpDailyRows(mgr, baseM, recM){
+  const dm = Array.from(new Set(monDaily.filter(d => d.manager_name === mgr).map(d => String(d.activity_date).slice(0, 7)))).sort();
+  const before = dm.filter(m => m < recM[0] && recM.indexOf(m) < 0);
+  const prevM = before.length ? [before[before.length - 1]] : [];
+  return MON_IMP_DAILY.map(def => {
+    const p = monImpDaily(mgr, baseM)[def.key], r = monImpDaily(mgr, recM)[def.key];
+    const pr = prevM.length ? monImpDaily(mgr, prevM)[def.key] : { v: null, n: 0 };
+    const ref = p.v === null || r.v === null || p.n < 5 || r.n < 5;
+    const pct = (a, b) => (a === null || b === null || !b) ? null : (a - b) / b * 100;
+    const dBase = ref ? null : pct(r.v, p.v);
+    const dPrev = (pr.v === null || r.v === null || pr.n < 5 || r.n < 5) ? null : pct(r.v, pr.v);
+    const kind = dBase === null ? 'ref' : (dBase >= 10 ? 'good' : (dBase <= -10 ? 'bad' : 'same'));
+    /* 오래된 습관 후보: 최근 3번의 달별 변화가 +5% 이하(제자리·하락)이고 기준보다 나아지지 않음 */
+    const ser = dm.map(m => monImpDaily(mgr, [m])[def.key]);
+    let st = 0;
+    for (let k = ser.length - 1; k >= 1 && st < 3; k--) {
+      const a = ser[k - 1], b = ser[k];
+      if (a.v === null || b.v === null || a.n < 5 || b.n < 5) break;
+      if ((b.v - a.v) / a.v * 100 <= 5) st++; else break;
+    }
+    const habit = st >= 3 && !ref && kind !== 'good';
+    return { def: def, p: p, r: r, ref: ref, kind: kind, dBase: dBase, dPrev: dPrev, st: st, habit: habit, prevLabel: prevM[0] || '' };
+  });
+}
+function monImpDailyCard(rows, baseLabel, recLabel){
+  const hasAny = rows.some(x => x.p.v !== null || x.r.v !== null);
+  let h = `<div style="background:#E3F4EC;border:1px solid #AEDCC6;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+    <div style="font-weight:700;color:#0F5132;margin-bottom:2px;">일일 활동량 (일일 입력) <span style="font-weight:400;font-size:12.5px;">기준 구간(${escapeHtml(baseLabel)}) vs 최근 구간(${escapeHtml(recLabel)})</span></div>`;
+  if (!hasAny) return h + `<div class="sub" style="margin:6px 0 0;">이 팀장님의 일일 입력(콜시간·콜 시도·가망 발굴)이 이 구간에 아직 없어요. "일일 입력" 화면에서 입력하면 여기에 나타납니다.</div></div>`;
+  const f1 = (x, o) => o.v === null ? '-' : x.def.fmt(o.v) + ` <span style="font-size:11px;color:#47685A;">(입력 ${o.n}일)</span>`;
+  const dt = d => d === null ? '-' : (Math.round(d) === 0 ? '변화 없음' : (d > 0 ? '▲ +' : '▼ ') + Math.round(d) + '%');
+  h += `<div style="overflow-x:auto;"><table style="min-width:640px;background:transparent;"><thead><tr><th>항목</th><th>기준 구간</th><th>최근 구간</th><th>기준 대비</th><th>직전 대비</th></tr></thead><tbody>` + rows.map(x => {
+    const tag = x.kind === 'ref' ? monTag('참고용', 'gray') : x.kind === 'good' ? monTag('늘었어요', 'green') : x.kind === 'bad' ? monTag('줄었어요', 'red') : monTag('비슷해요', 'gray');
+    const lab = x.habit ? `<span style="background:#FFF1B8;padding:1px 4px;border-radius:3px;">${escapeHtml(x.def.label)}</span>` : escapeHtml(x.def.label);
+    const note = x.habit ? `<div style="font-size:12px;font-weight:700;color:#5E4300;">${x.st}개월째 제자리·하락 — 오래된 습관 후보</div>` : '';
+    return `<tr><td>${lab}<div class="sub" style="margin:0;font-size:11.5px;">${escapeHtml(x.def.hint)}</div>${note}</td><td>${f1(x, x.p)}</td><td>${f1(x, x.r)}</td><td>${tag}<div style="font-size:12px;">${dt(x.dBase)}</div></td><td style="font-size:12px;">${dt(x.dPrev)}${x.prevLabel && x.dPrev !== null ? '<div class="sub" style="margin:0;font-size:11px;">(' + escapeHtml(x.prevLabel.slice(5).replace(/^0/, '') + '월') + ' 대비)</div>' : ''}</td></tr>`;
+  }).join('') + `</tbody></table></div>
+    <div class="sub" style="margin:8px 0 0;">입력한 날의 평균이에요. 한 구간에 입력이 5일 미만이면 "참고용"으로만 보여요. ±10% 이상 달라지면 늘었어요/줄었어요로 표시하고, 최근 3번의 달별 변화가 거의 없으면 "오래된 습관 후보"로 노란 표시를 해요. 점수가 아니라 같이 이야기해 볼 단서예요.</div></div>`;
+  return h;
+}
 const MON_IMP_STAGES = [
   { label: '도입 통과 (상담이 시작됨)', test: f => f[7] !== '오프닝' },
   { label: '걱정 파악 (고객이 자기 말로 꺼냄)', test: f => f[14] === '끌어냄' || /^있음/.test(f[14]) },
@@ -4075,6 +4144,11 @@ function monRenderImprove(){
   }).join('') + `</tbody></table></div>
     <div class="sub" style="margin:8px 0 0;">"일방 설명" 항목은 낮을수록 좋아요. 막대는 달별 비율이고, 회색 막대는 콜이 3건 미만이라 믿기 어려운 달이에요.</div></div>`;
 
+  /* 일일 활동량 (민트 블록) */
+  const dRows = monImpDailyRows(monImpMgr, baseM, recM);
+  const lbl = arr => arr.length ? arr.map(m => m.slice(5).replace(/^0/, '') + '월').join('·') : '-';
+  html += monImpDailyCard(dRows, lbl(baseM), lbl(recM));
+
   /* 통화 흐름 (v2 코딩만) */
   const v2 = recs.filter(x => monImpIsV2(x.f));
   const v2w = v2.filter(x => x.f[6] === '체결'), v2l = v2.filter(x => x.f[6] !== '체결');
@@ -4116,13 +4190,16 @@ function monRenderImprove(){
   const good = rows.filter(x => x.kind === 'good').slice(0, 3);
   const stuck = rows.filter(x => !x.ref && (x.kind === 'bad' || x.habit || (x.kind === 'same' && x.poor))).sort((a, b) => MON_COACH[b.i].prio - MON_COACH[a.i].prio).slice(0, 3);
   const habitOnly = rows.filter(x => x.ref && x.habit && stuck.indexOf(x) < 0).slice(0, 2);
+  const dGood = dRows.filter(x => x.kind === 'good'), dHabit = dRows.filter(x => x.habit);
   const lis = (arr, fn) => arr.length ? arr.map(x => `<div style="margin-bottom:4px;">· ${fn(x)}</div>`).join('') : '<div class="sub" style="margin:0;">아직 없어요.</div>';
   html += `<div class="card"><div style="font-weight:700;margin-bottom:8px;">이번 피드백 정리 <span class="sub" style="font-weight:400;">(콜 코딩 기준)</span></div>
     <div style="font-size:13.5px;line-height:1.75;"><b style="color:var(--green);">잘 늘고 있는 것</b>
     ${lis(good, x => `${escapeHtml(MON_COACH[x.i].short)}: ${x.p.v.toFixed(0)}% → ${x.r.v.toFixed(0)}% (${x.low ? '낮아져서 좋아졌어요' : '+' + Math.round(x.diff) + '%p'})`)}
     <div style="height:8px;"></div><b style="color:var(--amber);">같이 바꿔볼 것</b>
     ${lis(stuck.concat(habitOnly), x => `${escapeHtml(MON_COACH[x.i].short)}: ${x.ref ? '' : '기준 ' + x.p.v.toFixed(0) + '% → 최근 ' + x.r.v.toFixed(0) + '%. '}${x.habit ? x.st + '개월째 제자리 또는 하락이에요. 오래된 습관일 수 있어 같이 바꿔볼 점으로 이야기해 보세요.' : (x.kind === 'bad' ? '기준보다 내려갔어요.' : '아직 낮은 편이에요.')}`)}</div>
-    <div class="sub" style="margin:8px 0 0;">콜 코딩만 본 정리예요. 일일 입력(콜시간·가망 발굴) 연결과 형광펜 표시는 다음 단계에서 추가됩니다.</div></div>`;
+    <div style="height:8px;"></div><b style="color:#0F5132;">일일 활동량</b>
+    ${dGood.length || dHabit.length ? dGood.map(x => `<div style="margin-bottom:4px;">· ${escapeHtml(x.def.label)}: ${x.def.fmt(x.p.v)} → ${x.def.fmt(x.r.v)} (+${Math.round(x.dBase)}%)</div>`).join('') + dHabit.map(x => `<div style="margin-bottom:4px;"><span style="background:#FFF1B8;padding:1px 4px;border-radius:3px;">· ${escapeHtml(x.def.label)}: ${x.st}개월째 제자리·하락 — 오래된 습관 후보</span></div>`).join('') : '<div class="sub" style="margin:0;">뚜렷하게 달라진 항목이 아직 없어요(입력 5일 이상 필요).</div>'}
+    <div class="sub" style="margin:8px 0 0;">콜 코딩과 일일 입력을 함께 본 정리예요. 이야기할 때는 "왜 안 늘었어요?"보다 "이 부분은 어떻게 느끼세요?"로 시작해 보세요.</div></div>`;
   el.innerHTML = html;
 }
 
