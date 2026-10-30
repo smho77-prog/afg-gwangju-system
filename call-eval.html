@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>통화녹취 굿콜 평가기</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{
+    --navy:#0A1628; --mid:#1A3A5C; --blue:#4A90D9; --blue-soft:#EBF3FB;
+    --bg:#F2F4F7; --panel:#FFFFFF; --line:#D5DAE1; --ink:#1B2433; --muted:#5E6878;
+    --ok:#1F7A4D; --warn:#B45309; --err:#B42318;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:Pretendard,"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55}
+  header{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .logo{background:var(--blue);color:#fff;font-weight:800;padding:4px 9px;border-radius:4px;font-size:13px;letter-spacing:.5px}
+  header h1{font-size:18px;margin:0;font-weight:700}
+  header .spacer{flex:1}
+  .env{font-size:13px;color:#C9D6E8}
+  .env b{color:#fff}
+  header select{font:inherit;font-size:13px;padding:5px 8px;border-radius:5px;border:1px solid #33506F;background:var(--mid);color:#fff}
+  main{display:grid;grid-template-columns:320px 1fr;gap:18px;padding:18px 24px;max-width:1400px;margin:0 auto}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+  #drop{border:2px dashed #9FB3CC;border-radius:8px;padding:26px 16px;text-align:center;background:var(--blue-soft);cursor:pointer;transition:background .15s,border-color .15s}
+  #drop.over{background:#DCEBFA;border-color:var(--blue)}
+  #drop strong{display:block;font-size:16px;color:var(--mid);margin-bottom:4px}
+  #drop span{font-size:13px;color:var(--muted)}
+  #drop:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+  .side{display:flex;flex-direction:column;gap:12px}
+  #list{list-style:none;margin:0;padding:6px}
+  #list:empty::after{content:"아직 올린 녹취가 없습니다.";display:block;padding:14px 10px;color:var(--muted);font-size:13px}
+  #list li{padding:10px 12px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+  #list li:hover{background:#F6F8FB}
+  #list li.sel{background:var(--blue-soft);border-color:#B7D2F0}
+  #list .nm{font-weight:600;font-size:14px;word-break:break-all}
+  #list .st{font-size:12px;color:var(--muted);margin-top:2px}
+  .lk{font-size:13px;margin:0 0 10px;padding:8px 10px;border-radius:6px;background:#EEF6F0;color:#1F6B3A}
+  .lk.no{background:#FDECEC;color:#B42318}
+  .lk.multi{background:#FEF6E0;color:#7A5200}
+  .lk select{margin-top:6px;width:100%}
+  #list .cv{font-size:12px;margin-top:2px;color:var(--ok);font-weight:600;word-break:break-all}
+  #list .cv.no{color:var(--err);font-weight:500}
+  #list .st.done{color:var(--ok)} #list .st.err{color:var(--err)} #list .st.run{color:var(--blue)}
+  .note{font-size:12.5px;color:var(--muted);padding:12px 14px;line-height:1.6}
+  .note b{color:var(--ink)}
+  #detail{padding:20px 22px;min-height:420px}
+  .empty{color:var(--muted);text-align:center;padding:80px 20px}
+  .empty h2{color:var(--mid);font-size:18px;margin:0 0 8px}
+  .dhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .dhead h2{margin:0;font-size:18px;word-break:break-all}
+  .dhead .sub{color:var(--muted);font-size:13px}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+  .meta .req{color:var(--err)}
+  .meta select.miss,.meta input.miss{border-color:var(--err);background:#FEF3F2}
+  .batch{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .batch span{font-size:12.5px;color:var(--muted)}
+  .verbadge{display:inline-block;background:#FEF0C7;color:#93370D;font-size:11.5px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:4px}
+  .meta label{font-size:12.5px;color:var(--muted);display:block;margin-bottom:3px}
+  .meta input,.meta select{width:100%;font:inherit;font-size:14px;padding:7px 9px;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink)}
+  .prog{margin:6px 0 16px}
+  .bar{height:8px;background:#E3E8EF;border-radius:4px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--blue);width:0;transition:width .3s}
+  .plabel{font-size:13px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .errbox{background:#FEF3F2;border:1px solid #F5C2BD;color:var(--err);padding:10px 12px;border-radius:6px;font-size:13.5px;margin-bottom:12px;white-space:pre-wrap}
+  .infobox{background:var(--blue-soft);border:1px solid #C6DBF2;color:var(--mid);padding:10px 12px;border-radius:6px;font-size:13.5px;margin-bottom:12px}
+  textarea{width:100%;min-height:380px;font:inherit;font-size:14.5px;line-height:1.7;padding:12px 14px;border:1px solid var(--line);border-radius:6px;resize:vertical;color:var(--ink)}
+  .tlabel{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap}
+  .tlabel span{font-size:13px;color:var(--muted)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  button{font:inherit;font-size:14px;padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+  button:hover{background:#F6F8FB}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--mid);border-color:var(--mid);color:#fff;font-weight:600}
+  button.primary:hover{background:var(--navy)}
+  button.danger{color:var(--err)}
+  .howto{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;font-size:13.5px;color:var(--muted)}
+  .howto ol{margin:6px 0 0;padding-left:20px}
+  #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:10px 18px;border-radius:6px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:9}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">AFG</span>
+  <h1>통화녹취 굿콜 평가기</h1>
+  <span class="spacer"></span>
+  <span class="env" id="env">환경 확인 중…</span>
+  <label class="env" for="model">인식 엔진</label>
+  <select id="model">
+    <option value="small">표준 (Whisper small)</option>
+    <option value="turbo">고정밀 (Whisper large-v3-turbo · 그래픽카드 필요)</option>
+  </select>
+</header>
+
+<main>
+  <div class="side">
+    <div id="drop" tabindex="0" role="button" aria-label="녹취 파일 올리기">
+      <strong>녹취 파일을 끌어다 놓으세요</strong>
+      <span>또는 클릭해서 선택 · mp3, wav, m4a · 여러 개 가능</span>
+      <input id="fileInput" type="file" accept=".mp3,.wav,.m4a,audio/*" multiple hidden>
+    </div>
+    <div class="panel note" id="codePanel">
+      <b>고객코드 목록 (선택)</b> — 안 써도 됩니다. 쓰면 회사 전산 DB 엑셀(고객코드·고객명이 들어 있는 파일)을 한 번 올리면, 녹취 파일명 속 고객 이름으로 고객코드를 찾아 <b>DB-00000000.mp3</b> 형태로 보여줍니다. 엑셀은 이 PC 안에서만 읽고 어디에도 저장·전송하지 않으며, 창을 닫으면 사라집니다.
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="codeBtn">엑셀 불러오기</button><span id="codeInfo" style="font-size:12px;color:var(--muted)">아직 불러오지 않음</span><input id="codeFile" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+    </div>
+    <div class="panel"><ul id="list"></ul></div>
+    <div class="panel note">
+      <b>녹취는 이 PC 밖으로 나가지 않습니다.</b> 음성 인식은 브라우저 안에서만 처리됩니다.<br>
+      처음 한 번은 인식 엔진(약 250~800MB)을 내려받느라 시간이 걸리고, 이후에는 저장된 엔진을 씁니다.<br>
+      창을 닫으면 변환 결과가 사라지니 <b>텍스트 저장</b>으로 보관하세요.
+    </div>
+    <div class="panel note">
+      <b>코딩 한꺼번에 복사</b> — 팀장·결과를 채운 완료 콜을 5건씩 묶어 복사합니다. 프로젝트 대화창에 붙여넣고, 나온 CODE 줄을 콜코딩 집계기에 붙여넣으세요.
+      <div class="batch"><button id="batchCode" class="primary">다음 5건 코딩용 복사</button><span id="batchInfo">코딩할 콜이 없습니다.</span></div>
+    </div>
+    <div class="panel note">
+      <b>프로젝트 지침</b><span class="verbadge">v3.5 · 바뀜</span> — 평가·코딩·리포트 세 가지가 들어 있습니다. 예전 지침을 쓰고 있다면 아래 버튼으로 복사해서 <b>통째로 교체</b>하세요.
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button id="copyGuide">프로젝트 지침 복사</button><button id="saveGuide">지침 저장</button></div>
+    </div>
+  </div>
+
+  <section class="panel" id="detail">
+    <div class="empty">
+      <h2>녹취를 올리면 여기서 텍스트로 바뀝니다</h2>
+      변환이 끝나면 내용을 고친 뒤 평가 요청문을 복사해 Claude에 붙여넣으면 됩니다.
+    </div>
+  </section>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script type="module">
+/* =========================================================
+   설정
+   ========================================================= */
+const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+const SR = 16000;
+const MAX_BLOCK = 28;      // 한 번에 인식할 최대 길이(초)
+const PAD = 0.2;           // 발화 앞뒤 여유(초)
+
+const HALLUCINATIONS = [
+  /시청(해|하여)?\s*주셔서\s*감사합니다\.?/g,
+  /구독(과|,)?\s*좋아요[^.\n]*/g,
+  /좋아요(와|,)?\s*구독[^.\n]*/g,
+  /MBC\s*뉴스[^.\n]*/g, /KBS\s*뉴스[^.\n]*/g, /SBS\s*뉴스[^.\n]*/g,
+  /자막\s*(제공|제작)[^.\n]*/g,
+  /다음\s*영상에서\s*만나요\.?/g,
+];
+
+/* =========================================================
+   상태
+   ========================================================= */
+const state = { files: [], selId: null, running: false, cancel: false };
+let uid = 0;
+const $ = s => document.querySelector(s);
+
+/* ===== 고객코드 목록 (전산 엑셀) → 파일명 속 고객 이름으로 고객코드 찾기 ===== */
+const codeMap = {};      /* 고객명 -> [고객코드, ...] */
+let codeMapN = 0;
+function matchCode(fileName){
+  const base = fileName.replace(/\.[A-Za-z0-9]{2,4}$/, '');
+  const dm = base.match(/DB[-_]?(\d{5,})/i);
+  if (dm) return { code: 'DB-' + dm[1], note: '' };
+  if (!codeMapN) return { code: '', note: '고객코드 확인 필요 (엑셀을 불러오거나 직접 입력)' };
+  const hits = [];
+  Object.keys(codeMap).forEach(nm => {
+    if (nm.length < 2) return;
+    const i = base.indexOf(nm);
+    if (i < 0) return;
+    const before = i > 0 ? base[i - 1] : '';
+    const after = base.slice(i + nm.length, i + nm.length + 2);
+    const okBefore = !before || !/[가-힣]/.test(before);
+    const okAfter = !after || after.indexOf('고객') === 0 || after[0] === '님' || !/[가-힣]/.test(after[0]);
+    if (okBefore && okAfter) hits.push(nm);
+  });
+  if (!hits.length) return { code: '', note: '고객코드 확인 필요 (엑셀에서 이름을 못 찾음)' };
+  const codes = {}; hits.forEach(nm => codeMap[nm].forEach(c => { codes[c] = 1; }));
+  const list = Object.keys(codes);
+  if (list.length === 1) return { code: list[0], note: '' };
+  return { code: '', note: `고객코드 확인 필요 (같은 이름 ${list.length}명 — 직접 입력)` };
+}
+function applyMatch(f){
+  if (f.meta.code && f.meta.codeAuto === false) return;   /* 직접 입력한 값은 건드리지 않음 */
+  const r = matchCode(f.name);
+  f.meta.code = r.code; f.meta.codeNote = r.note; f.meta.codeAuto = true;
+}
+function loadXlsxLib(){
+  return new Promise((res, rej) => {
+    if (window.XLSX) return res(window.XLSX);
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    sc.onload = () => window.XLSX ? res(window.XLSX) : rej(new Error('엑셀 읽기 프로그램을 불러오지 못했습니다'));
+    sc.onerror = () => rej(new Error('엑셀 읽기 프로그램을 불러오지 못했습니다. 인터넷 연결을 확인하세요'));
+    document.head.appendChild(sc);
+  });
+}
+async function loadCodeExcel(file){
+  const info = document.getElementById('codeInfo');
+  try {
+    info.textContent = '읽는 중…';
+    const X = await loadXlsxLib();
+    const wb = X.read(await file.arrayBuffer(), { type: 'array' });
+    const rows = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+    const pick = (row, names) => { for (const k of Object.keys(row)) { if (names.indexOf(String(k).trim()) >= 0) return String(row[k]).trim(); } return ''; };
+    Object.keys(codeMap).forEach(k => delete codeMap[k]); codeMapN = 0;
+    let people = 0;
+    rows.forEach(r => {
+      const code = pick(r, ['고객코드']), nm = pick(r, ['고객명', '성명']);
+      if (!code || !nm) return;
+      (codeMap[nm] = codeMap[nm] || []);
+      if (codeMap[nm].indexOf(code) < 0) { codeMap[nm].push(code); people++; }
+    });
+    codeMapN = people;
+    if (!people) { info.textContent = '고객코드·고객명 칸을 찾지 못했습니다 (첫 번째 시트의 머리글 확인)'; info.style.color = 'var(--err)'; return; }
+    state.files.forEach(f => { if (f.meta.codeAuto !== false) applyMatch(f); });
+    info.style.color = 'var(--ok)'; info.textContent = `✓ ${people.toLocaleString()}명 불러옴 (이 창을 닫으면 사라집니다)`;
+    render();
+  } catch (e) { info.style.color = 'var(--err)'; info.textContent = String(e.message || e); }
+}
+
+/* ===== 통합전산 화면 안에 끼워 넣어 쓸 때: 부모 화면에 고객 정보를 물어봄 ===== */
+const EMBED = (window.parent && window.parent !== window);
+function mapDb(raw){
+  raw = String(raw || '');
+  const hit = ['퍼미션DB', '상품광고DB', '우리보험주치의DB', '카카오DB'].find(o => raw.indexOf(o.replace(/DB$/, '')) >= 0);
+  return hit || '기타';
+}
+function embedLookup(f){
+  if (!EMBED) return;
+  f.meta.lookup = 'wait';
+  try { window.parent.postMessage({ type: 'afg-eval-lookup', id: f.id, name: f.name }, location.origin); } catch (e) { f.meta.lookup = 'none'; }
+}
+function applyCand(f, c){
+  const m = f.meta;
+  m.code = c.code || ''; m.codeAuto = false; m.leader = c.manager || ''; m.db = mapDb(c.db_type); m.result = c.result || ''; m.picked = c;
+  m.lookup = 'ok';
+}
+window.addEventListener('message', ev => {
+  if (!EMBED || ev.origin !== location.origin || ev.source !== window.parent) return;
+  const d = ev.data;
+  if (!d || d.type !== 'afg-eval-info') return;
+  const f = state.files.find(x => x.id === d.id);
+  if (!f) return;
+  const rows = Array.isArray(d.rows) ? d.rows : [];
+  f.meta.cands = rows;
+  f.meta.lookup = rows.length === 1 ? 'ok' : (rows.length > 1 ? 'multi' : 'none');
+  if (rows.length === 1) applyCand(f, rows[0]);
+  render();
+});
+function lookupHtml(m){
+  if (!EMBED) return '';
+  if (m.lookup === 'wait') return '<div class="lk multi">전산 DB에서 고객을 찾는 중…</div>';
+  if (m.lookup === 'ok' && m.picked) return `<div class="lk">✓ 전산 DB에서 찾았습니다 — 고객코드·담당 팀장·DB유형·체결 여부를 자동으로 채웠습니다. (${esc(m.picked.label || '')})</div>`;
+  if (m.lookup === 'multi') {
+    const opts = (m.cands || []).map((c, i) => `<option value="${i}">${esc(c.label || c.code)}</option>`).join('');
+    return `<div class="lk multi">같은 이름의 고객이 ${m.cands.length}명 있습니다. 해당 고객을 골라주세요.<select id="mCand"><option value="">고객 선택…</option>${opts}</select></div>`;
+  }
+  if (m.lookup === 'none') return '<div class="lk no">전산 DB(콜 모니터링에 올린 엑셀)에서 이 고객을 찾지 못했습니다. 아래에서 팀장·결과를 직접 골라주세요.</div>';
+  return '';
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function fmtTime(sec){
+  sec = Math.max(0, Math.floor(sec));
+  const m = Math.floor(sec/60), s = sec%60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function fmtDur(sec){
+  sec = Math.round(sec);
+  if (sec < 60) return `${sec}초`;
+  return `${Math.floor(sec/60)}분 ${sec%60}초`;
+}
+
+/* =========================================================
+   환경 확인 (WebGPU)
+   ========================================================= */
+const envInfo = { webgpu:false, f16:false };
+async function checkEnv(){
+  try{
+    if (navigator.gpu){
+      const ad = await navigator.gpu.requestAdapter();
+      if (ad){ envInfo.webgpu = true; envInfo.f16 = ad.features.has('shader-f16'); }
+    }
+  }catch(e){ /* 무시 */ }
+  const el = $('#env');
+  el.innerHTML = envInfo.webgpu
+    ? '처리 방식: <b>그래픽카드(빠름)</b>'
+    : '처리 방식: <b>CPU(느림)</b>';
+  const turbo = $('#model option[value="turbo"]');
+  if (!(envInfo.webgpu && envInfo.f16)){
+    turbo.disabled = true;
+    turbo.textContent = '고정밀 (이 PC 그래픽카드 미지원)';
+  }
+}
+const envReady = checkEnv();
+
+/* =========================================================
+   인식 엔진 캐시 (IndexedDB) — file:// 로 열 때 대비
+   ========================================================= */
+function idbOpen(){
+  return new Promise((res, rej)=>{
+    const r = indexedDB.open('goodcall-model-cache', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('files');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function makeIdbCache(){
+  const db = await idbOpen();
+  const tx = (mode) => db.transaction('files', mode).objectStore('files');
+  return {
+    async match(key){
+      const rec = await new Promise((res)=>{
+        try{ const q = tx('readonly').get(String(key)); q.onsuccess=()=>res(q.result); q.onerror=()=>res(undefined); }
+        catch(e){ res(undefined); }
+      });
+      if (!rec || !rec.blob) return undefined;
+      return new Response(rec.blob, { headers: { 'Content-Length': String(rec.blob.size), 'Content-Type': rec.type || 'application/octet-stream' } });
+    },
+    async put(key, response){
+      const blob = await response.blob();
+      await new Promise((res, rej)=>{
+        try{ const q = tx('readwrite').put({ blob, type: response.headers.get('Content-Type') || '' }, String(key)); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error); }
+        catch(e){ rej(e); }
+      });
+    }
+  };
+}
+
+/* =========================================================
+   인식 엔진 불러오기 (실패 시 다음 방식으로 자동 전환)
+   ========================================================= */
+let tf = null, asr = null, asrKey = null, asrDevice = null;
+
+function candidates(choice){
+  const small = [];
+  if (envInfo.webgpu) small.push({ key:'small-gpu', model:'onnx-community/whisper-small', device:'webgpu', dtype:{ encoder_model:'fp32', decoder_model_merged:'q4' } });
+  small.push({ key:'small-cpu', model:'onnx-community/whisper-small', device:'wasm', dtype:'q8' });
+  small.push({ key:'small-cpu-x', model:'Xenova/whisper-small', device:'wasm', dtype:'q8' });
+  if (choice === 'turbo' && envInfo.webgpu && envInfo.f16){
+    return [{ key:'turbo-gpu', model:'onnx-community/whisper-large-v3-turbo', device:'webgpu', dtype:{ encoder_model:'fp16', decoder_model_merged:'q4' } }, ...small];
+  }
+  return small;
+}
+
+async function loadTransformers(){
+  if (tf) return tf;
+  if (window.__MOCK_ASR){ tf = { mock:true }; return tf; }
+  try{
+    tf = await import(TRANSFORMERS_URL);
+  }catch(e){
+    throw new Error('인식 엔진 프로그램을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도하세요.\n(회사 보안망에서 cdn.jsdelivr.net 접속이 막혀 있을 수 있습니다)');
+  }
+  tf.env.allowLocalModels = false;
+  // 브라우저 기본 캐시를 쓸 수 없으면 IndexedDB 캐시 사용
+  let cacheOk = false;
+  try{ if (typeof caches !== 'undefined'){ await caches.open('goodcall-probe'); cacheOk = true; } }catch(e){ cacheOk = false; }
+  if (!cacheOk){
+    try{ tf.env.customCache = await makeIdbCache(); tf.env.useCustomCache = true; tf.env.useBrowserCache = false; }
+    catch(e){ tf.env.useBrowserCache = false; console.warn('모델 캐시 사용 불가 — 매번 다시 내려받습니다.', e); }
+  }
+  return tf;
+}
+
+async function getASR(choice, onStatus){
+  if (window.__MOCK_ASR){ asr = window.__MOCK_ASR; asrDevice = 'mock'; return asr; }
+  const list = candidates(choice);
+  if (asr && list.some(c => c.key === asrKey)) return asr;
+  await loadTransformers();
+  let lastErr = null;
+  for (const c of list){
+    const files = {};
+    try{
+      onStatus(`인식 엔진 준비 중 (${c.device === 'webgpu' ? '그래픽카드' : 'CPU'})…`, null);
+      if (asr && asr.dispose){ try{ await asr.dispose(); }catch(e){} }
+      asr = await tf.pipeline('automatic-speech-recognition', c.model, {
+        device: c.device, dtype: c.dtype,
+        progress_callback: (p) => {
+          if (p.status === 'progress' && p.file){
+            files[p.file] = { loaded: p.loaded || 0, total: p.total || 0 };
+            let L = 0, T = 0; for (const k in files){ L += files[k].loaded; T += files[k].total; }
+            const mb = x => (x/1048576).toFixed(0);
+            onStatus(`인식 엔진 내려받는 중 ${mb(L)}MB${T ? ' / ' + mb(T) + 'MB' : ''} (처음 한 번만)`, T ? L/T : null);
+          }
+        }
+      });
+      asrKey = c.key; asrDevice = c.device;
+      return asr;
+    }catch(e){
+      console.warn('엔진 로드 실패, 다음 방식 시도:', c, e);
+      lastErr = e; asr = null; asrKey = null;
+    }
+  }
+  throw new Error('인식 엔진을 내려받지 못했습니다. 인터넷 연결을 확인하세요.\n회사 PC라면 보안망에서 huggingface.co 접속이 막혀 있을 수 있습니다. 이 PC에서 다른 네트워크(휴대폰 핫스팟 등)로 한 번 받아두면 이후에는 저장된 엔진을 씁니다.\n(상세: ' + (lastErr ? String(lastErr.message || lastErr) : '알 수 없음') + ')');
+}
+
+/* =========================================================
+   오디오 디코딩 · 채널 판별
+   ========================================================= */
+async function decodeAudio(file){
+  const buf = await file.arrayBuffer();
+  const ctx = new OfflineAudioContext(1, SR, SR);
+  let ab;
+  try{ ab = await ctx.decodeAudioData(buf); }
+  catch(e){ throw new Error('이 파일을 소리 파일로 읽지 못했습니다. mp3·wav·m4a 파일인지 확인하세요.'); }
+  const chs = [];
+  for (let i = 0; i < Math.min(ab.numberOfChannels, 2); i++) chs.push(ab.getChannelData(i).slice());
+  return { chs, duration: ab.duration };
+}
+
+function energy(x){ let s = 0; for (let i = 0; i < x.length; i++) s += x[i]*x[i]; return s; }
+
+/* 스테레오가 '상담원/고객 분리 녹음'인지 판단 */
+function analyzeChannels(chs){
+  if (chs.length < 2) return { mode:'mono', mono: chs[0] };
+  const [L, R] = chs;
+  const eL = energy(L), eR = energy(R);
+  if (eL < 1e-9 && eR < 1e-9) return { mode:'mono', mono: L };
+  if (eL < (eL+eR)*0.01) return { mode:'mono', mono: R };
+  if (eR < (eL+eR)*0.01) return { mode:'mono', mono: L };
+  let d = 0; for (let i = 0; i < L.length; i++){ const v = L[i]-R[i]; d += v*v; }
+  if (d / (eL + eR) < 0.05){
+    const m = new Float32Array(L.length); for (let i = 0; i < L.length; i++) m[i] = (L[i]+R[i])/2;
+    return { mode:'mono', mono: m };
+  }
+  return { mode:'stereo', L, R };
+}
+
+/* =========================================================
+   발화 구간 찾기 (간이 VAD)
+   ========================================================= */
+const FRAME = 480; // 30ms
+function frameRms(x){
+  const n = Math.floor(x.length / FRAME), r = new Float32Array(n);
+  for (let f = 0; f < n; f++){
+    let s = 0, o = f*FRAME; for (let i = 0; i < FRAME; i++){ const v = x[o+i]; s += v*v; }
+    r[f] = Math.sqrt(s / FRAME);
+  }
+  return r;
+}
+function pct(arr, p){
+  if (!arr.length) return 0;
+  const a = Array.from(arr).sort((a,b)=>a-b);
+  return a[Math.min(a.length-1, Math.floor(p * a.length))];
+}
+function thresholdOf(rms){
+  const noise = pct(rms, 0.15), peak = pct(rms, 0.97) || 1e-6;
+  return { thr: Math.max(noise * 2.5, noise + (peak - noise) * 0.08, 1e-4), peak };
+}
+/* 상대 채널 목소리가 이 채널로 새어 들어오는 비율 추정 */
+function leakRatio(rSrc, rDst, srcThr, srcPeak){
+  const r = [];
+  const gate = Math.max(srcThr, srcPeak * 0.3);
+  for (let f = 0; f < rSrc.length; f++) if (rSrc[f] > gate) r.push(rDst[f] / rSrc[f]);
+  return r.length > 20 ? pct(r, 0.5) : 0;
+}
+function speechFrames(rms, other, leak){
+  const { thr } = thresholdOf(rms);
+  const sp = new Uint8Array(rms.length);
+  for (let f = 0; f < rms.length; f++){
+    let on = rms[f] > thr;
+    // 스테레오: 상대방 목소리가 새어 들어온 소리는 제외
+    if (on && other && leak > 0 && rms[f] < other[f] * leak * 2.5) on = false;
+    sp[f] = on ? 1 : 0;
+  }
+  // 앞뒤 300ms 연장
+  const out = new Uint8Array(sp.length), H = 10;
+  for (let f = 0; f < sp.length; f++) if (sp[f]) for (let k = Math.max(0,f-H); k <= Math.min(sp.length-1,f+H); k++) out[k] = 1;
+  return { mask: out };
+}
+function regionsFrom(mask){
+  const regs = []; let s = -1;
+  for (let f = 0; f <= mask.length; f++){
+    const on = f < mask.length && mask[f];
+    if (on && s < 0) s = f;
+    if (!on && s >= 0){ regs.push([s*FRAME/SR, f*FRAME/SR]); s = -1; }
+  }
+  // 0.5초 미만 간격은 합치기
+  const merged = [];
+  for (const r of regs){
+    if (merged.length && r[0] - merged[merged.length-1][1] < 0.5) merged[merged.length-1][1] = r[1];
+    else merged.push(r.slice());
+  }
+  return merged.filter(r => r[1] - r[0] >= 0.3);
+}
+/* 긴 발화는 조용한 지점에서 자르기 */
+function splitLong(regs, rms){
+  const out = [];
+  for (const r of regs){
+    let [s, e] = r;
+    while (e - s > MAX_BLOCK - 2*PAD){
+      const a = Math.floor((s + 18) * SR / FRAME), b = Math.floor((s + MAX_BLOCK - 2*PAD - 0.5) * SR / FRAME);
+      let best = b, bv = Infinity;
+      for (let f = a; f <= b && f < rms.length; f++) if (rms[f] < bv){ bv = rms[f]; best = f; }
+      const cut = best * FRAME / SR;
+      out.push([s, cut]); s = cut;
+    }
+    out.push([s, e]);
+  }
+  return out;
+}
+/* 인식 단위(최대 28초)로 묶기 */
+function makeBlocks(regs, total){
+  const blocks = [];
+  for (const r of regs){
+    const b = blocks[blocks.length-1];
+    const rs = Math.max(0, r[0]-PAD), re = Math.min(total, r[1]+PAD);
+    if (b && re - b.start <= MAX_BLOCK) { b.end = re; b.regs.push([rs, re]); }
+    else blocks.push({ start: rs, end: re, regs: [[rs, re]] });
+  }
+  return blocks;
+}
+function blockAudio(x, b){
+  const s0 = Math.floor(b.start*SR), s1 = Math.min(x.length, Math.ceil(b.end*SR));
+  const out = new Float32Array(Math.max(0, s1 - s0));
+  const ramp = Math.floor(0.02*SR);
+  for (const [rs, re] of b.regs){
+    const a = Math.max(s0, Math.floor(rs*SR)), z = Math.min(s1, Math.ceil(re*SR));
+    for (let i = a; i < z; i++){
+      let g = 1; const fi = i - a, fo = z - 1 - i;
+      if (fi < ramp) g = fi/ramp; else if (fo < ramp) g = fo/ramp;
+      out[i - s0] = x[i] * g;
+    }
+  }
+  return out;
+}
+
+function cleanText(t){
+  if (!t) return '';
+  let s = String(t);
+  for (const re of HALLUCINATIONS) s = s.replace(re, '');
+  s = s.replace(/(.{2,25}?)(?:[\s,.]*\1){3,}/g, '$1'); // 같은 말 반복 제거
+  s = s.replace(/\s+/g, ' ').trim();
+  if (/^[\s.,!?~…]*$/.test(s)) return '';
+  return s;
+}
+
+/* =========================================================
+   변환 실행
+   ========================================================= */
+async function transcribeBlock(pipe, audio){
+  const out = await pipe(audio, { language:'korean', task:'transcribe', return_timestamps:true });
+  return Array.isArray(out) ? out[0] : out;
+}
+
+async function processFile(item){
+  item.status = 'run'; item.error = ''; item.progress = 0; item.phase = '소리 파일 읽는 중…';
+  refresh(item);
+  await envReady;
+  const { chs, duration } = await decodeAudio(item.file);
+  item.duration = duration;
+  const ana = analyzeChannels(chs);
+  item.stereo = ana.mode === 'stereo';
+
+  // 채널별 발화 구간
+  const tracks = [];
+  if (item.stereo){
+    const rL = frameRms(ana.L), rR = frameRms(ana.R);
+    const tL = thresholdOf(rL), tR = thresholdOf(rR);
+    const kLR = leakRatio(rL, rR, tL.thr, tL.peak), kRL = leakRatio(rR, rL, tR.thr, tR.peak);
+    if (kLR > 0.6 && kRL > 0.6){
+      // 두 채널에 양쪽 목소리가 거의 같이 들어있음 → 합쳐서 처리
+      item.stereo = false;
+    } else {
+      const sL = speechFrames(rL, rR, kRL), sR = speechFrames(rR, rL, kLR);
+      tracks.push({ spk:'L', x: ana.L, blocks: makeBlocks(splitLong(regionsFrom(sL.mask), rL), duration) });
+      tracks.push({ spk:'R', x: ana.R, blocks: makeBlocks(splitLong(regionsFrom(sR.mask), rR), duration) });
+    }
+  }
+  if (!item.stereo){
+    let x = ana.mono;
+    if (!x){ x = new Float32Array(ana.L.length); for (let i = 0; i < x.length; i++) x[i] = (ana.L[i] + ana.R[i]) / 2; }
+    const r = frameRms(x);
+    const s = speechFrames(r, null, 0);
+    tracks.push({ spk:null, x, blocks: makeBlocks(splitLong(regionsFrom(s.mask), r), duration) });
+  }
+  const totalWork = tracks.reduce((a,t)=>a + t.blocks.reduce((b,k)=>b + (k.end-k.start), 0), 0) || 1;
+  if (totalWork < 0.5) throw new Error('녹취에서 말소리를 찾지 못했습니다. 무음이거나 소리가 매우 작은 파일일 수 있습니다.');
+
+  const pipe = await getASR($('#model').value, (msg, frac) => {
+    item.phase = msg; item.progress = frac == null ? item.progress : frac * 0.999; renderProgress(item);
+  });
+  item.engine = asrDevice === 'webgpu' ? '그래픽카드' : (asrDevice === 'mock' ? '테스트' : 'CPU');
+
+  const segs = [];
+  let done = 0; const t0 = performance.now();
+  item.progress = 0;
+  for (const tr of tracks){
+    for (const b of tr.blocks){
+      if (state.cancel) throw new Error('__CANCEL__');
+      const audio = blockAudio(tr.x, b);
+      let out;
+      try{ out = await transcribeBlock(pipe, audio); }
+      catch(e){
+        // 그래픽카드 오류 시 CPU로 한 번 재시도
+        if (asrDevice === 'webgpu'){
+          console.warn('그래픽카드 처리 오류, CPU로 전환', e);
+          asr = null; asrKey = null; envInfo.webgpu = false;
+          const p2 = await getASR('small', (m)=>{ item.phase = m; renderProgress(item); });
+          item.engine = 'CPU';
+          out = await transcribeBlock(p2, audio);
+        } else throw e;
+      }
+      const chunks = (out && out.chunks && out.chunks.length) ? out.chunks : [{ timestamp:[0, null], text: out ? out.text : '' }];
+      const blen = b.end - b.start;
+      for (const c of chunks){
+        const txt = cleanText(c.text);
+        if (!txt) continue;
+        let a = (c.timestamp && typeof c.timestamp[0] === 'number') ? c.timestamp[0] : 0;
+        if (!(a >= 0) || a > blen) a = 0;
+        segs.push({ t: b.start + a, spk: tr.spk, text: txt });
+      }
+      done += blen;
+      item.progress = done / totalWork;
+      const el = (performance.now() - t0) / 1000;
+      const eta = item.progress > 0.03 ? el / item.progress - el : null;
+      item.phase = `받아쓰는 중 ${Math.round(item.progress*100)}%` + (eta != null ? ` · 약 ${fmtDur(eta)} 남음` : '');
+      renderProgress(item);
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  segs.sort((a,b)=>a.t - b.t);
+  item.segments = segs;
+  item.text = buildText(item);
+  item.status = 'done'; item.phase = ''; item.progress = 1; item.saved = false;
+}
+
+/* 같은 화자의 연속 발화 합치기 */
+function buildText(item){
+  const lines = [];
+  const labelOf = spk => {
+    if (!item.stereo || !spk) return '';
+    const agentIsL = !item.swapped;
+    return ((spk === 'L') === agentIsL) ? '상담원' : '고객';
+  };
+  let cur = null;
+  for (const s of item.segments){
+    if (cur && cur.spk === s.spk && s.t - cur.last < 2.5 && cur.text.length < 400){
+      cur.text += ' ' + s.text; cur.last = s.t;
+    } else {
+      if (cur) lines.push(cur);
+      cur = { t: s.t, last: s.t, spk: s.spk, text: s.text };
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines.map(l => {
+    const lab = labelOf(l.spk);
+    return `[${fmtTime(l.t)}] ${lab ? lab + ': ' : ''}${l.text}`;
+  }).join('\n');
+}
+
+async function runQueue(){
+  if (state.running) return;
+  state.running = true; state.cancel = false;
+  try{
+    let item;
+    while ((item = state.files.find(f => f.status === 'wait'))){
+      try{
+        await processFile(item);
+      }catch(e){
+        if (String(e && e.message) === '__CANCEL__'){
+          item.status = 'wait'; item.phase = ''; item.progress = 0;
+          state.files.forEach(f => { if (f.status === 'wait') f.status = 'stop'; });
+          toast('변환을 멈췄습니다'); render();
+        } else {
+          console.error(e);
+          item.status = 'err'; item.error = String((e && e.message) || e);
+        }
+      }
+      refresh(item);
+      if (state.cancel) break;
+    }
+  } finally {
+    state.running = false; state.cancel = false; renderList();
+  }
+}
+
+/* =========================================================
+   평가 요청문
+   ========================================================= */
+const RUBRIC = `[전사본 유의사항]
+- 무료 음성인식으로 자동 변환한 텍스트라 잘못 들린 단어가 있을 수 있다. 문맥으로 해석하고, 인식 오류를 상담원의 실수로 평가하지 않는다.
+- 고객 이름·연락처·주민번호 등 개인정보는 출력에 다시 쓰지 않는다 (○○ 고객으로 표기).
+- 상품 보장 내용·약관·통계 수치의 정확성은 추측으로 판단하지 않는다. 확인이 필요하면 "확인 필요"로만 표시한다.
+- 이번 평가에서 컴플라이언스(고지의무·승환계약 등) 항목은 다루지 않는다.
+
+[굿콜 평가틀]
+■ 1순위: 도입부 반론 극복
+도입부 = 첫인사부터 고객이 상담 진행에 응한 시점(또는 동의 녹취 시작)까지.
+이 구간에서 고객이 보인 반론·거절·경계 신호를 빠짐없이 찾는다. 드러난 반론(바빠요 / 보험 많아요 / 아는 설계사 있어요 / 관심 없어요 / 번호 어떻게 알았어요 / 끊을게요 등)과 드러나지 않은 경계(단답, 말 자르기, 의심 섞인 되묻기)를 모두 포함한다.
+반론마다 다음을 적는다.
+ ① 고객 발화 (짧게 인용)
+ ② 상담원 대응 (짧게 인용)
+ ③ 판정: 극복 / 부분 극복 / 극복 실패 — 대응 직후 고객 반응이 어떻게 바뀌었는지(대화 지속, 질문 시작, 말이 길어짐 vs 통화 단축, 같은 반론 반복)를 근거로 판정
+ ④ 극복했다면: 무엇이 먹혔는지 한 줄
+ ⑤ 부분 극복·실패라면: 그 순간 그대로 쓸 수 있는 대안 화법 2가지 (실제 말하듯 대사로, 서로 다른 각도로)
+도입부 반론이 없었다면 "도입부 반론 없음"이라고 쓰고, 경계를 미리 풀어준 요소가 무엇이었는지 짚는다.
+
+■ 8구간 점검
+1. 오프닝·경계 해제 — 누가/왜 전화했는지, 무료 점검·중복 확인 명분으로 경계를 푸는가
+2. 고지·병력 청취 — 약/수술/입원/직업/운전을 먼저 정밀하게 묻는가
+3. 동의 녹취 — 동의 목적을 자연스럽게 설명하고 매끄럽게 받는가
+4. 보장분석 전달 — 핵심을 압축해 전달하는가, 정보를 나열해 쏟는가 (잘 가입한 부분은 인정, 문제는 콕 집어 단순화)
+5. 니즈 환기 — 위험을 구체적 숫자·시점으로 체감되게 만드는가 ("나중에 오른다" 같은 막연한 미래형은 약함)
+6. 반론·머뭇거림 처리 (도입부 이후) — 표현되지 않은 진짜 불안(해지 손해, 기존 설계사 눈치 등)을 먼저 꺼내 해소하는가, 리모델링을 "해지"가 아닌 "재배치"로 풀어내는가
+7. 클로징 — 콜 안에서 다음 행동을 확정하는가, 전진 선언 + 선택형 질문을 쓰는가 (결정적 순간의 Yes/No 질문은 이탈 틈)
+8. 신뢰 이전·관리 약속 — 싱글스토리(다른 고객 실제 사례)·본인 사례로 신뢰를 주는가, 가입 후 관리까지 약속하는가
+콜 단계상 아직 도달하지 않은 구간은 "해당 없음"으로 두고 감점하지 않는다.
+
+■ 추가 관점 (고객 입장에서 판단)
+- 감성을 건드렸는가, 이성적 설명(숫자·조건 나열)으로만 끌고 가지 않았는가
+- 고객의 약점·핵심 불안을 정확히 짚었는가
+- 고객의 말 속 의도(진짜 관심사, 망설이는 이유)를 제대로 파악했는가
+
+■ 센터 상담 원칙 (참고용 · 점수 기준이 아님)
+아래는 여러 팀장님의 체결 콜에서 공통으로 보이는 흐름이다. 특정 팀장님의 화법이 정답이 아니며, 단계를 건너뛰어도 소통이 자연스러워 체결되는 콜은 좋은 콜이다. 이 목록으로 감점하지 않고, 해당 콜에서 "이 단계가 보이지 않았다"는 사실만 질문 형태로 알려준다.
+흐름: 도입(반론 극복) → 걱정 파악(고객이 자기 말로 꺼낸 리스크·걱정) → 1차 클로징(티 안 나게) → 걱정 환기(고객이 앞서 말한 걱정·예산·가족 상황을 다시 언급) → 최종 클로징(전진 선언 + 선택형 질문) → 계약
+함께 보이는 요소: 초반 병력 정밀 청취 / 보험료 변화를 구체 숫자로 시각화 / 본인·지인 사례로 신뢰 이전 / 선청약·승인 후 해지 순서 안내 / "지금 해야 할 이유"를 현재형으로 제시
+도입 점검은 DB유형 맥락에서 본다: 반론의 종류가 DB유형마다 다를 수 있다(예: 의심·경계, 약속·시간 불만, 회사 정체·중립성). 반론 유형과 고객의 실제 말을 근거로 쓰고, 유형을 단정하지 않는다.
+
+■ 평가 원칙
+- 칭찬은 실제 발화 근거가 있을 때만 한다. 근거 없는 칭찬도, 비판 회피도 하지 않는다.
+- 작은 것을 체감되게 크게 풀어주는 포장·리프레이밍은 강점으로 본다.
+- 특정 개인만의 스타일(동갑 라포 등)이 없다고 감점하지 않는다. 다른 팀장님과 직접 비교하지 않는다.
+- 수정할 점은 최대 3개, 영향이 큰 순서로. 반드시 [원래 발화 → 문제 → 대안 화법] 세트로 쓴다.
+
+[출력 형식]
+팀장님께 카카오톡으로 그대로 전달할 수 있도록 마크다운 기호(#, **, 표)를 쓰지 말고 ■ ▶ ① 같은 기호와 줄바꿈만 사용한다.
+
+■ 한 줄 총평
+■ 도입부 반론 극복
+■ 8구간 점검 (구간마다 ○잘함 / △보완 / ×누락 / -해당없음 + 한 줄 근거)
+■ 고객 입장에서 본 한마디 (까다로운 고객이라면 이 콜에서 어디서 마음이 열리고 어디서 닫혔을지)
+■ 잘한 점 (2~3개, 발화 인용 포함)
+■ 수정할 점 (최대 3개, 원래 발화 → 문제 → 대안 화법)
+■ 다음 콜 실천 과제 1가지
+`;
+
+const CODING_RULES = `[모드 1: 코딩]
+사용자가 "코딩해줘"와 함께 [콜 정보]+[통화 전사본]을 1개 이상 보내면, 콜마다 아래 형식의 한 줄을 만든다.
+모든 줄을 하나의 코드블록에 모아 출력한다. 코드블록 밖에는 확신이 낮은 항목만 "※ 콜ID: 항목 - 이유"로 짧게 적는다. 서술형 평가·칭찬·조언은 쓰지 않는다.
+
+형식 (구분자는 | 이고, 칸 안에는 | 를 쓰지 않는다.) 칸마다 반드시 "이름=값" 형태로 쓴다. 칸은 아래 23개이며 각각 정확히 한 번씩, 이 순서대로 쓴다.
+CODE|v2|콜ID=…|통화월=…|팀장=…|DB유형=…|결과=…|도달단계=…|도입반론=…|도입대응=…|도입반론결과=…|병력이유=…|질문수=…|최장독백=…|고객걱정=…|숫자니즈=…|클로징형태=…|다음행동=…|근거발화=…|1차클로징=…|걱정환기=…|직전반응=…|예산일치=…|이탈지점=…|최종클로징횟수=…
+출력 규칙: 이름은 위에 적힌 그대로 쓴다. 이름 없이 값만 쓰거나, 없는 이름을 만들거나, 같은 이름을 두 번 쓰지 않는다. 값 앞뒤에 설명을 붙이지 않는다. 근거발화는 문장 하나만 쓰고, 근거가 없을 때만 - 한 글자를 쓴다. 최종클로징횟수는 숫자이며 줄의 맨 끝이다. 출력 직전에 줄마다 이름 23개가 모두 한 번씩 있는지 확인한다.
+(사용자가 예전 위치 형식을 요청하면 이름표 없이 값만 같은 순서로 쓴다: 앞 19칸 CODE|v1|…, 또는 25칸 CODE|v2|….)
+
+콜ID·통화월·팀장·DB유형·결과는 [콜 정보]에 적힌 값을 글자 그대로 옮긴다. 결과는 사용자가 전산에서 확인한 그 고객의 최종 결과이므로 전사본 내용으로 바꾸지 않는다.
+나머지 칸은 아래 허용값만 쓴다.
+- 도달단계: 통화에서 실제로 진행된 마지막 단계. 오프닝(고객이 상담 진행에 응하기 전) / 병력(병력·직업 등 고지 청취) / 동의(조회·녹취 동의) / 분석전달(보장분석 결과 설명) / 제안(구체적 상품·보험료 제시) / 클로징(가입 결정·청약 진행을 요청). 도입에서 거절하고 끝났으면 오프닝.
+- 도입반론: 오프닝 구간에서 고객이 처음 보인 반론 하나. 바빠요 / 보험많아요 / 아는설계사 / 관심없음 / 의심경계(번호 출처·사기 의심·계속 단답) / 기타 / 없음
+- 도입대응: 그 반론에 대한 상담원의 첫 대응. 공감후질문(먼저 받아주고 질문으로 이어감) / 설명(받지 않고 설명·설득으로 들어감) / 수용종료(그대로 물러남) / 해당없음(반론 없음)
+- 도입반론결과: 극복(대화가 이어져 다음 단계로 감) / 부분(대화는 이어졌으나 같은 반론 반복, 또는 약속만 잡고 종료) / 실패(그대로 통화 종료) / 해당없음
+- 병력이유: 병력·건강 질문을 처음 할 때 그 이유(보험금 청구, 보험료·가입 가능 여부 등)를 먼저 말했는가. 예 / 아니오 / 해당없음(병력 질문 없음)
+- 질문수: 상담원이 고객에게 한 질문 수. 숫자만 쓴다. "네?" "여보세요?" 같은 확인은 세지 않는다.
+- 최장독백: 상담원이 고객 반응 없이 30초 이상(전사본 기준 약 300자 이상) 이어서 설명한 구간이 있는가. 있음 / 없음
+- 고객걱정: 고객이 자기 걱정·불안·관심사를 자기 말로 한 문장 이상 꺼냈는가(예: "암이 걱정돼서", "보험료가 부담돼서"). 끌어냄 / 없음
+- 숫자니즈: 위험이나 보장 공백을 고객 본인 기준의 구체적 숫자·시점(금액, 나이, 갱신 시점 등)으로 보여줬는가. 예 / 아니오 / 해당없음(분석전달 전에 종료)
+- 클로징형태: 가입·다음 단계를 요청한 방식. 선택형(둘 중 고르기, 전진 선언) / 예아니오("해도 될까요?" 형) / 없음(요청 자체가 없음) / 해당없음(제안 전에 종료)
+- 다음행동: 통화 끝에 남긴 다음 행동. 청약진행 / 시각확정(날짜·시각까지 약속) / 막연(나중에, 연락드릴게요) / 없음
+- 근거발화: 이 콜의 흐름을 가장 크게 가른 상담원 발화 하나를 25자 이내로 요약 인용. 고객 개인정보는 쓰지 않는다. 없으면 -
+[v2 추가 6칸]
+- 1차클로징: 본격적인 최종 요청 전에, 가볍게 진행 의사를 떠보거나 다음 단계로 넘어가는 시도가 있었는가. 통과(시도 후 고객이 거절 없이 다음으로 넘어감) / 거절(시도에 고객이 분명히 거절) / 시도없음 / 해당없음(제안 전에 종료)
+- 걱정환기: 상담원이 고객이 앞서 스스로 말한 걱정·예산·가족 상황을 다시 언급해 가입 필요성과 연결했는가. 고객말인용(고객이 한 말을 되짚음) / 팀장제시만(상담원이 새로 꺼낸 일반적 위험 설명만 있음) / 없음 / 해당없음(제안 전에 종료)
+- 직전반응: 최종 클로징을 요청하기 직전 고객의 반응. 진행의사표현(진행·가입 쪽 표현) / 질문탐색(조건·금액·절차를 물음) / 보류(생각해본다·나중에 등) / 해당없음(최종 클로징 없음). 결과를 보고 거꾸로 판단하지 말고 그 시점 고객 발화만으로 판단한다.
+- 예산일치: 제안한 보험료·구성이 고객이 말한 예산·요청과 맞았는가. 예 / 아니오 / 해당없음(제안 전에 종료 또는 고객이 예산·요청을 말하지 않음)
+- 이탈지점: 통화가 멈추거나 끝난 지점. 본인확인(이름·정보 확인 단계) / 도입 / 걱정파악 / 제안 / 클로징 / 해당없음(청약 진행까지 이어짐)
+- 최종클로징횟수: 상담원이 가입·청약 진행을 직접 요청한 횟수. 숫자만 쓴다. 없으면 0.
+
+판단 원칙
+- 전사본에 근거가 있는 것만 표시한다. 음성인식 오류로 판단이 안 되면 가장 보수적인 값(없음/아니오)을 쓰고 ※로 표시한다.
+- 같은 콜을 다시 받아도 같은 값이 나오도록, 인상이 아니라 위 정의대로만 판단한다.
+- 단계(1차클로징·걱정환기 등)는 말투가 아니라 역할로 판단한다. 같은 뜻이면 표현이 달라도 인정하고, 표현이 비슷해도 역할이 다르면 인정하지 않는다.
+- 미체결 콜은 아직 진행 중일 수 있으므로 결과만으로 콜의 좋고 나쁨을 판단하지 않는다.
+- 예시: CODE|v2|콜ID=0912_홍길동.mp3|통화월=2026-09|팀장=홍길동|DB유형=퍼미션DB|결과=미체결|도달단계=분석전달|도입반론=바빠요|도입대응=공감후질문|도입반론결과=극복|병력이유=예|질문수=14|최장독백=있음|고객걱정=끌어냄|숫자니즈=아니오|클로징형태=없음|다음행동=막연|근거발화=그럼 정리해서 연락드릴게요|1차클로징=통과|걱정환기=고객말인용|직전반응=질문탐색|예산일치=예|이탈지점=제안|최종클로징횟수=1`;
+
+const REPORT_RULES = `[모드 2: 리포트]
+사용자가 "리포트 작성해줘"와 함께 [집계 결과](콜코딩 집계기에서 만든 것)를 보내면, 팀장님께 보낼 리포트를 쓴다.
+숫자는 집계 결과에 있는 것만 쓰고, 새로 계산하거나 추정하지 않는다. 다른 팀장님 이름은 쓰지 않는다("동료"로 표기).
+지적하는 말투가 아니라, 숫자를 같이 보며 "이걸 바꿔보면 체결율에 도움이 될 것 같다"는 제안 말투로 쓴다.
+1) 퍼널 한 줄: 팀장님 단계별 비율과 팀 중간값, 가장 크게 차이 나는 단계 하나
+2) 이미 잘하고 있는 것 2가지: 팀장님 체결콜 근거발화를 인용
+3) 이번 달 집중 과제 1개: [추천 집중 행동]을 그대로 쓰고, 팀 비교 숫자(성공 그룹 vs 실패 그룹 비율)를 보여준다. 신뢰도가 "확인됨"이 아니면 "아직 표본이 적어 확정은 아니지만"이라고 밝힌다.
+4) 그 순간 쓸 대안 화법 2가지 (실제 말하듯, 서로 다른 각도). 동료 참고 발화가 있으면 활용한다.
+5) 2~4주 뒤 다시 볼 지표 1개와 목표 (현재값 → 팀 중간값 수준)
+출력: 카톡 전달용(마크다운 기호 없이 ■ ▶ ① 사용, 15줄 안팎). 그 아래 선을 긋고 사용자에게만 보이는 메모(표본 수, 해석 한계, 다음에 더 코딩하면 좋을 콜 종류)를 짧게 쓴다.`;
+
+function callInfo(item){
+  const m = item.meta;
+  const speakerNote = item.stereo
+    ? '상담원/고객이 자동 구분되어 있음 (구분이 어색한 곳은 문맥으로 판단)'
+    : '화자 구분 없음 — 문맥으로 상담원과 고객 발화를 구분해서 읽을 것';
+  return `[콜 정보]
+- 콜ID: ${(item.meta.code || item.name).replace(/\|/g, '/')}
+- 통화월: ${m.month || '-'}
+- 담당 팀장: ${m.leader || '미기재'}
+- DB 유형: ${m.db || '미기재'}
+- 결과: ${m.result || '미기재'}
+- 콜 단계: ${m.stage || '미기재'}
+- 녹취 길이: ${item.duration ? fmtDur(item.duration) : '미상'}
+- 화자 구분: ${speakerNote}`;
+}
+
+/* 코딩용: 여러 콜을 한 번에 */
+function buildCode(items){
+  return '코딩해줘.\n\n' + items.map((it, i) => `===== 콜 ${i+1} =====
+${callInfo(it)}
+
+[통화 전사본]
+${it.text}`).join('\n\n');
+}
+function codeReady(item){ return item.status === 'done' && item.meta.leader && item.meta.result && item.text.trim(); }
+
+/* 일반 대화창용: 평가틀 전체 포함 */
+function buildPrompt(item){
+  return `너는 20년 이상 보험 TM영업에서 상위권 업적을 낸 코칭 전문가이면서, 동시에 이 전화를 받은 "까다롭고 날카로운 고객"의 눈으로도 콜을 본다. 아래 [통화 전사본]을 [굿콜 평가틀]로 평가하고, [출력 형식] 그대로 작성해줘.
+
+${callInfo(item)}
+
+${RUBRIC}
+[통화 전사본]
+${item.text}`;
+}
+
+/* 프로젝트용: 평가틀은 프로젝트 지침에 있으므로 콜 정보 + 전사본만 */
+function buildShort(item){
+  return `굿콜 평가해줘.
+
+${callInfo(item)}
+
+[통화 전사본]
+${item.text}`;
+}
+
+/* 프로젝트 지침 (한 번만 붙여넣기) */
+const PROJECT_GUIDE = `[프로젝트 지침 v3.5]
+이 프로젝트는 광주센터 팀장님들의 TM 상담 통화를 데이터로 분석해, 팀장님별로 체결율에 도움이 될 연습 과제를 찾는 곳이다.
+메시지 첫 줄로 할 일을 구분한다.
+- "굿콜 평가해줘" → 모드 0: 콜 하나를 코칭 관점으로 평가
+- "코딩해줘" → 모드 1: 콜마다 정해진 항목을 한 줄로 기록 (집계용)
+- "리포트 작성해줘" → 모드 2: 집계 결과로 팀장님 리포트 작성
+첫 줄에 이 말이 없으면 어떤 모드인지 한 줄로 물어본다.
+
+공통 원칙
+- 컴플라이언스·오안내 여부는 판단하지 않는다.
+- 고객 이름·연락처·주민번호 등 개인정보는 출력에 쓰지 않는다.
+- 전사본은 무료 음성인식 결과라 잘못 들린 단어가 있다. 문맥으로 읽고, 인식 오류를 상담원 실수로 보지 않는다.
+- 한 팀장님의 콜 몇 건만으로 "이게 체결 요인"이라고 단정하지 않는다. 체결 요인은 팀 전체 집계(모드 2의 집계 결과)로만 말한다.
+
+[모드 0: 평가]
+너는 20년 이상 보험 TM영업에서 상위권 업적을 낸 코칭 전문가이면서 동시에 이 전화를 받은 "까다롭고 날카로운 고객"의 눈으로 콜을 보고, 아래 [굿콜 평가틀]로 평가해 [출력 형식] 그대로 작성한다. 전사본을 여러 개 보내면 콜마다 따로 평가한다.
+평가 결과 아래에는 선을 긋고, 필요할 때만 사용자 메모를 짧게 덧붙인다: 음성인식 품질 때문에 판단이 어려웠던 부분, 전사본에 개인정보가 있어 공유 전 지워야 하는지 여부.
+
+${RUBRIC}
+${CODING_RULES}
+
+${REPORT_RULES}`;
+
+async function copyText(text){
+  try{
+    if (navigator.clipboard && window.isSecureContext !== false){ await navigator.clipboard.writeText(text); return true; }
+  }catch(e){ /* 아래 방식으로 재시도 */ }
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  let ok = false; try{ ok = document.execCommand('copy'); }catch(e){ ok = false; }
+  ta.remove(); return ok;
+}
+function download(name, text){
+  const blob = new Blob(['\ufeff' + text], { type:'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+const baseName = n => n.replace(/\.[^.]+$/, '');
+
+/* =========================================================
+   화면
+   ========================================================= */
+const STATUS_TXT = { wait:'대기 중', run:'변환 중', done:'완료', err:'오류', stop:'멈춤' };
+const DB_OPTS = ['', '퍼미션DB', '상품광고DB', '우리보험주치의DB', '카카오DB', '기타'];
+const STAGE_OPTS = ['', '첫 상담콜', '클로징콜', '재통화', '기타'];
+const RESULT_OPTS = ['', '체결', '미체결'];
+
+function renderList(){
+  const ul = $('#list');
+  ul.innerHTML = state.files.map(f => {
+    const cls = f.status === 'done' ? 'done' : f.status === 'err' ? 'err' : f.status === 'run' ? 'run' : '';
+    let st = STATUS_TXT[f.status];
+    if (f.status === 'run') st += ` ${Math.round((f.progress||0)*100)}%`;
+    if (f.status === 'done' && f.duration) st += ` · ${fmtDur(f.duration)}`;
+    return `<li data-id="${f.id}" class="${f.id === state.selId ? 'sel' : ''}" tabindex="0">
+      <div class="nm">${esc(f.name)}</div>${f.meta.code ? `<div class="cv">→ ${esc(f.meta.code)}.mp3</div>` : ''}<div class="st ${cls}" id="st-${f.id}">${esc(st)}${f.coded ? ' · 코딩 복사함' : ''}</div></li>`;
+  }).join('');
+  updateBatchInfo();
+}
+
+const BATCH = 5;
+function updateBatchInfo(){
+  const info = document.getElementById('batchInfo'), btn = document.getElementById('batchCode');
+  if (!info || !btn) return;
+  const done = state.files.filter(f => f.status === 'done');
+  const ready = done.filter(f => codeReady(f) && !f.coded);
+  const missing = done.filter(f => !codeReady(f)).length;
+  btn.disabled = !ready.length;
+  btn.textContent = ready.length ? `다음 ${Math.min(BATCH, ready.length)}건 코딩용 복사` : '다음 5건 코딩용 복사';
+  info.textContent = done.length
+    ? `남은 코딩 ${ready.length}건` + (missing ? ` · 팀장/결과 미입력 ${missing}건 (입력해야 포함됨)` : '')
+    : '코딩할 콜이 없습니다.';
+}
+
+function renderProgress(item){
+  const st = document.getElementById('st-' + item.id);
+  if (st && item.status === 'run') st.textContent = `변환 중 ${Math.round((item.progress||0)*100)}%`;
+  if (item.id !== state.selId) return;
+  const bar = $('#pbar'), lab = $('#plab');
+  if (bar) bar.style.width = `${Math.round((item.progress||0)*100)}%`;
+  if (lab) lab.textContent = item.phase || '';
+}
+
+function selOpts(opts, val){
+  return opts.map(o => `<option value="${esc(o)}" ${o === val ? 'selected' : ''}>${o ? esc(o) : '선택 안 함'}</option>`).join('');
+}
+
+function renderDetail(){
+  const box = $('#detail');
+  const item = state.files.find(f => f.id === state.selId);
+  if (!item){
+    box.innerHTML = `<div class="empty"><h2>녹취를 올리면 여기서 텍스트로 바뀝니다</h2>변환이 끝나면 내용을 고친 뒤 평가 요청문을 복사해 Claude에 붙여넣으면 됩니다.</div>`;
+    return;
+  }
+  const m = item.meta;
+  let body = '';
+  if (item.status === 'err'){
+    body += `<div class="errbox">${esc(item.error)}</div>
+      <div class="actions"><button id="retry" class="primary">다시 시도</button><button id="remove" class="danger">목록에서 빼기</button></div>`;
+  } else if (item.status === 'wait' || item.status === 'run' || item.status === 'stop'){
+    body += `<div class="prog"><div class="bar"><i id="pbar" style="width:${Math.round((item.progress||0)*100)}%"></i></div>
+      <div class="plabel"><span id="plab">${esc(item.status === 'wait' ? '차례를 기다리는 중…' : item.status === 'stop' ? '멈춘 상태입니다.' : (item.phase || ''))}</span></div></div>
+      <div class="actions">
+        ${item.status === 'run' ? '<button id="stop">변환 멈추기</button>' : ''}
+        ${item.status === 'stop' ? '<button id="resume" class="primary">이어서 변환</button><button id="remove" class="danger">목록에서 빼기</button>' : ''}
+        ${item.status === 'wait' ? '<button id="remove" class="danger">목록에서 빼기</button>' : ''}
+      </div>
+      ${!envInfo.webgpu ? '<div class="infobox" style="margin-top:14px">이 PC는 CPU로 처리해서 느립니다. 10분 통화 기준 수십 분이 걸릴 수 있으니 창을 켜둔 채 다른 일을 하셔도 됩니다.</div>' : ''}`;
+  } else if (item.status === 'done'){
+    const speakerInfo = item.stereo
+      ? '상담원/고객이 채널별로 자동 구분됐습니다. 반대로 붙었다면 <b>화자 바꾸기</b>를 누르세요.'
+      : '이 녹취는 한 채널에 두 사람 목소리가 섞여 있어 화자 구분 없이 받아썼습니다. 평가할 때 Claude가 문맥으로 구분합니다.';
+    body += `<div class="infobox">${speakerInfo} 잘못 들린 단어는 아래에서 바로 고칠 수 있습니다.</div>
+      <div class="tlabel"><span>받아쓴 내용 (${esc(item.engine || '')} 처리)</span></div>
+      <textarea id="tx" spellcheck="false" aria-label="받아쓴 통화 내용">${esc(item.text)}</textarea>
+      <div class="actions">
+        <button id="copyC" class="primary">코딩용 복사</button>
+        <button id="copyS">평가용 복사</button>
+        <button id="copyP">전체 요청문 복사</button>
+        <button id="saveP">전체 요청문 저장</button>
+        <button id="saveT">텍스트 저장</button>
+        ${item.stereo ? '<button id="swap">화자 바꾸기</button>' : ''}
+        <button id="remove" class="danger">목록에서 빼기</button>
+      </div>
+      <div class="howto">평가 받는 방법
+        <ol><li>위 칸에서 팀장·결과(전산 기준 그 고객의 최종 결과)·DB를 고르고, 크게 틀린 단어가 있으면 고칩니다.</li>
+        <li><b>코딩용 복사</b> → 프로젝트 대화창에 붙여넣기 → 나온 CODE 줄을 <b>콜코딩 집계기</b>에 붙여넣습니다. 여러 건은 왼쪽 <b>다음 5건 코딩용 복사</b>가 편합니다.</li>
+        <li>콜 하나를 코칭 관점으로 자세히 보고 싶을 때는 <b>평가용 복사</b>를 씁니다. 프로젝트 밖 일반 대화창에서는 <b>전체 요청문 복사</b>를 씁니다.</li></ol></div>`;
+  }
+  box.innerHTML = `
+    <div class="dhead"><h2>${esc(item.name)}</h2><span class="sub">${item.duration ? fmtDur(item.duration) : ''}${item.status === 'done' ? (item.stereo ? ' · 화자 분리 녹음' : ' · 화자 합쳐진 녹음') : ''}</span></div>
+    ${lookupHtml(m)}
+    <div class="meta">
+      <div><label for="mCode">고객코드 (선택)</label><input id="mCode" value="${esc(m.code || '')}" placeholder="비워 두면 파일명을 콜ID로 씁니다"></div>
+      <div><label for="mLeader">담당 팀장 <span class="req">*</span></label><input id="mLeader" class="${m.leader ? '' : 'miss'}" value="${esc(m.leader)}" placeholder="예: 홍길동"></div>
+      <div><label for="mResult">결과 (전산 기준) <span class="req">*</span></label><select id="mResult" class="${m.result ? '' : 'miss'}">${selOpts(RESULT_OPTS, m.result)}</select></div>
+      <div><label for="mMonth">통화월${m.month ? '' : ' <span class="req">(입력 권장)</span>'}</label><input id="mMonth" type="month" value="${esc(m.month)}"></div>
+      <div><label for="mDb">DB 유형</label><select id="mDb">${selOpts(DB_OPTS, m.db)}</select></div>
+      <div><label for="mStage">콜 단계</label><select id="mStage">${selOpts(STAGE_OPTS, m.stage)}</select></div>
+    </div>${body}`;
+
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
+  const mc = $('#mCand'); if (mc) mc.addEventListener('change', e => { const c = (m.cands || [])[parseInt(e.target.value, 10)]; if (c) { applyCand(item, c); render(); } });
+  $('#mCode').addEventListener('input', e => { m.code = e.target.value.trim().replace(/\|/g, '').replace(/\.[A-Za-z0-9]{2,4}$/, ''); m.codeAuto = !m.code; if (!m.code) applyMatch(item); renderList(); updateBatchInfo(); });
+  $('#mLeader').addEventListener('input', e => { m.leader = e.target.value.trim().replace(/\|/g, ''); e.target.classList.toggle('miss', !m.leader); updateBatchInfo(); });
+  $('#mResult').addEventListener('change', e => { m.result = e.target.value; e.target.classList.toggle('miss', !m.result); updateBatchInfo(); });
+  $('#mMonth').addEventListener('change', e => { m.month = e.target.value; });
+  $('#mDb').addEventListener('change', e => { m.db = e.target.value; });
+  $('#mStage').addEventListener('change', e => { m.stage = e.target.value; });
+  on('copyC', async () => {
+    if (!item.text.trim()){ toast('받아쓴 내용이 비어 있습니다'); return; }
+    if (!m.leader || !m.result){ toast('담당 팀장과 결과를 먼저 골라주세요'); return; }
+    const ok = await copyText(buildCode([item]));
+    item.saved = true; item.coded = true; updateBatchInfo();
+    toast(ok ? '코딩용으로 복사했습니다 — 프로젝트 대화창에 붙여넣으세요' : '복사가 막혔습니다. 텍스트 저장을 이용하세요');
+  });
+  const tx = $('#tx'); if (tx) tx.addEventListener('input', e => { item.text = e.target.value; item.saved = false; });
+
+  on('copyP', async () => {
+    if (!item.text.trim()){ toast('받아쓴 내용이 비어 있습니다'); return; }
+    const ok = await copyText(buildPrompt(item));
+    item.saved = true;
+    toast(ok ? '평가 요청문을 복사했습니다 — Claude에 붙여넣으세요' : '복사가 막혔습니다. 평가 요청문 저장을 이용하세요');
+  });
+  on('copyS', async () => {
+    if (!item.text.trim()){ toast('받아쓴 내용이 비어 있습니다'); return; }
+    const ok = await copyText(buildShort(item));
+    item.saved = true;
+    toast(ok ? '복사했습니다 — 프로젝트 대화창에 붙여넣으세요' : '복사가 막혔습니다. 전체 요청문 저장을 이용하세요');
+  });
+  on('saveP', () => { download(`${baseName(item.name)}_평가요청문.txt`, buildPrompt(item)); item.saved = true; toast('평가 요청문을 저장했습니다'); });
+  on('saveT', () => { download(`${baseName(item.name)}_녹취텍스트.txt`, item.text); item.saved = true; toast('텍스트를 저장했습니다'); });
+  on('swap', () => {
+    item.swapped = !item.swapped;
+    item.text = item.text.replace(/^(\[\d{2,}:\d{2}\] )(상담원|고객):/gm, (_, a, b) => a + (b === '상담원' ? '고객' : '상담원') + ':');
+    $('#tx').value = item.text; toast('상담원/고객을 바꿨습니다');
+  });
+  on('stop', () => { state.cancel = true; toast('지금 구간까지만 처리하고 멈춥니다'); });
+  on('resume', () => { state.files.forEach(f => { if (f.status === 'stop') f.status = 'wait'; }); render(); runQueue(); });
+  on('retry', () => { item.status = 'wait'; item.error = ''; render(); runQueue(); });
+  on('remove', () => {
+    if (item.status === 'run'){ toast('변환 중인 파일은 멈춘 뒤 뺄 수 있습니다'); return; }
+    if (item.status === 'done' && !item.saved && !confirm('저장하지 않은 결과가 있습니다. 목록에서 뺄까요?')) return;
+    state.files = state.files.filter(f => f !== item);
+    state.selId = state.files.length ? state.files[0].id : null; render();
+  });
+}
+
+function render(){ renderList(); renderDetail(); }
+/* 다른 파일을 편집 중일 때 화면이 초기화되지 않도록 해당 파일만 갱신 */
+function refresh(item){ renderList(); if (item.id === state.selId) renderDetail(); }
+
+/* =========================================================
+   파일 입력
+   ========================================================= */
+const ACCEPT = /\.(mp3|wav|m4a|aac|ogg|wma|flac)$/i;
+function addFiles(list){
+  const arr = Array.from(list || []).filter(f => ACCEPT.test(f.name) || (f.type || '').startsWith('audio/'));
+  if (!arr.length){ toast('mp3·wav·m4a 파일만 올릴 수 있습니다'); return; }
+  for (const f of arr){
+    /* 파일 이름에 날짜(20260912, 2026-09-12, 2026_09 등)가 있으면 통화월로 씀. 저장일은 내려받은 날일 수 있어 쓰지 않음 */
+    let month = '';
+    const dm = f.name.match(/(20\d{2})[-_.\s]?(0[1-9]|1[0-2])/);
+    if (dm) month = `${dm[1]}-${dm[2]}`;
+    state.files.push({ id: ++uid, file: f, name: f.name, status:'wait', progress:0, phase:'', segments:[], text:'', stereo:false, swapped:false, saved:false, coded:false, meta:{ leader:'', db:'', stage:'', result:'', month, code:'', codeNote:'', codeAuto:true } });
+    applyMatch(state.files[state.files.length - 1]);
+    embedLookup(state.files[state.files.length - 1]);
+  }
+  if (!state.selId) state.selId = state.files[state.files.length - arr.length].id;
+  render(); runQueue();
+}
+
+$('#copyGuide').addEventListener('click', async () => {
+  const ok = await copyText(PROJECT_GUIDE);
+  toast(ok ? '프로젝트 지침을 복사했습니다' : '복사가 막혔습니다. 지침 저장을 이용하세요');
+});
+$('#saveGuide').addEventListener('click', () => { download('굿콜평가_프로젝트지침_v3.5.txt', PROJECT_GUIDE); toast('지침을 저장했습니다'); });
+$('#batchCode').addEventListener('click', async () => {
+  const items = state.files.filter(f => codeReady(f) && !f.coded).slice(0, BATCH);
+  if (!items.length){ toast('코딩할 콜이 없습니다'); return; }
+  const ok = await copyText(buildCode(items));
+  if (!ok){ toast('복사가 막혔습니다. 콜마다 텍스트 저장을 이용하세요'); return; }
+  items.forEach(f => { f.coded = true; f.saved = true; });
+  renderList();
+  toast(`${items.length}건을 코딩용으로 복사했습니다 — 프로젝트 대화창에 붙여넣으세요`);
+});
+
+const drop = $('#drop'), fi = $('#fileInput');
+if (EMBED) { const cp = document.getElementById('codePanel'); if (cp) cp.style.display = 'none'; }
+$('#codeBtn').addEventListener('click', () => $('#codeFile').click());
+$('#codeFile').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) loadCodeExcel(f); e.target.value = ''; });
+drop.addEventListener('click', () => fi.click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fi.click(); } });
+fi.addEventListener('change', () => { addFiles(fi.files); fi.value = ''; });
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => e.preventDefault());
+
+$('#list').addEventListener('click', e => {
+  const li = e.target.closest('li'); if (!li) return;
+  state.selId = Number(li.dataset.id); render();
+});
+$('#list').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return; const li = e.target.closest('li'); if (!li) return;
+  state.selId = Number(li.dataset.id); render();
+});
+$('#model').addEventListener('change', () => {
+  if (state.running) toast('바뀐 엔진은 다음 파일부터 적용됩니다');
+});
+window.addEventListener('beforeunload', e => {
+  if (state.running || state.files.some(f => f.status === 'done' && !f.saved)){ e.preventDefault(); e.returnValue = ''; }
+});
+
+/* 테스트용 노출 */
+updateBatchInfo();
+window.__goodcall = { state, buildPrompt, buildShort, buildCode, PROJECT_GUIDE, analyzeChannels, cleanText, render, updateBatchInfo };
+</script>
+</body>
+</html>
