@@ -1124,6 +1124,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="secondary small" data-v="pick" onclick="monSetView('pick')">🎧 점검 콜·코딩</button>
       <button class="secondary small" data-v="daily" onclick="monSetView('daily')">✏️ 일일 입력</button>
       <button class="secondary small" data-v="impact" onclick="monSetView('impact')">🔗 콜시간·시도·가망→실적</button>
+      <button class="secondary small" data-v="improve" onclick="monSetView('improve')">🧭 콜 개선 추이</button>
       <button class="secondary small" data-v="trend" onclick="monSetView('trend')">📈 추이</button>
       <button class="secondary small" data-v="upload" onclick="monSetView('upload')">📥 DB 업로드</button>
     </div>
@@ -1160,6 +1161,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div id="mon_viewPick" style="display:none;"></div>
   <div id="mon_viewDaily" style="display:none;"></div>
   <div id="mon_viewImpact" style="display:none;"></div>
+  <div id="mon_viewImprove" style="display:none;"></div>
   <div id="mon_viewTrend" style="display:none;"></div>
   <div id="mon_viewUpload" style="display:none;"></div>
 </div>
@@ -2786,7 +2788,14 @@ create table if not exists call_checks (
   checked_at timestamptz not null default now()
 );
 
-grant select, insert, update, delete on db_snapshots, daily_activity, daily_prospects, call_checks to anon, authenticated;`;
+-- 6) 콜 개선 추이의 기준 구간 (팀장별로 어느 달을 기준으로 비교할지 저장)
+create table if not exists mon_baseline (
+  manager_name text primary key,
+  months text not null,
+  updated_at timestamptz not null default now()
+);
+
+grant select, insert, update, delete on db_snapshots, daily_activity, daily_prospects, call_checks, mon_baseline to anon, authenticated;`;
 
 const MON_CFG = { minN: 30, diffPP: 5, minDays: 4, smallN: 10, maxCohortWeeks: 10 };
 const MON_EXCL_KEY = 'afg_mon_excl';
@@ -2954,7 +2963,7 @@ async function monFetchAll(table){
 }
 async function monLoadExtra(){
   monMissing = [];
-  const defs = [['db_snapshots', v => { monSnaps = v; }], ['daily_activity', v => { monDaily = v; }], ['daily_prospects', v => { monProspects = v; }], ['call_checks', v => { monChecks = v; }]];
+  const defs = [['db_snapshots', v => { monSnaps = v; }], ['daily_activity', v => { monDaily = v; }], ['daily_prospects', v => { monProspects = v; }], ['call_checks', v => { monChecks = v; }], ['mon_baseline', v => { monBaselines = v; }]];
   for (const d of defs) {
     try { d[1](await monFetchAll(d[0])); }
     catch (e) { d[1]([]); monMissing.push(d[0] + ': ' + ((e && e.message) || e)); }
@@ -3157,12 +3166,12 @@ function monRender(){
     document.getElementById('mon_sqlText').textContent = MON_SQL;
   }
   document.querySelectorAll('#mon_subtabs button').forEach(b => { b.className = (b.dataset.v === monView ? 'act' : 'secondary') + ' small'; });
-  ['status', 'mgr', 'pick', 'daily', 'impact', 'trend', 'upload'].forEach(k => {
+  ['status', 'mgr', 'pick', 'daily', 'impact', 'improve', 'trend', 'upload'].forEach(k => {
     const el = document.getElementById('mon_view' + k.charAt(0).toUpperCase() + k.slice(1));
     if (el) el.style.display = (k === monView) ? '' : 'none';
   });
   monShowEval(monView === 'pick');
-  document.getElementById('mon_filterCard').style.display = (monView === 'daily' || monView === 'upload') ? 'none' : '';
+  document.getElementById('mon_filterCard').style.display = (monView === 'daily' || monView === 'upload' || monView === 'improve') ? 'none' : '';
   document.getElementById('mon_rangeWrap').style.display = (monView === 'status' || monView === 'mgr') ? 'flex' : 'none';
   monRenderMgrChecks();
   const tracked = monRows.filter(dbTracked).length;
@@ -3174,6 +3183,7 @@ function monRender(){
   if (monView === 'pick') monRenderPick();
   if (monView === 'daily') monRenderDaily();
   if (monView === 'impact') monRenderImpact();
+  if (monView === 'improve') monRenderImprove();
   if (monView === 'trend') monRenderTrend();
   if (monView === 'upload') monRenderUpload();
 }
@@ -3924,6 +3934,198 @@ function monLineChart(dates, series, unit){
   });
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="주간 추이 선 그래프">${g}${lines}</svg>`;
 }
+/* ============================================================
+   콜 개선 추이 (코딩 줄 기준 · 기준 구간 vs 최근 구간)
+   - 팀장 한 명씩, 통화월 단위로 비교한다. 기준 구간은 DB(mon_baseline)에 저장해 두고 계속 같은 기준과 비교한다.
+   - 점수 매기기가 아니라 "어디가 달라졌고 어디가 그대로인지" 보는 용도. 표본이 적으면 "참고용".
+   - 사람 이름을 기준으로 삼지 않는다. 비교 대상은 그 팀장님의 과거 콜뿐이다.
+============================================================ */
+let monBaselines = [];
+let monImpMgr = '', monImpWin = 1, monImpSel = null, monImpEff = [], monImpBaseM = [];
+function monImpMonth(x){
+  const m = String(x.f[3] || '');
+  if (/^\d{4}-\d{2}$/.test(m)) return m;
+  const t = String(x.c.checked_at || '').slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(t) ? t : '';
+}
+function monImpRate(recs, it){
+  let d = 0, n = 0;
+  recs.forEach(x => { if (it.den(x.f)) { d++; if (it.num(x.f)) n++; } });
+  return { v: d ? n / d * 100 : null, n: d };
+}
+function monImpStreak(ser, low){
+  let c = 0;
+  for (let k = ser.length - 1; k >= 1 && c < 3; k--) {
+    const a = ser[k - 1], b = ser[k];
+    if (a.v === null || b.v === null || a.n < 3 || b.n < 3) break;
+    const eff = low ? -(b.v - a.v) : (b.v - a.v);
+    if (eff <= 5) c++; else break;
+  }
+  return c;
+}
+function monImpIsV2(f){ return f.length === 25; }
+function monImpSetMgr(v){ monImpMgr = v; monImpSel = null; monRenderImprove(); }
+function monImpSetWin(n){ monImpWin = n; monImpSel = null; monRenderImprove(); }
+function monImpToggle(m){
+  const cur = (monImpSel !== null ? monImpSel : monImpEff).slice();
+  const i = cur.indexOf(m);
+  if (i >= 0) cur.splice(i, 1); else cur.push(m);
+  monImpSel = cur.sort();
+  monRenderImprove();
+}
+async function monImpSave(){
+  if (!monImpBaseM.length) { alert('기준 구간으로 쓸 달을 하나 이상 골라주세요. (최근 구간에 들어간 달은 기준이 될 수 없어요)'); return; }
+  const row = { manager_name: monImpMgr, months: monImpBaseM.join(','), updated_at: new Date().toISOString() };
+  const { error } = await sb.from('mon_baseline').upsert([row], { onConflict: 'manager_name' });
+  if (error) { alert('저장 실패: ' + error.message + '\n(화면 위 안내의 SQL을 먼저 실행했는지 확인해주세요)'); return; }
+  monBaselines = monBaselines.filter(b => b.manager_name !== monImpMgr).concat([row]);
+  monImpSel = null;
+  monRenderImprove();
+}
+function monImpBars(ser){
+  const last = ser.slice(-6);
+  return `<span style="display:inline-flex;align-items:flex-end;gap:3px;height:26px;vertical-align:middle;">` + last.map(s => {
+    const h = s.v === null ? 2 : Math.max(2, Math.round(s.v / 100 * 24));
+    const col = s.v === null ? 'var(--line)' : (s.n < 3 ? '#C9C2B0' : '#7C86A8');
+    return `<span title="${s.v === null ? '자료 없음' : s.v.toFixed(0) + '% (콜 ' + s.n + '건)'}" style="display:inline-block;width:9px;height:${h}px;background:${col};border-radius:2px;"></span>`;
+  }).join('') + `</span>`;
+}
+const MON_IMP_STAGES = [
+  { label: '도입 통과 (상담이 시작됨)', test: f => f[7] !== '오프닝' },
+  { label: '걱정 파악 (고객이 자기 말로 꺼냄)', test: f => f[14] === '끌어냄' || /^있음/.test(f[14]) },
+  { label: '1차 클로징 통과 (거절 없이 넘어감)', test: f => f[19] === '통과' },
+  { label: '걱정 환기 (고객이 한 말을 다시 언급)', test: f => f[20] === '고객말인용' },
+  { label: '최종 클로징 시도', test: f => (parseInt(f[24], 10) || 0) >= 1 },
+  { label: '체결', test: f => f[6] === '체결' }
+];
+const MON_IMP_EXITS = ['본인확인', '도입', '걱정파악', '제안', '클로징'];
+function monRenderImprove(){
+  const el = document.getElementById('mon_viewImprove');
+  if (!el) return;
+  const all = monCodeRecords();
+  if (!all.length) { el.innerHTML = monEmpty('코딩한 콜이 아직 없습니다. "🎧 점검 콜·코딩"에서 코딩 줄을 저장하면, 여기서 시간에 따른 변화를 볼 수 있어요.'); return; }
+  const cnt = {};
+  all.forEach(x => { const n = monCodeMgrOf(x); cnt[n] = (cnt[n] || 0) + 1; });
+  const mgrs = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || a.localeCompare(b));
+  if (!monImpMgr || mgrs.indexOf(monImpMgr) < 0) monImpMgr = mgrs[0];
+  const recs = all.filter(x => monCodeMgrOf(x) === monImpMgr).map(x => ({ c: x.c, f: x.f, m: monImpMonth(x) }));
+  const dated = recs.filter(x => x.m);
+  const months = Array.from(new Set(dated.map(x => x.m))).sort();
+  const winC = recs.filter(x => x.f[6] === '체결').length, loseC = recs.length - winC;
+  const mgrOpts = mgrs.map(n => `<option value="${escAttr(n)}" ${n === monImpMgr ? 'selected' : ''}>${escapeHtml(n)} (${cnt[n]}건)</option>`).join('');
+  let html = `<div class="card"><div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+    <b>콜 개선 추이</b>
+    <select style="width:auto;" onchange="monImpSetMgr(this.value)">${mgrOpts}</select>
+    <span class="sub" style="margin:0;">코딩한 콜 ${recs.length}건 (체결 ${winC} · 미체결 ${loseC})</span></div>
+    <div class="sub" style="margin:8px 0 0;">같은 팀장님의 <b>기준 구간</b>과 <b>최근 구간</b>을 비교해 "무엇이 달라졌고, 무엇이 그대로인지" 봅니다. 점수가 아니라 같이 이야기해 볼 단서예요. 콜이 5건 미만인 구간은 "참고용"입니다.</div></div>`;
+  if (!months.length) { el.innerHTML = html + monEmpty('통화월이 있는 코딩이 없습니다.'); return; }
+
+  /* 기준·최근 구간 */
+  const winN = Math.min(monImpWin, months.length);
+  const recM = months.slice(-winN);
+  const saved = monBaselines.find(b => b.manager_name === monImpMgr);
+  const savedM = saved ? String(saved.months || '').split(',').filter(m => months.indexOf(m) >= 0) : [];
+  let auto = false, eff;
+  if (monImpSel !== null) eff = monImpSel.filter(m => months.indexOf(m) >= 0);
+  else if (savedM.length) eff = savedM;
+  else { auto = true; eff = [months[0]]; }
+  monImpEff = eff;
+  const baseM = eff.filter(m => recM.indexOf(m) < 0);
+  monImpBaseM = baseM;
+  const overlap = eff.length > baseM.length;
+  const dirty = monImpSel !== null && baseM.join() !== savedM.join();
+  const multiYear = new Set(months.map(m => m.slice(0, 4))).size > 1;
+  const chips = months.map(m => {
+    const isRec = recM.indexOf(m) >= 0, on = eff.indexOf(m) >= 0 && !isRec;
+    const n = dated.filter(x => x.m === m).length;
+    return `<button class="${on ? 'act' : 'secondary'} small" ${isRec ? 'disabled title="최근 구간"' : ''} data-m="${escAttr(m)}" onclick="monImpToggle(this.dataset.m)">${escapeHtml(multiYear ? m.slice(2, 4) + '년 ' + parseInt(m.slice(5), 10) : String(parseInt(m.slice(5), 10)))}월${isRec ? ' · 최근' : ''} <span style="opacity:.7;">${n}건</span></button>`;
+  }).join(' ');
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">기준 구간 <span class="sub" style="font-weight:400;">${auto ? '(저장된 기준이 없어 가장 오래된 달로 임시 비교 중)' : (dirty ? '(바꾼 내용은 아직 저장 전이에요)' : '(저장된 기준)')}</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">${chips}</div>
+    <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;">
+      <span>최근 구간:</span>
+      <button class="${winN === 1 ? 'act' : 'secondary'} small" onclick="monImpSetWin(1)">가장 최근 1개월</button>
+      <button class="${winN === 2 ? 'act' : 'secondary'} small" onclick="monImpSetWin(2)">최근 2개월</button>
+      <button class="act small" onclick="monImpSave()" style="margin-left:auto;">이 기준으로 저장</button></div>
+    ${overlap ? '<div class="sub" style="margin:8px 0 0;color:var(--amber);">기준 구간이 최근 구간과 겹쳐서, 겹친 달은 기준에서 뺐어요.</div>' : ''}
+    ${!baseM.length ? '<div class="sub" style="margin:8px 0 0;color:var(--amber);">기준 구간이 비어 있어요. 기준 이후에 콜이 더 쌓이면 비교가 시작됩니다.</div>' : ''}</div>`;
+
+  /* 항목별 비교 */
+  const baseRecs = dated.filter(x => baseM.indexOf(x.m) >= 0), recRecs = dated.filter(x => recM.indexOf(x.m) >= 0);
+  const rows = MON_CODE_ITEMS.map((it, i) => {
+    const low = !!MON_COACH[i].lowGood;
+    const p = monImpRate(baseRecs, it), r = monImpRate(recRecs, it);
+    const ser = months.map(m => monImpRate(dated.filter(x => x.m === m), it));
+    const ref = p.v === null || r.v === null || p.n < 5 || r.n < 5;
+    let kind = 'same', diff = null;
+    if (!ref) { diff = r.v - p.v; const e = low ? -diff : diff; kind = e >= 10 ? 'good' : (e <= -10 ? 'bad' : 'same'); }
+    const st = monImpStreak(ser, low);
+    const poor = r.v !== null && (low ? r.v >= 40 : r.v < 50);
+    const habit = st >= 3 && poor;
+    return { i: i, it: it, low: low, p: p, r: r, ser: ser, ref: ref, kind: kind, diff: diff, st: st, poor: poor, habit: habit };
+  });
+  const nGood = rows.filter(x => x.kind === 'good').length, nBad = rows.filter(x => x.kind === 'bad').length, nRef = rows.filter(x => x.ref).length;
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">기준 구간 → 최근 구간 <span class="sub" style="font-weight:400;">좋아짐 ${nGood} · 내려감 ${nBad} · 참고용 ${nRef}</span></div><div style="overflow-x:auto;"><table style="min-width:720px;">
+    <thead><tr><th>항목</th><th>기준</th><th>최근</th><th>변화</th><th>달별 흐름 (최근 6개월)</th><th></th></tr></thead><tbody>` + rows.map(x => {
+    const f1 = o => o.v === null ? '-' : o.v.toFixed(0) + '% <span style="font-size:11px;color:var(--muted);">(' + o.n + '건)</span>';
+    const dt = x.diff === null ? '-' : (Math.round(x.diff) === 0 ? '변화 없음' : (x.diff > 0 ? '▲ +' : '▼ ') + Math.round(x.diff) + '%p');
+    const tag = x.ref ? monTag('참고용', 'gray') : x.kind === 'good' ? monTag('좋아졌어요', 'green') : x.kind === 'bad' ? monTag('내려갔어요', 'red') : monTag('비슷해요', 'gray');
+    const hab = x.habit ? monTag(x.st + '개월째 제자리', 'amber') : '';
+    return `<tr><td>${escapeHtml(x.it.label)}</td><td>${f1(x.p)}</td><td>${f1(x.r)}</td><td>${dt}</td><td>${monImpBars(x.ser)}</td><td>${tag}${hab}</td></tr>`;
+  }).join('') + `</tbody></table></div>
+    <div class="sub" style="margin:8px 0 0;">"일방 설명" 항목은 낮을수록 좋아요. 막대는 달별 비율이고, 회색 막대는 콜이 3건 미만이라 믿기 어려운 달이에요.</div></div>`;
+
+  /* 통화 흐름 (v2 코딩만) */
+  const v2 = recs.filter(x => monImpIsV2(x.f));
+  const v2w = v2.filter(x => x.f[6] === '체결'), v2l = v2.filter(x => x.f[6] !== '체결');
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:2px;">통화 흐름 <span class="sub" style="font-weight:400;">도입 → 걱정 파악 → 1차 클로징 → 걱정 환기 → 최종 클로징 → 체결</span></div>`;
+  if (!v2.length) html += `<div class="sub" style="margin:6px 0 0;">새 형식(v2)으로 코딩한 콜이 아직 없어요. 새 지침으로 코딩한 줄이 저장되면 여기에 보입니다. (예전 형식 ${recs.length}건은 위 항목 비교에만 쓰여요)</div>`;
+  else {
+    const sm = v2.length < 10 ? ' ' + monTag('참고용', 'gray') : '';
+    html += `<div class="sub" style="margin:2px 0 8px;">새 형식 코딩 ${v2.length}건(체결 ${v2w.length} · 미체결 ${v2l.length}) 기준으로, 각 단계를 한 콜의 비율이에요.${sm}</div>`;
+    const pct = (a, fn) => a.length ? Math.round(a.filter(x => fn(x.f)).length / a.length * 100) : null;
+    let best = null;
+    const srows = MON_IMP_STAGES.map((s, k) => {
+      const all_ = pct(v2, s.test), w = pct(v2w, s.test), l = pct(v2l, s.test);
+      if (k < MON_IMP_STAGES.length - 1 && w !== null && l !== null && v2w.length >= 5 && v2l.length >= 5) { const g = w - l; if (best === null || g > best.g) best = { g: g, s: s, w: w, l: l }; }
+      return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="flex:0 0 250px;font-size:13px;font-weight:600;">${escapeHtml(s.label)}</div>
+        <div style="flex:1 1 160px;min-width:140px;"><div style="height:14px;background:#EFEADD;border-radius:6px;overflow:hidden;"><div style="height:100%;border-radius:6px;background:#7C86A8;width:${all_ || 0}%;"></div></div></div>
+        <div style="flex:0 0 44px;font-size:13px;font-weight:700;text-align:right;">${all_ === null ? '-' : all_ + '%'}</div>
+        <div style="flex:0 0 190px;font-size:12px;color:var(--muted);">체결 콜 <b>${w === null ? '-' : w + '%'}</b> · 미체결 콜 <b>${l === null ? '-' : l + '%'}</b></div></div>`;
+    }).join('');
+    html += srows;
+    if (best && best.g >= 15) html += `<div style="margin-top:6px;padding:10px 12px;border-radius:8px;background:var(--amber-bg);font-size:13px;line-height:1.7;"><b>체결 콜과 미체결 콜의 차이가 가장 큰 단계:</b> ${escapeHtml(best.s.label)} (체결 ${best.w}% · 미체결 ${best.l}%). ${(v2w.length < 10 || v2l.length < 10) ? '아직 콜이 적어 참고용이에요.' : '이 단계를 같이 들어보면 좋겠어요.'}</div>`;
+    else html += `<div class="sub" style="margin:6px 0 0;">체결 콜과 미체결 콜의 차이가 뚜렷한 단계는 아직 없어요(각 5건 이상 필요). 비율이 비슷한 단계는 결과와 큰 관계가 없다는 신호예요.</div>`;
+    /* 미체결 콜이 멈춘 곳 */
+    const ex = {}; v2l.forEach(x => { const e = x.f[23]; if (MON_IMP_EXITS.indexOf(e) >= 0) ex[e] = (ex[e] || 0) + 1; });
+    const exMax = Math.max.apply(null, MON_IMP_EXITS.map(e => ex[e] || 0).concat([1]));
+    html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);"><div style="font-weight:700;font-size:13px;margin-bottom:6px;">미체결 콜이 멈춘 곳 <span class="sub" style="font-weight:400;">(이탈지점)</span></div>` +
+      MON_IMP_EXITS.map(e => `<div style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:4px;"><span style="flex:0 0 80px;">${e}</span><div style="flex:1 1 120px;height:12px;background:#EFEADD;border-radius:6px;overflow:hidden;"><div style="height:100%;border-radius:6px;background:#B8884A;width:${Math.round((ex[e] || 0) / exMax * 100)}%;"></div></div><b style="flex:0 0 52px;text-align:right;">${ex[e] || 0}건</b></div>`).join('') +
+      `<div class="sub" style="margin:6px 0 0;">미체결 중에는 아직 진행 중인 콜이 섞여 있을 수 있어요(통화한 지 얼마 안 된 콜은 특히). 멈춘 곳이 한 군데에 몰려 있으면 그 단계를 같이 들어볼 만해요.</div></div>`;
+    /* DB유형별 도입 극복 */
+    const byDb = {};
+    v2.forEach(x => { if (x.f[8] === '없음') return; const k = x.f[5] || '기타'; byDb[k] = byDb[k] || { n: 0, ok: 0 }; byDb[k].n++; if (x.f[10] === '극복') byDb[k].ok++; });
+    const dbk = Object.keys(byDb);
+    if (dbk.length) html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);"><div style="font-weight:700;font-size:13px;margin-bottom:6px;">DB유형별 도입 반론 극복률 <span class="sub" style="font-weight:400;">(반론이 있었던 콜 중)</span></div>` +
+      dbk.map(k => `<div style="font-size:13px;line-height:1.8;">· ${escapeHtml(k)} — 극복 <b>${Math.round(byDb[k].ok / byDb[k].n * 100)}%</b> (콜 ${byDb[k].n}건) ${byDb[k].n < 10 ? monTag('참고용', 'gray') : ''}</div>`).join('') + `</div>`;
+  }
+  html += `</div>`;
+
+  /* 피드백 정리 */
+  const good = rows.filter(x => x.kind === 'good').slice(0, 3);
+  const stuck = rows.filter(x => !x.ref && (x.kind === 'bad' || x.habit || (x.kind === 'same' && x.poor))).sort((a, b) => MON_COACH[b.i].prio - MON_COACH[a.i].prio).slice(0, 3);
+  const habitOnly = rows.filter(x => x.ref && x.habit && stuck.indexOf(x) < 0).slice(0, 2);
+  const lis = (arr, fn) => arr.length ? arr.map(x => `<div style="margin-bottom:4px;">· ${fn(x)}</div>`).join('') : '<div class="sub" style="margin:0;">아직 없어요.</div>';
+  html += `<div class="card"><div style="font-weight:700;margin-bottom:8px;">이번 피드백 정리 <span class="sub" style="font-weight:400;">(콜 코딩 기준)</span></div>
+    <div style="font-size:13.5px;line-height:1.75;"><b style="color:var(--green);">잘 늘고 있는 것</b>
+    ${lis(good, x => `${escapeHtml(MON_COACH[x.i].short)}: ${x.p.v.toFixed(0)}% → ${x.r.v.toFixed(0)}% (${x.low ? '낮아져서 좋아졌어요' : '+' + Math.round(x.diff) + '%p'})`)}
+    <div style="height:8px;"></div><b style="color:var(--amber);">같이 바꿔볼 것</b>
+    ${lis(stuck.concat(habitOnly), x => `${escapeHtml(MON_COACH[x.i].short)}: ${x.ref ? '' : '기준 ' + x.p.v.toFixed(0) + '% → 최근 ' + x.r.v.toFixed(0) + '%. '}${x.habit ? x.st + '개월째 제자리 또는 하락이에요. 오래된 습관일 수 있어 같이 바꿔볼 점으로 이야기해 보세요.' : (x.kind === 'bad' ? '기준보다 내려갔어요.' : '아직 낮은 편이에요.')}`)}</div>
+    <div class="sub" style="margin:8px 0 0;">콜 코딩만 본 정리예요. 일일 입력(콜시간·가망 발굴) 연결과 형광펜 표시는 다음 단계에서 추가됩니다.</div></div>`;
+  el.innerHTML = html;
+}
+
 function monRenderTrend(){
   const el = document.getElementById('mon_viewTrend');
   const inSet = new Set(monIncluded());
