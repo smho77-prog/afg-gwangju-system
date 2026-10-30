@@ -1057,6 +1057,14 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     </table>
   </div>
 
+  <div class="card" id="p_trendCard">
+    <div style="font-weight:700;font-size:14px;margin-bottom:4px;">팀장별 월별 업적 추이</div>
+    <div class="sub" id="p_trendSub" style="margin-bottom:8px;"></div>
+    <div style="overflow-x:auto;">
+      <table id="p_trendTable"></table>
+    </div>
+  </div>
+
   <div class="card" id="p_allManagersCard" style="display:none;">
     <div style="font-weight:700;font-size:14px;margin-bottom:8px;">팀장별 목표 대비 실적</div>
     <table>
@@ -6929,6 +6937,7 @@ function renderPerformance(){
   const managerSel = document.getElementById('p_manager').value;
   const rows = contractsForMonth(ym, managerSel);
   const total = rows.reduce((sum,c) => sum + (Number(c.premium)||0), 0);
+  renderPerfTrend(ym, managerSel);
 
   // 보험사별 합산
   const byInsurer = {};
@@ -7008,6 +7017,62 @@ function renderPerformance(){
       ` : `<div style="font-size:12px;color:var(--muted);">이달 목표금액을 설정하시면 달성률이 표시됩니다.</div>`}
     `;
   }
+}
+// 월별 업적 추이: 선택 월 포함 최근 6개월 보험료 합계, 직전 월들의 평균 대비·전월 대비 비율
+function perfShiftYM(ym, delta){
+  const [y,m] = ym.split('-').map(Number);
+  const d = new Date(y, m-1+delta, 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function renderPerfTrend(ym, managerSel){
+  const months = [];
+  for (let i=5; i>=0; i--) months.push(perfShiftYM(ym, -i));
+  const prevYM = months[4];
+  const names = managerSel === '__all__'
+    ? Array.from(new Set(allContracts.map(c=>c.manager_name).filter(Boolean))).sort()
+    : [managerSel];
+
+  const monthSum = (list) => {
+    const o = {};
+    months.forEach(m => o[m] = 0);
+    list.forEach(c => {
+      const m = (c.contract_date||'').slice(0,7);
+      if (m in o) o[m] += Number(c.premium)||0;
+    });
+    return o;
+  };
+  const pctCell = (cur, base) => {
+    if (!base) return '<td style="color:var(--muted);">-</td>';
+    const p = Math.round(cur/base*100);
+    const color = p >= 100 ? 'var(--green)' : '#B45309';
+    return `<td style="font-weight:700;color:${color};">${p}%</td>`;
+  };
+  const buildRow = (label, sums, bold) => {
+    // 평균은 선택 월 이전 5개월 중 실적이 있는 달만 사용
+    const prevVals = months.slice(0,5).map(m => sums[m]).filter(v => v > 0);
+    const avg = prevVals.length ? prevVals.reduce((a,b)=>a+b,0)/prevVals.length : 0;
+    const cur = sums[ym];
+    const style = bold ? ' style="font-weight:700;background:#FAFAF7;"' : '';
+    const cells = months.map(m => `<td${m===ym?' style="font-weight:700;"':''}>${sums[m] ? sums[m].toLocaleString('ko-KR') : '-'}</td>`).join('');
+    return `<tr${style}><td>${escapeHtml(label)}</td>${cells}
+      <td>${avg ? Math.round(avg).toLocaleString('ko-KR') : '-'}${prevVals.length ? `<div style="font-size:10px;color:var(--muted);font-weight:400;">${prevVals.length}개월 평균</div>` : ''}</td>
+      ${pctCell(cur, avg)}${pctCell(cur, sums[prevYM])}</tr>`;
+  };
+
+  const totals = {};
+  months.forEach(m => totals[m] = 0);
+  const body = names.map(n => {
+    const s = monthSum(allContracts.filter(c => c.manager_name === n));
+    months.forEach(m => totals[m] += s[m]);
+    return buildRow(n, s, false);
+  }).join('');
+  const head = `<thead><tr><th>팀장</th>${months.map(m=>`<th>${m.slice(2).replace('-','.')}</th>`).join('')}<th>평균(이전)</th><th>평균 대비</th><th>전월 대비</th></tr></thead>`;
+  const foot = (managerSel === '__all__' && names.length > 1) ? buildRow('전체 합산', totals, true) : '';
+  document.getElementById('p_trendTable').innerHTML = names.length
+    ? head + '<tbody>' + body + foot + '</tbody>'
+    : head + '<tbody><tr><td colspan="9" style="color:var(--muted);">계약 데이터가 없습니다</td></tr></tbody>';
+  document.getElementById('p_trendSub').innerHTML =
+    `${ym} 기준 최근 6개월 보험료(원). <b>평균 대비</b> = 이번 달 ÷ 이전 5개월 중 실적이 있는 달의 평균, <b>전월 대비</b> = 이번 달 ÷ ${prevYM}.`;
 }
 async function saveTarget(){
   const ym = currentYM();
