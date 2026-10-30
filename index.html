@@ -3295,7 +3295,7 @@ function monRenderPick(){
 
   /* 코딩 줄 붙여넣기 */
   html += `<div class="card"><div style="font-weight:700;margin-bottom:6px;">코딩 줄 저장</div>
-    <div class="sub" style="margin:0 0 8px;">프로젝트 대화창에서 받은 <b>CODE|v2|…</b>(또는 예전 CODE|v1|…) 줄을 여러 줄 그대로 붙여넣으세요. 저장해 두면 PC가 바뀌어도 남고, 아래에서 체결/미체결 비교가 자동으로 나옵니다.</div>
+    <div class="sub" style="margin:0 0 8px;">프로젝트 대화창에서 받은 <b>CODE|v2|…</b>(이름표 형식 또는 예전 형식, CODE|v1|…도 가능) 줄을 여러 줄 그대로 붙여넣으세요. 저장해 두면 PC가 바뀌어도 남고, 아래에서 체결/미체결 비교가 자동으로 나옵니다.</div>
     <textarea id="mon_codeIn" rows="5" placeholder="CODE|v2|DB-00504578.mp3|2026-10|OOO|상품광고DB|미체결|분석전달|…" style="width:100%;font-size:12px;"></textarea>
     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="act" onclick="monSaveCodes()">코딩 줄 저장</button><span id="mon_codeMsg" style="font-size:12.5px;color:var(--muted);"></span></div></div>`;
   html += `<div id="mon_codeStats">${monRenderCodeStats()}</div>`;
@@ -3326,6 +3326,24 @@ function monParseCode(line){
     return { f: f, line: f.join('|') };
   }
   if (t.indexOf('CODE|') < 0) return null;
+  /* 이름표 형식: CODE|v2|콜ID=…|통화월=…|… (칸마다 이름=값). 빠지거나 겹치면 어느 칸인지 알려주고, 순서가 달라도 정리해서 25칸으로 저장 */
+  if (t.indexOf('CODE|v2|콜ID=') === 0) {
+    const LBL = ['콜ID','통화월','팀장','DB유형','결과','도달단계','도입반론','도입대응','도입반론결과','병력이유','질문수','최장독백','고객걱정','숫자니즈','클로징형태','다음행동','근거발화','1차클로징','걱정환기','직전반응','예산일치','이탈지점','최종클로징횟수'];
+    const map = {};
+    const parts = t.split('|').slice(2);
+    for (let i = 0; i < parts.length; i++) {
+      const q = parts[i], e = q.indexOf('=');
+      if (e < 1) return { err: `이름표(이름=값)가 없는 칸: "${q.slice(0, 20)}"` };
+      const k = q.slice(0, e).trim(), v = q.slice(e + 1).trim();
+      if (LBL.indexOf(k) < 0) return { err: `알 수 없는 칸 이름 "${k}"` };
+      if (Object.prototype.hasOwnProperty.call(map, k)) return { err: `"${k}" 칸이 두 번 나옴` };
+      map[k] = v === '' ? '-' : v;
+    }
+    const miss = LBL.filter(k => !Object.prototype.hasOwnProperty.call(map, k));
+    if (miss.length) return { err: `빠진 칸: ${miss.join(', ')}` };
+    const f = ['CODE', 'v2'].concat(LBL.map(k => map[k]));
+    return { f: f, line: f.join('|') };
+  }
   /* v1 = 19칸, v2 = 25칸(앞 19칸은 v1과 같고 뒤에 6칸: 1차클로징|걱정환기|직전반응|예산일치|이탈지점|최종클로징횟수) */
   const ver = t.indexOf('CODE|v2|') === 0 ? 'v2' : (t.indexOf('CODE|v1|') === 0 ? 'v1' : '');
   if (!ver) return { err: 'CODE|v1| 또는 CODE|v2| 로 시작하지 않음: ' + t.slice(0, 40) };
