@@ -1327,6 +1327,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     <div class="row" style="margin:0;gap:6px;">
       <button class="act uwmode-btn" id="uwmode-btn-disease" onclick="switchUwMode('disease')" style="flex:none;">🦠 예외질환/사고이력 검색</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-limit" onclick="switchUwMode('limit')" style="flex:none;padding:9px 16px;border-radius:8px;">📊 담보별 업계누적 확인</button>
+      <button class="secondary uwmode-btn" id="uwmode-btn-guide" onclick="switchUwMode('guide')" style="flex:none;padding:9px 16px;border-radius:8px;">📚 상품별 비교가이드</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-foreign" onclick="switchUwMode('foreign')" style="flex:none;padding:9px 16px;border-radius:8px;">🌏 외국인 인수기준</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-bmi" onclick="switchUwMode('bmi')" style="flex:none;padding:9px 16px;border-radius:8px;">📅 나이/BMI 계산기</button>
     </div>
@@ -1397,6 +1398,25 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
         <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="cancelLimitImport()">취소</button>
       </div>
     </div>
+  </div>
+
+  <!-- 2-2) 상품별 비교가이드 -->
+  <div id="uwmode-guide" style="display:none;">
+    <div class="card">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px;">📚 상품별 비교가이드</div>
+      <div class="sub" id="pg_info" style="margin-bottom:10px;">불러오는 중…</div>
+      <div class="row" style="align-items:flex-end;gap:8px;flex-wrap:wrap;">
+        <div style="flex:3;min-width:220px;"><label>검색 (예: 암진단비, 메리츠 간병인, 치아)</label><input type="text" id="pg_q" placeholder="찾을 말을 입력하세요 — 띄어쓰기로 여러 단어도 가능" autocomplete="off"></div>
+        <button class="secondary" type="button" id="pg_btn_toc" style="flex:none;">📑 목차</button>
+        <button class="secondary" type="button" id="pg_btn_new" style="flex:none;">↗ 새 창으로 열기</button>
+        <button class="secondary" type="button" id="pg_btn_up" style="flex:none;display:none;">⬆ PDF 올리기·교체 (마스터)</button>
+        <input type="file" id="pg_file" accept="application/pdf,.pdf" style="display:none;">
+      </div>
+      <div id="pg_chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
+      <div id="pg_res" style="margin-top:10px;"></div>
+    </div>
+    <div id="pg_setup" style="display:none;"></div>
+    <div class="card" style="padding:0;overflow:hidden;"><div id="pg_view" style="min-height:120px;"></div></div>
   </div>
 
   <!-- 3) 외국인 인수기준 -->
@@ -8553,7 +8573,7 @@ async function deleteCallCenterFile(id){
    인수기준 검색 - 모드 전환
 ============================================================ */
 function switchUwMode(mode){
-  ['disease','limit','foreign','bmi'].forEach(m => {
+  ['disease','limit','guide','foreign','bmi'].forEach(m => {
     document.getElementById('uwmode-'+m).style.display = (m===mode) ? 'block' : 'none';
     const btn = document.getElementById('uwmode-btn-'+m);
     btn.className = (m===mode) ? 'act uwmode-btn' : 'secondary uwmode-btn';
@@ -8562,6 +8582,7 @@ function switchUwMode(mode){
   });
   if (mode === 'limit') updateLimitCoverageOptions();
   if (mode === 'foreign') updateForeignVisaOptions();
+  if (mode === 'guide' && window.pgOpen) window.pgOpen();
 }
 
 /* ============================================================
@@ -11598,6 +11619,261 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   loadWeather(); syncTime(); loop();
   setInterval(loadWeather, 30*60*1000);   // 날씨 30분마다
   setInterval(syncTime, 10*60*1000);      // 시각 10분마다 재보정
+})();
+</script>
+<script id="product_guide">
+/* ===== 인수·병력 확인 > 상품별 비교가이드 =====
+   PDF는 Supabase Storage(product-guide 보관함)에 두고, 마스터가 올릴 때 브라우저에서 쪽별 글자·목차를 뽑아 검색용 색인(guide-index.json)을 같이 저장한다.
+   Claude API 호출 없음. 새 DB 테이블 없음(보관함 + 정책 SQL만 필요). */
+(function () {
+  'use strict';
+  var BUCKET = 'product-guide', PDF_PATH = 'guide.pdf', IDX_PATH = 'guide-index.json';
+  var PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+  var PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  var PG_SQL = [
+    "-- 상품별 비교가이드 PDF 보관함 (한 번만 실행)",
+    "insert into storage.buckets (id, name, public) values ('product-guide', 'product-guide', false) on conflict (id) do nothing;",
+    "drop policy if exists \"pg_select\" on storage.objects;",
+    "create policy \"pg_select\" on storage.objects for select to anon, authenticated using (bucket_id = 'product-guide');",
+    "drop policy if exists \"pg_insert\" on storage.objects;",
+    "create policy \"pg_insert\" on storage.objects for insert to anon, authenticated with check (bucket_id = 'product-guide');",
+    "drop policy if exists \"pg_update\" on storage.objects;",
+    "create policy \"pg_update\" on storage.objects for update to anon, authenticated using (bucket_id = 'product-guide') with check (bucket_id = 'product-guide');"
+  ].join('\n');
+  var G = { state: 'idle', idx: null, norm: [], blobUrl: null, page: 1, q: '' };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
+  function isMaster() { return typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'master'; }
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script'); s.src = src; s.onload = res;
+      s.onerror = function () { rej(new Error('PDF 읽기 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.')); };
+      document.head.appendChild(s);
+    });
+  }
+  var pdfP = null;
+  function ensurePdf() {
+    if (window.pdfjsLib) { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; return Promise.resolve(); }
+    if (!pdfP) pdfP = loadScript(PDFJS_URL).then(function () { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; }).catch(function (e) { pdfP = null; throw e; });
+    return pdfP;
+  }
+  function fmtDate(iso) { try { var d = new Date(iso); return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0'); } catch (e) { return ''; } }
+  function normText(s) { return String(s || '').toLowerCase().replace(/\s+/g, ''); }
+
+  /* ---------- 화면 조각 ---------- */
+  function setInfo(html) { var e = $('pg_info'); if (e) e.innerHTML = html; }
+  function showSetup(msg) {
+    var box = $('pg_setup'); if (!box) return;
+    var master = isMaster();
+    box.style.display = 'block';
+    box.innerHTML = '<div class="card" style="border-color:#E5B96B;">' +
+      '<div style="font-weight:700;margin-bottom:6px;">📌 ' + (master ? '처음 한 번만 준비하면 돼요' : '아직 자료가 올라오지 않았어요') + '</div>' +
+      (msg ? '<div class="sub" style="margin-bottom:8px;">' + esc(msg) + '</div>' : '') +
+      (master ? '<div class="sub" style="margin-bottom:8px;">① Supabase 왼쪽 메뉴 <b>SQL Editor</b>에 아래 SQL을 붙여넣고 <b>Run</b> → ② 이 화면의 <b>PDF 올리기·교체</b> 버튼으로 가이드 PDF를 올려 주세요. (SQL은 처음 한 번만 실행)</div>' +
+        '<textarea readonly id="pg_sql" style="width:100%;height:150px;font-family:monospace;font-size:12px;">' + esc(PG_SQL) + '</textarea>' +
+        '<div style="margin-top:6px;"><button class="secondary" type="button" id="pg_copy_sql">SQL 복사</button></div>'
+        : '<div class="sub">관리자(마스터)가 상품비교 가이드 PDF를 올리면 여기서 볼 수 있어요.</div>') +
+      '</div>';
+    var b = $('pg_copy_sql');
+    if (b) b.onclick = function () {
+      var t = $('pg_sql'); t.select();
+      try { navigator.clipboard.writeText(PG_SQL).then(function () { alert('SQL을 복사했습니다.'); }, function () { document.execCommand('copy'); alert('SQL을 복사했습니다.'); }); }
+      catch (e) { try { document.execCommand('copy'); alert('SQL을 복사했습니다.'); } catch (e2) { alert('복사에 실패했습니다. 직접 선택해서 복사해 주세요.'); } }
+    };
+  }
+  function hideSetup() { var box = $('pg_setup'); if (box) { box.style.display = 'none'; box.innerHTML = ''; } }
+
+  function renderChips() {
+    var c = $('pg_chips'); if (!c) return;
+    var secs = (G.idx && G.idx.sections) || [];
+    c.innerHTML = secs.map(function (s, i) {
+      return '<button type="button" class="secondary" data-pg="' + s.page + '" style="flex:none;padding:5px 11px;font-size:12.5px;border-radius:999px;">' + esc(s.title) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(c.querySelectorAll('button[data-pg]'), function (b) { b.onclick = function () { showPage(parseInt(b.getAttribute('data-pg'), 10)); }; });
+  }
+
+  function showPage(n) {
+    if (!G.blobUrl) return;
+    G.page = n;
+    var v = $('pg_view'); if (!v) return;
+    var h = Math.max(520, Math.round(window.innerHeight * 0.78));
+    v.innerHTML = '<iframe id="pg_frame" title="상품별 비교가이드" src="' + G.blobUrl + '#page=' + n + '&view=FitH" style="width:100%;height:' + h + 'px;border:0;display:block;background:#fff;"></iframe>';
+    Array.prototype.forEach.call(document.querySelectorAll('#pg_res .pg-hit'), function (e) { e.style.background = (parseInt(e.getAttribute('data-p'), 10) === n) ? 'var(--ui-slate-100, #EEF0F6)' : ''; });
+  }
+
+  /* ---------- 검색 ---------- */
+  function buildNorm() {
+    G.norm = (G.idx.pages || []).map(function (pg) {
+      var raw = String(pg.t || ''), s = '', map = [];
+      for (var i = 0; i < raw.length; i++) { var ch = raw[i]; if (/\s/.test(ch)) continue; ch = ch.toLowerCase(); s += ch; map.push(i); }
+      return { p: pg.p, raw: raw, s: s, map: map, tn: normText((pg.sec || '') + (pg.title || '')) };
+    });
+  }
+  function countOf(hay, needle) { var c = 0, i = 0; while ((i = hay.indexOf(needle, i)) >= 0) { c++; i += needle.length; } return c; }
+  function runSearch() {
+    var res = $('pg_res'); if (!res) return;
+    var q = ($('pg_q').value || '').trim(); G.q = q;
+    if (!q) { res.innerHTML = ''; return; }
+    if (G.state !== 'ready') { res.innerHTML = '<div class="sub">자료를 불러온 뒤에 검색할 수 있어요.</div>'; return; }
+    var terms = q.split(/\s+/).map(normText).filter(Boolean);
+    var hits = [];
+    G.norm.forEach(function (pg, k) {
+      var meta = G.idx.pages[k];
+      if (meta.sec === '목차') return;
+      var score = 0, ok = true;
+      for (var i = 0; i < terms.length; i++) {
+        var c = countOf(pg.s, terms[i]), t = countOf(pg.tn, terms[i]);
+        if (!c && !t) { ok = false; break; }
+        score += c + t * 5;
+      }
+      if (ok) hits.push({ k: k, score: score });
+    });
+    hits.sort(function (a, b) { return b.score - a.score || a.k - b.k; });
+    if (!hits.length) { res.innerHTML = '<div class="sub">“' + esc(q) + '” 가 들어간 쪽이 없어요. 띄어쓰기를 줄이거나 다른 말로 찾아보세요.</div>'; return; }
+    var shown = hits.slice(0, 40);
+    res.innerHTML = '<div class="sub" style="margin-bottom:6px;">' + hits.length + '개 쪽에서 찾았어요' + (hits.length > shown.length ? ' (위 ' + shown.length + '개 표시)' : '') + ' · 눌러서 아래에서 확인</div>' +
+      '<div style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px;">' + shown.map(function (h) {
+        var pg = G.norm[h.k], meta = G.idx.pages[h.k];
+        var pos = pg.s.indexOf(terms[0]), snip = '';
+        if (pos >= 0) {
+          var a = pg.map[pos], b = pg.map[Math.min(pos + terms[0].length - 1, pg.map.length - 1)] + 1;
+          var from = Math.max(0, a - 30), to = Math.min(pg.raw.length, b + 50);
+          snip = (from > 0 ? '…' : '') + esc(pg.raw.slice(from, a)) + '<mark>' + esc(pg.raw.slice(a, b)) + '</mark>' + esc(pg.raw.slice(b, to)) + (to < pg.raw.length ? '…' : '');
+        }
+        var title = [meta.sec, meta.title && meta.title !== meta.sec ? meta.title : ''].filter(Boolean).join(' › ');
+        return '<div class="pg-hit" data-p="' + meta.p + '" style="padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer;">' +
+          '<div style="font-weight:700;font-size:13px;">' + meta.p + '쪽 <span style="font-weight:600;color:var(--muted);">' + esc(title) + '</span></div>' +
+          (snip ? '<div style="font-size:12px;color:var(--muted);margin-top:2px;">' + snip + '</div>' : '') + '</div>';
+      }).join('') + '</div>';
+    Array.prototype.forEach.call(res.querySelectorAll('.pg-hit'), function (e) { e.onclick = function () { showPage(parseInt(e.getAttribute('data-p'), 10)); }; });
+  }
+
+  /* ---------- 불러오기 ---------- */
+  function load() {
+    if (G.state === 'loading') return;
+    G.state = 'loading'; hideSetup();
+    setInfo('자료를 불러오는 중…');
+    if (typeof sb === 'undefined' || !sb) { G.state = 'idle'; setInfo('아직 서버에 연결되지 않았어요. 잠시 뒤 다시 눌러 주세요.'); return; }
+    var bucket = sb.storage.from(BUCKET);
+    bucket.download(IDX_PATH).then(function (r) {
+      if (r.error || !r.data) { var e = new Error((r.error && r.error.message) || '색인 없음'); e.notFound = true; throw e; }
+      return r.data.text();
+    }).then(function (txt) {
+      G.idx = JSON.parse(txt);
+      if (!G.idx || !G.idx.pages || !G.idx.pages.length) throw new Error('색인 형식이 올바르지 않아요');
+      buildNorm();
+      return bucket.download(PDF_PATH);
+    }).then(function (r) {
+      if (r.error || !r.data) throw new Error((r.error && r.error.message) || 'PDF를 찾지 못했어요');
+      if (G.blobUrl) { try { URL.revokeObjectURL(G.blobUrl); } catch (e) { /* 무시 */ } }
+      G.blobUrl = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      G.state = 'ready';
+      setInfo('<b>' + esc(G.idx.name || '상품비교 가이드') + '</b> · ' + (G.idx.n || G.idx.pages.length) + '쪽 · 올린 날 ' + esc(fmtDate(G.idx.uploadedAt)) + '<br><span style="font-size:12px;">사내 교육용 자료예요. 고객에게 보여주거나 보험 안내자료로 쓰는 것은 금지됩니다.</span>');
+      renderChips(); showPage(G.page || 1); runSearch();
+    }).catch(function (err) {
+      G.state = 'idle';
+      var m = String(err && err.message || err);
+      if (err && err.notFound || /not found|bucket|Object|404|없/i.test(m)) {
+        setInfo('아직 올라온 가이드가 없어요.'); showSetup('');
+      } else {
+        setInfo('불러오지 못했어요: ' + esc(m)); showSetup(isMaster() ? '불러오기에 실패했어요(' + m + '). 처음이라면 아래 SQL을 먼저 실행하세요.' : '');
+      }
+      var v = $('pg_view'); if (v) v.innerHTML = '';
+    });
+  }
+
+  /* ---------- PDF 올리기(마스터) ---------- */
+  function flattenOutline(pdf, items, level, out) {
+    var chain = Promise.resolve();
+    (items || []).forEach(function (it) {
+      chain = chain.then(function () {
+        var d = it.dest;
+        var getD = (typeof d === 'string') ? pdf.getDestination(d) : Promise.resolve(d);
+        return getD.then(function (dest) {
+          if (!dest || !dest[0]) return null;
+          return (typeof dest[0] === 'object') ? pdf.getPageIndex(dest[0]) : Promise.resolve(dest[0]);
+        }).then(function (pi) {
+          if (pi != null) out.push({ level: level, title: String(it.title || '').trim(), page: pi + 1 });
+          return flattenOutline(pdf, it.items, level + 1, out);
+        }).catch(function () { return flattenOutline(pdf, it.items, level + 1, out); });
+      });
+    });
+    return chain;
+  }
+  function buildIndex(file) {
+    var up = $('pg_btn_up');
+    return ensurePdf().then(function () { return file.arrayBuffer(); }).then(function (buf) {
+      return window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    }).then(function (pdf) {
+      var pages = [], chain = Promise.resolve();
+      for (var i = 1; i <= pdf.numPages; i++) (function (n) {
+        chain = chain.then(function () { return pdf.getPage(n); }).then(function (pg) { return pg.getTextContent(); }).then(function (tc) {
+          var t = tc.items.map(function (x) { return x.str; }).join(' ').replace(/\s+/g, ' ').trim();
+          pages.push({ p: n, t: t });
+          if (up) up.textContent = '글자 읽는 중… ' + n + '/' + pdf.numPages;
+        });
+      })(i);
+      return chain.then(function () {
+        var outline = [];
+        return pdf.getOutline().then(function (ol) { return flattenOutline(pdf, ol, 1, outline); }).catch(function () { /* 목차 없음 */ }).then(function () { return { pdf: pdf, pages: pages, outline: outline }; });
+      });
+    }).then(function (r) {
+      var o = r.outline, secs = o.filter(function (x) { return x.level === 1; });
+      r.pages.forEach(function (pg) {
+        var s = null, t = null;
+        o.forEach(function (x) { if (x.page <= pg.p) { if (x.level === 1) { s = x; t = null; } else if (x.level === 2) { t = x; } } });
+        pg.sec = s ? s.title : ''; pg.title = t ? t.title : '';
+      });
+      var withText = r.pages.filter(function (p) { return p.t.length > 20; }).length;
+      return { v: 1, name: file.name.replace(/\.pdf$/i, ''), uploadedAt: new Date().toISOString(), uploadedBy: (currentUser && currentUser.manager_name) || '', n: r.pdf.numPages, withText: withText, sections: secs.filter(function (x) { return x.title !== '목차'; }).map(function (x) { return { title: x.title, page: x.page }; }), pages: r.pages };
+    });
+  }
+  function onPickFile(file) {
+    var up = $('pg_btn_up');
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { alert('PDF 파일만 올릴 수 있어요.'); return; }
+    if (G.idx && !confirm('현재 올라가 있는 가이드를 “' + file.name + '” 로 바꿀까요?\n(이전 파일은 되돌릴 수 없어요)')) return;
+    var old = up.textContent; up.disabled = true; up.textContent = '글자 읽는 중…';
+    buildIndex(file).then(function (idx) {
+      if (idx.withText < Math.max(1, Math.floor(idx.n * 0.5))) throw new Error('글자가 거의 없는 PDF예요(이미지로만 된 파일). 검색이 되지 않아 올리지 않았어요.');
+      up.textContent = '올리는 중…';
+      var bucket = sb.storage.from(BUCKET);
+      return bucket.upload(PDF_PATH, file, { upsert: true, contentType: 'application/pdf', cacheControl: '0' }).then(function (r) {
+        if (r.error) throw r.error;
+        return bucket.upload(IDX_PATH, new Blob([JSON.stringify(idx)], { type: 'application/json' }), { upsert: true, contentType: 'application/json', cacheControl: '0' });
+      }).then(function (r) {
+        if (r.error) throw r.error;
+        return idx;
+      });
+    }).then(function (idx) {
+      G.state = 'idle'; G.page = 1; G.idx = null;
+      alert('올렸어요. ' + idx.n + '쪽 · 목차 ' + idx.sections.length + '개 대분류');
+      load();
+    }).catch(function (err) {
+      var m = String(err && err.message || err);
+      alert('올리지 못했어요: ' + m + (/row-level|policy|bucket|not found|Unauthorized|403/i.test(m) ? '\n\n처음이라면 화면의 SQL을 Supabase에서 먼저 실행해 주세요.' : ''));
+      showSetup('올리기에 실패했어요(' + m + ').');
+    }).then(function () { up.disabled = false; up.textContent = old; $('pg_file').value = ''; });
+  }
+
+  /* ---------- 진입 ---------- */
+  var wired = false;
+  function wire() {
+    if (wired) return; wired = true;
+    var q = $('pg_q');
+    q.addEventListener('input', runSearch);                 // 입력칸은 다시 그리지 않고 결과만 갱신(한글 입력 보호)
+    q.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var f = document.querySelector('#pg_res .pg-hit'); if (f) f.click(); } });
+    $('pg_btn_toc').onclick = function () { if (G.state === 'ready') showPage(1); };
+    $('pg_btn_new').onclick = function () { if (G.state === 'ready') window.open(G.blobUrl + '#page=' + (G.page || 1), '_blank'); };
+    $('pg_btn_up').onclick = function () { $('pg_file').click(); };
+    $('pg_file').onchange = function () { onPickFile(this.files && this.files[0]); };
+  }
+  window.pgOpen = function () {
+    wire();
+    $('pg_btn_up').style.display = isMaster() ? '' : 'none';
+    if (G.state === 'idle') load();
+  };
 })();
 </script>
 </body>
