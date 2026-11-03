@@ -65,6 +65,7 @@
   .panel.active { display: block; }
 
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
+.pva-tip{position:relative;cursor:default}.pva-tip:hover::after{content:attr(data-tip);position:absolute;left:52px;bottom:100%;margin-bottom:2px;background:#1B2433;color:#fff;font-size:12px;font-weight:600;line-height:1.4;padding:5px 9px;border-radius:6px;white-space:nowrap;z-index:20;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.25)}@media(max-width:640px){.pva-tip:hover::after{white-space:normal;max-width:70vw}}
   .sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
 
   #connStatus { font-size: 12px; padding: 7px 10px; border-radius: 6px; margin: 12px 16px 0; }
@@ -3722,12 +3723,12 @@ function monPerfVsAvgCard(perM){
   const sgn = p => p === null ? '-' : (Math.round(p) === 0 ? '평균과 같음' : (p > 0 ? '+' : '') + Math.round(p) + '%');
   const cnt = t => rows.filter(r => r.type === t).length;
   let h = `<div class="card">${head}
-    <div class="sub" style="margin:4px 0 10px;">팀 평균: 하루 시도 <b>${avgAtt.toFixed(1)}통</b> · 계약 <b>${avgCons.toFixed(1)}건</b> (이 기간 · 입력된 팀장님 ${perM.length}명 평균). 막대가 오른쪽이면 평균보다 많고, 왼쪽이면 적어요. 이름 대신 성만 보여줘요.</div>
+    <div class="sub" style="margin:4px 0 10px;">팀 평균: 하루 시도 <b>${avgAtt.toFixed(1)}통</b> · 계약 <b>${avgCons.toFixed(1)}건</b> (이 기간 · 입력된 팀장님 ${perM.length}명 평균). 막대가 오른쪽이면 평균보다 많고, 왼쪽이면 적어요. 막대에 마우스를 올리면 실제 횟수·건수가 보여요. 이름 대신 성만 보여줘요.</div>
     <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px;margin-bottom:8px;"><span><span style="display:inline-block;width:10px;height:10px;background:#4F5FD8;border-radius:2px;margin-right:4px;"></span>시도 횟수(하루 평균)</span><span><span style="display:inline-block;width:10px;height:10px;background:#C99A12;border-radius:2px;margin-right:4px;"></span>계약 건수</span></div>`;
   h += rows.map(r => `<div style="display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:start;">
       <div style="font-size:18px;font-weight:700;text-align:center;">${escapeHtml(r.label)}</div>
-      <div><div style="display:grid;grid-template-columns:44px minmax(0,1fr) 70px;gap:8px;align-items:center;font-size:12px;margin-bottom:4px;"><span>시도</span>${bar(r.aPct, '#4F5FD8')}<b>${sgn(r.aPct)}</b></div>
-      <div style="display:grid;grid-template-columns:44px minmax(0,1fr) 70px;gap:8px;align-items:center;font-size:12px;margin-bottom:4px;"><span>계약</span>${bar(r.cPct, '#C99A12')}<b>${sgn(r.cPct)}</b></div>
+      <div><div class="pva-tip" data-tip="${escAttr(`하루 평균 시도 ${r.x.avg.toFixed(1)}통 (팀 평균 ${avgAtt.toFixed(1)}통) · 입력 ${r.x.days}일`)}" style="display:grid;grid-template-columns:44px minmax(0,1fr) 70px;gap:8px;align-items:center;font-size:12px;margin-bottom:4px;"><span>시도</span>${bar(r.aPct, '#4F5FD8')}<b>${sgn(r.aPct)}</b></div>
+      <div class="pva-tip" data-tip="${escAttr(`이 기간 계약 ${r.x.cons}건 (팀 평균 ${avgCons.toFixed(1)}건)`)}" style="display:grid;grid-template-columns:44px minmax(0,1fr) 70px;gap:8px;align-items:center;font-size:12px;margin-bottom:4px;"><span>계약</span>${bar(r.cPct, '#C99A12')}<b>${sgn(r.cPct)}</b></div>
       <div style="font-size:12.5px;line-height:1.55;">${escapeHtml(r.txt)}${r.ref ? ' ' + monTag('참고용(입력 5일 미만)', 'gray') : ''}</div></div></div>`).join('');
   h += `<div style="margin-top:8px;padding:10px 12px;border-radius:8px;background:var(--amber-bg);font-size:13px;line-height:1.7;">
     <b>한눈에</b> · 많이 걸고 계약도 많은 ${cnt('both')}명 · 많이 걸었는데 계약이 적은 ${cnt('gapA')}명 · 적게 걸고 계약도 적은 ${cnt('low')}명 · 적게 걸었는데 계약은 많은 ${cnt('eff')}명</div>
