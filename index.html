@@ -1123,13 +1123,12 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="act small" data-v="status" onclick="monSetView('status')">📊 현황·병목</button>
       <button class="secondary small" data-v="mgr" onclick="monSetView('mgr')">👤 팀장별 분석</button>
       <button class="secondary small" data-v="pick" onclick="monSetView('pick')">🎧 점검 콜·코딩</button>
-      <button class="secondary small" data-v="daily" onclick="monSetView('daily')">✏️ 일일 입력</button>
-      <button class="secondary small" data-v="impact" onclick="monSetView('impact')">🔗 콜시간·시도·가망→실적</button>
-      <button class="secondary small" data-v="improve" onclick="monSetView('improve')">🧭 콜 개선 추이</button>
-      <button class="secondary small" data-v="trend" onclick="monSetView('trend')">📈 추이</button>
+      <button class="secondary small" data-v="daily" data-members="daily,impact" onclick="monSetView('daily')">✏️ 활동량·실적</button>
+      <button class="secondary small" data-v="improve" data-members="improve,trend" onclick="monSetView('improve')">🧭 변화 추이</button>
       <button class="secondary small" data-v="upload" onclick="monSetView('upload')">📥 DB 업로드</button>
     </div>
-    <div class="sub" style="margin:10px 0 0;"><b>📥 DB 업로드</b>에 올린 엑셀(DB관리 탭과 별개)을 기준으로 팀장별 DB 활용·병목을 보고(팀장 한 명을 골라 분석·코칭도 가능), 점검할 콜을 뽑아 코딩하고, 매일 콜시간·가망고객 발굴을 입력해 실적과의 관계와 주간 추이를 봅니다. (마스터 전용 · 신규/카카오페이 DB 제외)</div>
+    <div id="mon_subtabs2" style="display:none;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);"></div>
+    <div class="sub" style="margin:10px 0 0;"><b>📥 DB 업로드</b>에 올린 엑셀(DB관리 탭과 별개)을 기준으로 팀장별 DB 활용·병목을 보고(팀장 한 명을 골라 분석·코칭도 가능), 점검할 콜을 뽑아 코딩하고, <b>활동량·실적</b>에서 매일 콜시간·가망고객 발굴을 입력해 실적과의 관계를 보며, <b>변화 추이</b>에서 콜 개선과 주간 추이를 봅니다. (마스터 전용 · 신규/카카오페이 DB 제외)</div>
   </div>
 
   <div id="mon_setupBox" class="card" style="display:none;border-color:var(--amber);background:var(--amber-bg);">
@@ -3154,6 +3153,10 @@ function monSetRange(kind){
   else if (kind === '4w') { f.value = monAddDays(today, -27); t.value = today; }
   monRender();
 }
+const MON_SUBGROUPS = [
+  [['daily', '✏️ 일일 입력'], ['impact', '🔗 콜시간·시도·가망→실적']],
+  [['improve', '🧭 콜 개선 추이'], ['trend', '📈 주간 추이']]
+];
 function monRender(){
   if (!currentUser || currentUser.role !== 'master') return;
   if (monExcl === null) monExcl = monExclLoad();
@@ -3166,7 +3169,14 @@ function monRender(){
     document.getElementById('mon_setupMsg').innerHTML = warn.map(w => '· ' + escapeHtml(w)).join('<br>');
     document.getElementById('mon_sqlText').textContent = MON_SQL;
   }
-  document.querySelectorAll('#mon_subtabs button').forEach(b => { b.className = (b.dataset.v === monView ? 'act' : 'secondary') + ' small'; });
+  document.querySelectorAll('#mon_subtabs button').forEach(b => { b.className = ((b.dataset.v === monView || (b.dataset.members || '').split(',').indexOf(monView) >= 0) ? 'act' : 'secondary') + ' small'; });
+  /* 화면 묶음: 위 버튼 하나 안에서 작은 알약 버튼으로 오간다 (화면 자체와 monSetView('이름')은 그대로) */
+  const sg = MON_SUBGROUPS.find(g => g.some(m => m[0] === monView));
+  const sb = document.getElementById('mon_subtabs2');
+  if (sb) {
+    sb.style.display = sg ? 'flex' : 'none';
+    sb.innerHTML = sg ? sg.map(m => `<button class="${m[0] === monView ? 'act' : 'secondary'} small" style="border-radius:999px;" onclick="monSetView('${m[0]}')">${m[1]}</button>`).join('') : '';
+  }
   ['status', 'mgr', 'pick', 'daily', 'impact', 'improve', 'trend', 'upload'].forEach(k => {
     const el = document.getElementById('mon_view' + k.charAt(0).toUpperCase() + k.slice(1));
     if (el) el.style.display = (k === monView) ? '' : 'none';
