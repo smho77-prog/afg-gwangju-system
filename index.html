@@ -510,22 +510,22 @@ header h1 { font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--
 @media (max-width:640px){ header#mainHeader { padding:10px 14px; } #statusRow { margin-left:0; border-radius:12px; } }
 
 /* --- 왼쪽 사이드바: 폭 고정, 어두운 슬레이트, 활성 탭은 인디고 --- */
-#sideMenu { width:248px; flex:0 0 248px; background:var(--ui-slate-900); color:#CBD5E1; border-right:0;
+#sideMenu { width:276px; flex:0 0 276px; background:var(--ui-slate-900); color:#CBD5E1; border-right:0;
   padding:18px 12px 28px; max-height:calc(100vh - 57px); top:57px; }
 #sideMenu::-webkit-scrollbar { width:6px; } #sideMenu::-webkit-scrollbar-thumb { background:#334155; border-radius:6px; }
 #sideMenu .sg { margin-bottom:14px; --gc:#A5B4FC; --gbg:rgba(255,255,255,.06); }
 #sideMenu .sg[data-group] { --gc:#A5B4FC; --gbg:rgba(255,255,255,.06); }
-#sideMenu .sg-head { background:transparent; color:#64748B; font-size:11px; font-weight:700; letter-spacing:.06em;
+#sideMenu .sg-head { background:transparent; color:#64748B; font-size:13px; font-weight:700; letter-spacing:.04em;
   padding:6px 10px; border-radius:6px; text-transform:none; }
 #sideMenu .sg-head:hover { filter:none; color:#94A3B8; }
 #sideMenu .sg-head .arr { font-size:9px; opacity:.7; }
 #sideMenu .sg-items { margin:2px 0 0; padding-left:0; border-left:0; }
-#sideMenu .tabbtn { color:#CBD5E1; padding:9px 12px; margin:2px 0; font-size:13.5px; font-weight:500; border-radius:10px;
+#sideMenu .tabbtn { color:#CBD5E1; padding:10px 12px; margin:2px 0; font-size:15.5px; font-weight:500; border-radius:10px;
   transition:background .12s, color .12s; }
 #sideMenu .tabbtn:hover { background:rgba(255,255,255,.07); color:#fff; }
 #sideMenu .tabbtn.active { background:var(--ui-indigo-500); background:linear-gradient(135deg,#6366F1,#4F46E5); color:#fff; font-weight:700;
   box-shadow:0 6px 16px rgba(79,70,229,.38), inset 0 1px 0 rgba(255,255,255,.18); }
-@media (max-width:800px){ #sideMenu { top:0; max-height:none; width:260px; } }
+@media (max-width:800px){ #sideMenu { top:0; max-height:none; width:288px; } }
 
 /* --- 본문 / 카드 / 글자 크기 단계 --- */
 main { max-width:1320px; padding:28px 28px 72px; }
@@ -736,6 +736,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     <div class="sg-items">
       <button class="tabbtn" data-tab="proposal" onclick="switchTab('proposal')">🎯 제안 준비 (상품광고3)</button>
       <button class="tabbtn" data-tab="underwriting" data-members="underwriting,kcd,surgery" onclick="switchTab('underwriting')">🔍 인수·병력 확인</button>
+      <button class="tabbtn" data-tab="guide" onclick="openGuideTab()">📚 상품별 비교가이드</button>
       <button class="tabbtn" data-tab="coverage" onclick="switchTab('coverage')">📑 보장분석</button>
       <button class="tabbtn" data-tab="cancertl" data-members="cancertl,hospmap" onclick="switchTab('cancertl')">🏥 암·병원 자료</button>
     </div>
@@ -1323,11 +1324,10 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 
 <!-- ===== 인수기준 검색 ===== -->
 <div class="panel" id="panel-underwriting">
-  <div class="card" style="padding:10px 14px;">
+  <div class="card" id="uwModeBar" style="padding:10px 14px;">
     <div class="row" style="margin:0;gap:6px;">
       <button class="act uwmode-btn" id="uwmode-btn-disease" onclick="switchUwMode('disease')" style="flex:none;">🦠 예외질환/사고이력 검색</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-limit" onclick="switchUwMode('limit')" style="flex:none;padding:9px 16px;border-radius:8px;">📊 담보별 업계누적 확인</button>
-      <button class="secondary uwmode-btn" id="uwmode-btn-guide" onclick="switchUwMode('guide')" style="flex:none;padding:9px 16px;border-radius:8px;">📚 상품별 비교가이드</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-foreign" onclick="switchUwMode('foreign')" style="flex:none;padding:9px 16px;border-radius:8px;">🌏 외국인 인수기준</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-bmi" onclick="switchUwMode('bmi')" style="flex:none;padding:9px 16px;border-radius:8px;">📅 나이/BMI 계산기</button>
     </div>
@@ -2115,6 +2115,10 @@ function switchTab(name) {
   window.scrollTo(0, 0);
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   renderSubTabs(name);
+  if (name === 'underwriting') {
+    const gv = document.getElementById('uwmode-guide');
+    if (gv && gv.style.display !== 'none') switchUwMode('disease'); /* 사이드의 '인수·병력 확인'을 누르면 가이드 말고 기본 화면 */
+  }
   if (name === 'performance') renderPerformance();
   if (name === 'dbmgmt') dbOpenTab();
   if (name === 'proposal') propOpenTab();
@@ -8576,6 +8580,7 @@ function switchUwMode(mode){
   ['disease','limit','guide','foreign','bmi'].forEach(m => {
     document.getElementById('uwmode-'+m).style.display = (m===mode) ? 'block' : 'none';
     const btn = document.getElementById('uwmode-btn-'+m);
+    if (!btn) return; /* 비교가이드는 사이드 메뉴로 옮겨서 이 줄에는 버튼이 없음 */
     btn.className = (m===mode) ? 'act uwmode-btn' : 'secondary uwmode-btn';
     if (m!==mode) btn.style.cssText = 'flex:none;padding:9px 16px;border-radius:8px;';
     else btn.style.cssText = 'flex:none;';
@@ -8583,6 +8588,23 @@ function switchUwMode(mode){
   if (mode === 'limit') updateLimitCoverageOptions();
   if (mode === 'foreign') updateForeignVisaOptions();
   if (mode === 'guide' && window.pgOpen) window.pgOpen();
+  uwSyncSide(mode === 'guide');
+}
+/* 상품별 비교가이드는 사이드 메뉴에 따로 있다(화면은 인수기준 검색 패널의 guide 모드를 그대로 씀) */
+function uwSyncSide(isGuide){
+  const bar = document.getElementById('uwModeBar');
+  if (bar) bar.style.display = isGuide ? 'none' : '';
+  const sub = document.querySelector('#panel-underwriting > .subtabs');
+  if (sub) sub.style.display = isGuide ? 'none' : '';
+  const g = document.querySelector('#sideMenu .tabbtn[data-tab="guide"]');
+  const u = document.querySelector('#sideMenu .tabbtn[data-tab="underwriting"]');
+  const onUw = document.getElementById('panel-underwriting').classList.contains('active');
+  if (g) g.classList.toggle('active', isGuide && onUw);
+  if (u && onUw) u.classList.toggle('active', !isGuide);
+}
+function openGuideTab(){
+  switchTab('underwriting');
+  switchUwMode('guide');
 }
 
 /* ============================================================
