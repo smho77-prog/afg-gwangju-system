@@ -63,6 +63,11 @@
   main { max-width: 1240px; margin: 0 auto; padding: 20px 16px 60px; flex: 1 1 auto; min-width: 0; }
   .panel { display: none; }
   .panel.active { display: block; }
+  .subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .subtab { border: 1px solid var(--line); background: var(--card, #fff); color: #334155; border-radius: 999px; padding: 6px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .subtab:hover { background: #F1F5F9; }
+  .subtab.active { background: #4F46E5; border-color: #4F46E5; color: #fff; }
+  @media print { .subtabs { display: none; } }
 
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin-bottom: 16px; }
 .pva-tip{position:relative;cursor:default}.pva-tip:hover::after{content:attr(data-tip);position:absolute;left:52px;bottom:100%;margin-bottom:2px;background:#1B2433;color:#fff;font-size:12px;font-weight:600;line-height:1.4;padding:5px 9px;border-radius:6px;white-space:nowrap;z-index:20;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.25)}@media(max-width:640px){.pva-tip:hover::after{white-space:normal;max-width:70vw}}
@@ -730,30 +735,24 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     <button class="sg-head" onclick="toggleSideGroup('tools')"><span>🧰 상담 도구</span><span class="arr">▼</span></button>
     <div class="sg-items">
       <button class="tabbtn" data-tab="proposal" onclick="switchTab('proposal')">🎯 제안 준비 (상품광고3)</button>
-      <button class="tabbtn" data-tab="underwriting" onclick="switchTab('underwriting')">🔍 인수기준 검색</button>
-      <button class="tabbtn" data-tab="kcd" onclick="switchTab('kcd')">🩺 질병분류코드 검색</button>
-      <button class="tabbtn" data-tab="surgery" onclick="switchTab('surgery')">🏥 수술등급 검색</button>
+      <button class="tabbtn" data-tab="underwriting" data-members="underwriting,kcd,surgery" onclick="switchTab('underwriting')">🔍 인수·병력 확인</button>
       <button class="tabbtn" data-tab="coverage" onclick="switchTab('coverage')">📑 보장분석</button>
-      <button class="tabbtn" data-tab="cancertl" onclick="switchTab('cancertl')">💸 암치료비 타임라인</button>
-      <button class="tabbtn" data-tab="hospmap" onclick="switchTab('hospmap')">🗺️ 전국 종합병원 지도</button>
+      <button class="tabbtn" data-tab="cancertl" data-members="cancertl,hospmap" onclick="switchTab('cancertl')">🏥 암·병원 자료</button>
     </div>
   </div>
   <div class="sg" data-group="edu">
     <button class="sg-head" onclick="toggleSideGroup('edu')"><span>🎓 교육·콜</span><span class="arr">▼</span></button>
     <div class="sg-items">
-      <button class="tabbtn" data-tab="rebuttal" onclick="switchTab('rebuttal')">💬 나는 이렇게 반론했어요</button>
-      <button class="tabbtn" data-tab="practice" onclick="switchTab('practice')">🎯 반론대처 연습</button>
+      <button class="tabbtn" data-tab="rebuttal" data-members="rebuttal,practice" onclick="switchTab('rebuttal')">💬 반론</button>
       <button class="tabbtn" data-tab="rapport" onclick="switchTab('rapport')">🤝 라포 브리핑</button>
     </div>
   </div>
   <div class="sg" data-group="info">
     <button class="sg-head" onclick="toggleSideGroup('info')"><span>ℹ️ 정보</span><span class="arr">▼</span></button>
     <div class="sg-items">
-      <button class="tabbtn" data-tab="insurer" onclick="switchTab('insurer')">📞 보험사연락처</button>
-      <button class="tabbtn" data-tab="callcenter" onclick="switchTab('callcenter')">☎️ 콜센터</button>
+      <button class="tabbtn" data-tab="insurer" data-members="insurer,callcenter" onclick="switchTab('insurer')">📞 연락처</button>
       <button class="tabbtn" data-tab="duties" id="tabBtnDuties" onclick="switchTab('duties')">🗂️ 총무업무분장표</button>
-      <button class="tabbtn" data-tab="issues" onclick="switchTab('issues')">📌 이슈/마감일정</button>
-      <button class="tabbtn" data-tab="newsscrap" onclick="switchTab('newsscrap')">📰 기사 스크랩</button>
+      <button class="tabbtn" data-tab="issues" data-members="issues,newsscrap" onclick="switchTab('issues')">📌 이슈·기사</button>
     </div>
   </div>
   <div class="sg" data-group="master" id="sideGroupMaster" style="display:none;">
@@ -2060,13 +2059,34 @@ function toggleSideMenu(force) {
   const open = (typeof force === 'boolean') ? force : !document.body.classList.contains('menu-open');
   document.body.classList.toggle('menu-open', open);
 }
+/* 메뉴 묶음: 사이드 메뉴에는 묶음 하나만 보이고, 화면 위쪽 작은 탭으로 안의 화면을 오간다. 각 화면(panel-이름)과 switchTab('이름')은 그대로라 다른 화면의 이동 링크도 그대로 동작한다. */
+const TAB_GROUPS = [
+  [['underwriting', '🔍 인수기준 검색'], ['kcd', '🩺 질병분류코드 검색'], ['surgery', '🏥 수술등급 검색']],
+  [['cancertl', '💸 암치료비 타임라인'], ['hospmap', '🗺️ 전국 종합병원 지도']],
+  [['rebuttal', '💬 나는 이렇게 반론했어요'], ['practice', '🎯 반론대처 연습']],
+  [['insurer', '📞 보험사연락처'], ['callcenter', '☎️ 콜센터']],
+  [['issues', '📌 이슈/마감일정'], ['newsscrap', '📰 기사 스크랩']]
+];
+function renderSubTabs(name) {
+  const grp = TAB_GROUPS.find(g => g.some(m => m[0] === name));
+  const panel = document.getElementById('panel-' + name);
+  if (!panel) return;
+  const old = panel.querySelector(':scope > .subtabs');
+  if (old) old.remove();
+  if (!grp) return;
+  const bar = document.createElement('div');
+  bar.className = 'subtabs';
+  bar.innerHTML = grp.map(m => `<button type="button" class="subtab${m[0] === name ? ' active' : ''}" onclick="switchTab('${m[0]}')">${m[1]}</button>`).join('');
+  panel.insertBefore(bar, panel.firstChild);
+}
 function switchTab(name) {
-  document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab === name || (b.dataset.members || '').split(',').indexOf(name) >= 0));
   const ab = document.querySelector('#sideMenu .tabbtn.active');
   if (ab) { const g = ab.closest('.sg'); if (g) g.classList.remove('collapsed'); }
   document.body.classList.remove('menu-open');
   window.scrollTo(0, 0);
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  renderSubTabs(name);
   if (name === 'performance') renderPerformance();
   if (name === 'dbmgmt') dbOpenTab();
   if (name === 'proposal') propOpenTab();
