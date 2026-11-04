@@ -12158,7 +12158,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     var a = $('bd_btn_auto');
     if (a) a.textContent = B.auto ? '⏸ 자동 넘김 끄기' : '▶ 자동 넘김 켜기';
     var a2 = $('bd_ctl_auto'); if (a2) a2.textContent = B.auto ? '⏸' : '▶';
-    var info = '쪽당 ' + secOf() + '초 · ' + (B.auto ? '자동으로 넘어가는 중' : '자동 넘김 꺼짐 (◀ ▶ 또는 방향키로 넘겨요)');
+    var info = !B.list.length ? '표시할 자료가 없어요' : '쪽당 ' + secOf() + '초 · ' + (B.auto ? '자동으로 넘어가는 중' : '자동 넘김 꺼짐 (◀ ▶ 또는 방향키로 넘겨요)');
     setInfo(info);
   }
   function resetProg() { var p = document.querySelector('#bd_prog i'); if (p) { p.style.transition = 'none'; p.style.width = '0'; } }
@@ -12250,7 +12250,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       if (r.status === 'ok' || r.status === 'missing') {
         applyMan(r.status === 'ok' ? r.man : defMan());
         B.state = 'ready';
-        if (r.status === 'missing' && isMaster()) showSetup('아직 올린 자료가 없어요. 처음이라면 아래 SQL을 먼저 실행한 뒤 PDF를 올려 주세요. (이미 실행했다면 바로 PDF를 올리면 돼요)');
         showIdx(0);
         return;
       }
