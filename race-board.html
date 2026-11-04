@@ -17,6 +17,9 @@ body.t-moto #app{background:linear-gradient(#150c38 0%,#3a1d68 42%,#0e1024 100%)
 body.t-cycle #app{background:linear-gradient(#14569e 0%,#2f84cf 50%,#6fb8ea 100%)}
 body.t-mountain #app{background:linear-gradient(#0f2b4d 0%,#3b6a96 45%,#f0b27a 100%)}
 body.t-election #app{background:radial-gradient(circle at 20% 0%,#16357a 0%,#071336 55%,#040a1f 100%)}
+body.t-marathon #app{background:linear-gradient(#b3441a 0%,#dd7a35 45%,#f0b26e 100%)}
+body.t-pullup #app{background:linear-gradient(#20242e 0%,#3b4254 55%,#171a22 100%)}
+body.t-swim #app{background:linear-gradient(#073b61 0%,#0f78ad 50%,#0a4770 100%)}
 
 /* ---------- 헤더 ---------- */
 header{height:12vh;flex:none;display:flex;align-items:center;gap:2.2vw;padding:0 2.2vw;background:rgba(0,0,0,.38);border-bottom:.35vh solid rgba(255,255,255,.18)}
@@ -41,10 +44,10 @@ header{height:12vh;flex:none;display:flex;align-items:center;gap:2.2vw;padding:0
 .axis{height:3.8vh;flex:none;display:grid;grid-template-columns:var(--nameW) 1fr var(--pctW);align-items:end;font-size:1.9vh;font-weight:700;text-shadow:0 .2vh .5vh rgba(0,0,0,.6)}
 .axrun{position:relative;height:100%;margin-right:var(--goalPad)}
 .axrun span{position:absolute;bottom:.4vh;transform:translateX(-50%);white-space:nowrap;opacity:.95}
-body.t-cycle .axis,body.t-mountain .axis{color:#fff}
+body.t-cycle .axis,body.t-mountain .axis,body.t-marathon .axis,body.t-swim .axis{color:#fff}
 #lanes{position:relative;flex:1;min-height:0}
 .finish{position:absolute;top:0;bottom:0;right:calc(var(--pctW) + var(--goalPad));width:1.2vw;transform:translateX(50%);background:repeating-conic-gradient(#fff 0 25%,#111 0 50%) 0 0/1.2vw 1.2vw;box-shadow:0 0 1.6vh rgba(255,255,255,.5);opacity:.9;z-index:1;pointer-events:none}
-body.t-mountain .finish,body.t-election .finish{display:none}
+body.t-mountain .finish,body.t-election .finish,body.t-pullup .finish{display:none}
 
 .lane{position:absolute;left:0;right:0;display:grid;grid-template-columns:var(--nameW) 1fr var(--pctW);align-items:center;transition:top 1s cubic-bezier(.3,1.25,.4,1)}
 .nm{display:flex;align-items:center;gap:.9vw;padding-right:1vw;min-width:0}
@@ -60,6 +63,8 @@ body.t-mountain .finish,body.t-election .finish{display:none}
 .goal{position:absolute;left:100%;top:50%;width:var(--goalPad);text-align:center;transform:translateY(-50%);font-size:calc(var(--lh)*.55);z-index:1}
 .goal::before{content:"🏝️"}
 body.t-mountain .goal::before{content:"🚩"}
+body.t-marathon .goal::before{content:"🏅"}
+body.t-pullup .goal::before{content:"🏆"}
 body.t-election .goal{display:none}
 .pct{font-size:calc(var(--lh)*.5);font-weight:900;text-align:right;padding-right:.4vw;font-variant-numeric:tabular-nums;text-shadow:0 .3vh .8vh rgba(0,0,0,.6)}
 .lane.done .pct{color:#ffd84d}
@@ -91,6 +96,32 @@ body.t-mountain .run{height:calc(var(--lh)*.96)}
 body.t-mountain .run::before{content:"";position:absolute;inset:0;clip-path:polygon(0 100%,100% 50%,100% 100%);background:linear-gradient(#f4f8fb 0,#9db3c2 28%,#587a63 62%,#2f4c3b 100%);border-radius:0 0 .6vh .6vh}
 body.t-mountain .av{width:calc(var(--lh)*.5);bottom:calc(var(--b,0)*1% + var(--lh)*.02)}
 body.t-mountain .goal{top:calc(50% - var(--lh)*.12);font-size:calc(var(--lh)*.5)}
+/* 마라톤 */
+body.t-marathon .run{background:linear-gradient(#fff 0 7%,#c4432b 7% 93%,#fff 93%);border-radius:.8vh;box-shadow:0 .3vh .8vh rgba(0,0,0,.35)}
+body.t-marathon .run::before{content:"";position:absolute;left:0;right:0;top:50%;height:.22vh;background:repeating-linear-gradient(90deg,rgba(255,255,255,.7) 0 1.2vw,transparent 1.2vw 2.6vw)}
+body.t-marathon .av{width:calc(var(--lh)*.72)}
+body.t-marathon .who b,body.t-marathon .who small,body.t-marathon .pct,body.t-marathon .axis{text-shadow:0 .2vh .6vh rgba(0,0,0,.75)}
+.rl1{transform-origin:30px 46px;animation:sw2 .38s ease-in-out infinite alternate}
+.rl2{transform-origin:30px 46px;animation:sw2 .38s ease-in-out infinite alternate-reverse}
+.ra1{transform-origin:30px 28px;animation:sw2 .38s ease-in-out infinite alternate-reverse}
+.ra2{transform-origin:30px 28px;animation:sw2 .38s ease-in-out infinite alternate}
+@keyframes sw2{from{transform:rotate(-32deg)}to{transform:rotate(32deg)}}
+/* 철봉 (턱걸이) */
+body.t-pullup .run{background:rgba(0,0,0,.28);border-radius:.8vh;box-shadow:inset 0 0 0 .2vh rgba(255,255,255,.18)}
+body.t-pullup .run::before{content:"";position:absolute;left:0;right:0;top:calc(var(--lh)*.09);height:calc(var(--lh)*.07);border-radius:99px;background:linear-gradient(#f3f4f6,#8b94a5 55%,#4b5263);box-shadow:0 .3vh .6vh rgba(0,0,0,.5)}
+body.t-pullup .av{width:calc(var(--lh)*.62);bottom:auto;top:calc(var(--lh)*.1)}
+body.t-pullup .av svg{animation:none}
+/* 수영 */
+body.t-swim .run{background:repeating-linear-gradient(90deg,rgba(255,255,255,.22) 0 .25vw,transparent .25vw 2.4vw),linear-gradient(#8fe0f5,#2aa8d8);background-size:2.4vw 100%,100% 100%;border-radius:.6vh;animation:wave 1.6s linear infinite}
+@keyframes wave{to{background-position:2.4vw 0,0 0}}
+body.t-swim .run::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,#ef4444 0 .8vw,#fff .8vw 1.6vw) top/100% .55vh no-repeat,repeating-linear-gradient(90deg,#ef4444 0 .8vw,#fff .8vw 1.6vw) bottom/100% .55vh no-repeat}
+body.t-swim .av{width:calc(var(--lh)*1.15);bottom:calc(var(--lh)*.14)}
+body.t-swim .av::after{content:"";position:absolute;left:-4%;right:-4%;bottom:-16%;height:52%;background:linear-gradient(rgba(60,170,220,.55),rgba(30,130,190,.8));border-radius:40% 40% 0 0 / 30% 30% 0 0}
+.sw1{transform-origin:66px 26px;animation:rot .9s linear infinite}
+.sw2a{transform-origin:66px 26px;animation:rot .9s linear infinite;animation-delay:-.45s}
+@keyframes rot{to{transform:rotate(360deg)}}
+.kk1{transform-origin:20px 28px;animation:sw .22s ease-in-out infinite alternate}
+.kk2{transform-origin:20px 28px;animation:sw .22s ease-in-out infinite alternate-reverse}
 /* 개표방송 */
 body.t-election .run{background:#0c1c47;border-radius:.6vh;border:.2vh solid rgba(120,160,255,.35);overflow:hidden}
 body.t-election .av{display:none}
@@ -119,7 +150,7 @@ body.t-election .nm .rank{border-radius:.6vh}
 #banner small{display:block;font-size:3.2vh;font-weight:700;margin-top:1vh}
 
 /* ---------- 컨트롤 / 설정 ---------- */
-#ctrl{position:fixed;right:1.2vw;bottom:8vh;z-index:70;display:flex;gap:.5vw;opacity:0;transition:opacity .4s;pointer-events:none}
+#ctrl{position:fixed;right:1.2vw;bottom:8vh;z-index:70;display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:96vw;gap:.5vw;opacity:0;transition:opacity .4s;pointer-events:none}
 #ctrl.show{opacity:1;pointer-events:auto}
 #ctrl button{background:rgba(0,0,0,.7);color:#fff;border:.2vh solid rgba(255,255,255,.4);border-radius:1vh;padding:1vh 1vw;font-size:1.9vh;cursor:pointer}
 #ctrl button:hover{background:rgba(255,255,255,.25)}
@@ -166,6 +197,9 @@ body.t-election .nm .rank{border-radius:.6vh}
   <button data-th="cycle" title="2">🚴 사이클</button>
   <button data-th="mountain" title="3">⛰️ 등산</button>
   <button data-th="election" title="4">📺 개표방송</button>
+  <button data-th="marathon" title="5">🏃 마라톤</button>
+  <button data-th="pullup" title="6">💪 철봉</button>
+  <button data-th="swim" title="7">🏊 수영</button>
   <button id="b-demo" title="D">🎮 데모</button>
   <button id="b-full" title="F">⛶ 전체화면</button>
   <button id="b-set" title="S">⚙️ 설정</button>
@@ -193,7 +227,7 @@ var SB_URL='https://wxsscpjafyszvtdkzrgv.supabase.co';
 var SB_KEY='sb_publishable_gkQJVz2h0mvwR50OpgobRA_-ufWbsOT';
 var LS='afgRace.v1';
 var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60};
-var THEMES=['moto','cycle','mountain','election'];
+var THEMES=['moto','cycle','mountain','election','marathon','pullup','swim'];
 var PAL=['#ef4444','#f59e0b','#22c55e','#06b6d4','#6366f1','#d946ef','#f97316','#84cc16','#14b8a6','#ec4899','#a855f7','#eab308'];
 var PREM_CANDS=['premium','monthly_premium','insurance_premium','보험료','premium_amount','fee','amount'];
 
@@ -315,10 +349,48 @@ function svgClimb(c){
   '<g class="lg1"><line x1="31" y1="46" x2="22" y2="72" stroke="#222" stroke-width="6" stroke-linecap="round"/></g>'+
   '<g class="lg2"><line x1="33" y1="46" x2="44" y2="72" stroke="#222" stroke-width="6" stroke-linecap="round"/></g></svg>';
 }
+function svgMarathon(c){
+  return '<svg viewBox="0 0 60 80">'+
+  '<g class="rl1"><line x1="30" y1="46" x2="30" y2="72" stroke="#2b2b33" stroke-width="7" stroke-linecap="round"/><line x1="30" y1="72" x2="37" y2="72" stroke="#fff" stroke-width="5" stroke-linecap="round"/></g>'+
+  '<g class="ra1"><line x1="30" y1="28" x2="30" y2="46" stroke="#f5cba7" stroke-width="5.5" stroke-linecap="round"/></g>'+
+  '<line x1="30" y1="24" x2="31" y2="47" stroke="'+c+'" stroke-width="11" stroke-linecap="round"/>'+
+  '<rect x="26" y="29" width="10" height="7" rx="1" fill="#fff"/><rect x="28" y="31" width="6" height="1.6" fill="'+c+'"/>'+
+  '<circle cx="32" cy="13" r="8" fill="#f5cba7"/><path d="M23 12 Q32 1 41 12 L41 9 Q32 -2 23 9Z" fill="'+c+'"/>'+
+  '<g class="rl2"><line x1="30" y1="46" x2="30" y2="72" stroke="#2b2b33" stroke-width="7" stroke-linecap="round"/><line x1="30" y1="72" x2="37" y2="72" stroke="#fff" stroke-width="5" stroke-linecap="round"/></g>'+
+  '<g class="ra2"><line x1="30" y1="28" x2="30" y2="46" stroke="#f5cba7" stroke-width="5.5" stroke-linecap="round"/></g></svg>';
+}
+function svgPullup(c){
+  var b='-'+(Math.random()*1.6).toFixed(2)+'s';
+  function an(attr,vals){return '<animate attributeName="'+attr+'" values="'+vals+'" keyTimes="0;.5;1" dur="1.6s" begin="'+b+'" repeatCount="indefinite"/>';}
+  var down='20,5 22,17 25,28',up='20,5 10,14 25,6';
+  var downR='40,5 38,17 35,28',upR='40,5 50,14 35,6';
+  return '<svg viewBox="0 0 60 80">'+
+  '<polyline fill="none" stroke="#f5cba7" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" points="'+down+'">'+an('points',down+';'+up+';'+down)+'</polyline>'+
+  '<polyline fill="none" stroke="#f5cba7" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" points="'+downR+'">'+an('points',downR+';'+upR+';'+downR)+'</polyline>'+
+  '<g><animateTransform attributeName="transform" type="translate" values="0 0;0 -22;0 0" keyTimes="0;.5;1" dur="1.6s" begin="'+b+'" repeatCount="indefinite"/>'+
+  '<line x1="30" y1="26" x2="30" y2="52" stroke="'+c+'" stroke-width="11" stroke-linecap="round"/>'+
+  '<line x1="27" y1="52" x2="25" y2="74" stroke="#cbd5e1" stroke-width="5.5" stroke-linecap="round"/>'+
+  '<line x1="33" y1="52" x2="35" y2="74" stroke="#cbd5e1" stroke-width="5.5" stroke-linecap="round"/>'+
+  '<circle cx="30" cy="17" r="7.5" fill="#f5cba7"/><path d="M22.5 15 Q30 6 37.5 15Z" fill="'+c+'"/></g>'+
+  '<circle cx="20" cy="5" r="2.6" fill="#f5cba7"/><circle cx="40" cy="5" r="2.6" fill="#f5cba7"/></svg>';
+}
+function svgSwim(c){
+  return '<svg viewBox="0 0 100 50">'+
+  '<g class="spd" stroke="#fff" stroke-linecap="round" stroke-width="2.5"><line x1="92" y1="30" x2="98" y2="26"/><line x1="94" y1="35" x2="100" y2="35"/></g>'+
+  '<g class="kk1"><line x1="22" y1="28" x2="6" y2="24" stroke="#f5cba7" stroke-width="5" stroke-linecap="round"/></g>'+
+  '<g class="kk2"><line x1="22" y1="28" x2="6" y2="33" stroke="#f5cba7" stroke-width="5" stroke-linecap="round"/></g>'+
+  '<line x1="24" y1="28" x2="64" y2="28" stroke="'+c+'" stroke-width="10" stroke-linecap="round"/>'+
+  '<g class="sw1"><line x1="66" y1="26" x2="90" y2="26" stroke="#f5cba7" stroke-width="4.5" stroke-linecap="round"/></g>'+
+  '<g class="sw2a"><line x1="66" y1="26" x2="90" y2="26" stroke="#f5cba7" stroke-width="4.5" stroke-linecap="round"/></g>'+
+  '<circle cx="74" cy="22" r="7.5" fill="#f5cba7"/><path d="M66.5 21 Q74 10 81.5 21Z" fill="'+c+'"/><circle cx="78" cy="21" r="2.6" fill="#1f2937"/></svg>';
+}
 function avatarFor(th,c){
   if(th==='moto')return svgMoto(c);
   if(th==='cycle')return svgCycle(c);
   if(th==='mountain')return svgClimb(c);
+  if(th==='marathon')return svgMarathon(c);
+  if(th==='pullup')return svgPullup(c);
+  if(th==='swim')return svgSwim(c);
   return '';
 }
 function colorOf(i){return PAL[i%PAL.length];}
@@ -327,13 +399,14 @@ function colorOf(i){return PAL[i%PAL.length];}
 function theme(){return cfg.theme;}
 function titles(){
   var t=ym(),tr=cfg.trip||'목표',th=theme();
-  var h={moto:tr+' 그랑프리',cycle:'투르 드 '+tr,mountain:tr+' 정상 정복 대작전',election:tr+' 개표방송'}[th];
-  var ic={moto:'🏍️ ',cycle:'🚴 ',mountain:'⛰️ ',election:'📺 '}[th];
+  var h={moto:tr+' 그랑프리',cycle:'투르 드 '+tr,mountain:tr+' 정상 정복 대작전',election:tr+' 개표방송',marathon:tr+' 마라톤',pullup:tr+' 철봉 챌린지',swim:tr+' 수영 대회'}[th];
+  var ic={moto:'🏍️ ',cycle:'🚴 ',mountain:'⛰️ ',election:'📺 ',marathon:'🏃 ',pullup:'💪 ',swim:'🏊 '}[th];
   $('#h-title').textContent=ic+h;
   $('#h-sub').textContent=t.m+'월 인당 '+cfg.goal+'만원 달성 레이스 · 골인하면 '+tr+' 출발!';
   $('#o-lab').textContent=th==='election'?'전체 개표율':'센터 전체 달성률';
   var ax=$('#axrun');
   var pts=[[0,th==='election'?'0%':'출발'],[25,'25%'],[50,'50%'],[75,'75%'],[100,'🏁 '+cfg.goal+'만원']];
+  if(th==='marathon')pts=[[0,'출발'],[25,'10.5km'],[50,'21.1km'],[75,'31.6km'],[100,'🏁 42.195km']];
   ax.innerHTML=pts.map(function(p){return '<span style="left:'+p[0]+'%">'+esc(p[1])+'</span>';}).join('');
 }
 function applyTheme(th,silent){
@@ -582,7 +655,7 @@ document.addEventListener('keydown',function(e){
   if(tg==='INPUT'||tg==='TEXTAREA')return;
   if(!$('#settings').hidden)return;
   var k=e.key.toLowerCase();
-  if(k>='1'&&k<='4')applyTheme(THEMES[Number(k)-1]);
+  if(k>='1'&&k<='7')applyTheme(THEMES[Number(k)-1]);
   else if(k==='f')toggleFull();
   else if(k==='s')openSettings();
   else if(k==='d'){demo?stopDemo():startDemo();}
