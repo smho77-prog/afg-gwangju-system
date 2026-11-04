@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>목표달성 레이스 현황판</title>
+<style>
+:root{--nameW:17vw;--pctW:9vw;--goalPad:5vw;--lh:70px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:"Pretendard","Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#fff;background:#0b1020}
+body.idle{cursor:none}
+button,input,textarea{font:inherit}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;transition:background .6s}
+
+/* ---------- 테마 배경 ---------- */
+body.t-moto #app{background:linear-gradient(#150c38 0%,#3a1d68 42%,#0e1024 100%)}
+body.t-cycle #app{background:linear-gradient(#14569e 0%,#2f84cf 50%,#6fb8ea 100%)}
+body.t-mountain #app{background:linear-gradient(#0f2b4d 0%,#3b6a96 45%,#f0b27a 100%)}
+body.t-election #app{background:radial-gradient(circle at 20% 0%,#16357a 0%,#071336 55%,#040a1f 100%)}
+
+/* ---------- 헤더 ---------- */
+header{height:12vh;flex:none;display:flex;align-items:center;gap:2.2vw;padding:0 2.2vw;background:rgba(0,0,0,.38);border-bottom:.35vh solid rgba(255,255,255,.18)}
+.title h1{font-size:4.4vh;font-weight:900;letter-spacing:-.02em;text-shadow:0 .3vh .8vh rgba(0,0,0,.5);white-space:nowrap}
+.title p{font-size:2.1vh;opacity:.85;margin-top:.4vh;white-space:nowrap}
+.overall{flex:1;min-width:0}
+.overall .lab{display:flex;justify-content:space-between;align-items:baseline;font-size:2.2vh;font-weight:700;margin-bottom:.8vh}
+.overall .lab b{font-size:3.4vh;font-weight:900}
+.bar{height:2.6vh;border-radius:99px;background:rgba(255,255,255,.2);overflow:hidden;box-shadow:inset 0 .2vh .6vh rgba(0,0,0,.4)}
+.bar i{display:block;height:100%;width:calc(var(--o,0)*1%);background:linear-gradient(90deg,#34d399,#facc15 60%,#fb7185);transition:width 1.6s ease;border-radius:99px}
+.meta{text-align:right;white-space:nowrap}
+.dd{font-size:3.6vh;font-weight:900;color:#ffd84d;text-shadow:0 .3vh .8vh rgba(0,0,0,.5)}
+.clk{font-size:2.2vh;opacity:.9;font-variant-numeric:tabular-nums}
+.stat{font-size:1.7vh;margin-top:.3vh;opacity:.95}
+.stat .dot{display:inline-block;width:1.1vh;height:1.1vh;border-radius:50%;background:#34d399;margin-right:.5vw;animation:blink 1.4s infinite}
+.stat.err .dot{background:#f87171}
+.stat.demo .dot{background:#facc15}
+@keyframes blink{50%{opacity:.25}}
+
+/* ---------- 무대 ---------- */
+#stage{flex:1;min-height:0;display:flex;flex-direction:column;padding:.8vh 2vw 0}
+.axis{height:3.8vh;flex:none;display:grid;grid-template-columns:var(--nameW) 1fr var(--pctW);align-items:end;font-size:1.9vh;font-weight:700;text-shadow:0 .2vh .5vh rgba(0,0,0,.6)}
+.axrun{position:relative;height:100%;margin-right:var(--goalPad)}
+.axrun span{position:absolute;bottom:.4vh;transform:translateX(-50%);white-space:nowrap;opacity:.95}
+body.t-cycle .axis,body.t-mountain .axis{color:#fff}
+#lanes{position:relative;flex:1;min-height:0}
+.finish{position:absolute;top:0;bottom:0;right:calc(var(--pctW) + var(--goalPad));width:1.2vw;transform:translateX(50%);background:repeating-conic-gradient(#fff 0 25%,#111 0 50%) 0 0/1.2vw 1.2vw;box-shadow:0 0 1.6vh rgba(255,255,255,.5);opacity:.9;z-index:1;pointer-events:none}
+body.t-mountain .finish,body.t-election .finish{display:none}
+
+.lane{position:absolute;left:0;right:0;display:grid;grid-template-columns:var(--nameW) 1fr var(--pctW);align-items:center;transition:top 1s cubic-bezier(.3,1.25,.4,1)}
+.nm{display:flex;align-items:center;gap:.9vw;padding-right:1vw;min-width:0}
+.rank{position:relative;flex:none;width:calc(var(--lh)*.58);height:calc(var(--lh)*.58);border-radius:50%;background:rgba(0,0,0,.45);border:.2vh solid rgba(255,255,255,.5);display:grid;place-items:center;font-weight:900;font-size:calc(var(--lh)*.32)}
+.lane.first .rank{background:linear-gradient(#ffe27a,#f5a524);color:#4a2c00;border-color:#fff}
+.lane.first .rank::after{content:"👑";position:absolute;top:-62%;left:50%;transform:translateX(-50%);font-size:calc(var(--lh)*.36)}
+.who{min-width:0}
+.who b{display:flex;align-items:center;gap:.5vw;font-size:calc(var(--lh)*.38);font-weight:900;white-space:nowrap;text-shadow:0 .2vh .5vh rgba(0,0,0,.6)}
+.who .dot{display:inline-block;width:calc(var(--lh)*.2);height:calc(var(--lh)*.2);border-radius:50%;border:.2vh solid #fff;flex:none}
+.who small{display:block;font-size:calc(var(--lh)*.26);opacity:.9;text-shadow:0 .2vh .5vh rgba(0,0,0,.6);font-variant-numeric:tabular-nums}
+.run{position:relative;height:calc(var(--lh)*.84);margin-right:var(--goalPad)}
+.tick{position:absolute;top:0;bottom:0;width:0;border-left:.2vh dashed rgba(255,255,255,.3);z-index:0}
+.goal{position:absolute;left:100%;top:50%;width:var(--goalPad);text-align:center;transform:translateY(-50%);font-size:calc(var(--lh)*.55);z-index:1}
+.goal::before{content:"🏝️"}
+body.t-mountain .goal::before{content:"🚩"}
+body.t-election .goal{display:none}
+.pct{font-size:calc(var(--lh)*.5);font-weight:900;text-align:right;padding-right:.4vw;font-variant-numeric:tabular-nums;text-shadow:0 .3vh .8vh rgba(0,0,0,.6)}
+.lane.done .pct{color:#ffd84d}
+.lane.done .pct::before{content:"🎫 ";font-size:.7em}
+
+/* 아바타 */
+.av{position:absolute;left:calc(var(--p,0)*1%);bottom:calc(var(--lh)*.03);transform:translateX(-50%);width:calc(var(--lh)*1.4);transition:left 1.8s ease-in-out,bottom 1.8s ease-in-out;z-index:2}
+.av svg{display:block;width:100%;height:auto;overflow:visible;animation:bob .45s ease-in-out infinite alternate}
+@keyframes bob{to{transform:translateY(-3%)}}
+.lane.done .av svg{filter:drop-shadow(0 0 .9vh #ffd84d)}
+.spin{transform-box:fill-box;transform-origin:center;animation:spin .55s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spd{animation:flick .25s steps(2) infinite}
+@keyframes flick{50%{opacity:.15}}
+.lg1{transform-origin:31px 46px;animation:sw .5s ease-in-out infinite alternate}
+.lg2{transform-origin:33px 46px;animation:sw .5s ease-in-out infinite alternate-reverse}
+@keyframes sw{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+.fill,.stamp{display:none}
+
+/* 오토바이 */
+body.t-moto .run{background:#2a2d3a;border-radius:.8vh;box-shadow:inset 0 .35vh 0 #ff4d4d,inset 0 -.35vh 0 #fff}
+body.t-moto .run::before{content:"";position:absolute;left:0;right:0;top:50%;height:.25vh;background:repeating-linear-gradient(90deg,#fde047 0 1.6vw,transparent 1.6vw 3.2vw);opacity:.7}
+/* 사이클 */
+body.t-cycle .run{background:linear-gradient(#59b04f 0 10%,#4a4f57 10% 90%,#59b04f 90%);border-radius:.8vh}
+body.t-cycle .run::before{content:"";position:absolute;left:0;right:0;top:50%;height:.25vh;background:repeating-linear-gradient(90deg,#fff 0 1.4vw,transparent 1.4vw 2.8vw);opacity:.75}
+body.t-cycle .who b,body.t-cycle .who small,body.t-cycle .pct,body.t-cycle .axis{text-shadow:0 .2vh .6vh rgba(0,0,0,.75)}
+/* 등산 */
+body.t-mountain .run{height:calc(var(--lh)*.96)}
+body.t-mountain .run::before{content:"";position:absolute;inset:0;clip-path:polygon(0 100%,100% 50%,100% 100%);background:linear-gradient(#f4f8fb 0,#9db3c2 28%,#587a63 62%,#2f4c3b 100%);border-radius:0 0 .6vh .6vh}
+body.t-mountain .av{width:calc(var(--lh)*.5);bottom:calc(var(--b,0)*1% + var(--lh)*.02)}
+body.t-mountain .goal{top:calc(50% - var(--lh)*.12);font-size:calc(var(--lh)*.5)}
+/* 개표방송 */
+body.t-election .run{background:#0c1c47;border-radius:.6vh;border:.2vh solid rgba(120,160,255,.35);overflow:hidden}
+body.t-election .av{display:none}
+body.t-election .fill{display:block;position:absolute;left:0;top:0;bottom:0;width:calc(var(--pc,0)*1%);background:linear-gradient(90deg,#1d4ed8,#38bdf8);transition:width 1.8s ease;z-index:1}
+body.t-election .lane.done .fill{background:linear-gradient(90deg,#d97706,#fde047)}
+body.t-election .stamp{display:block;position:absolute;right:.5vw;top:50%;transform:translateY(-50%);font-size:calc(var(--lh)*.32);font-weight:900;padding:.2vh .7vw;border-radius:.5vh;background:#e11d48;color:#fff;white-space:nowrap}
+body.t-election .stamp:empty{display:none}
+body.t-election .lane[data-st=likely] .stamp{background:#f97316}
+body.t-election .lane[data-st=fight] .stamp{background:rgba(0,0,0,.45)}
+body.t-election .pct{font-size:calc(var(--lh)*.56)}
+body.t-election .nm .rank{border-radius:.6vh}
+
+/* ---------- 속보 티커 ---------- */
+#ticker{height:6.5vh;flex:none;display:flex;align-items:center;background:rgba(0,0,0,.55);border-top:.3vh solid rgba(255,255,255,.2);overflow:hidden}
+#ticker .lbl{flex:none;height:100%;display:grid;place-items:center;padding:0 1.6vw;background:#e11d48;font-weight:900;font-size:2.8vh;letter-spacing:.05em;z-index:2;box-shadow:.5vw 0 1vw rgba(0,0,0,.4)}
+#ticker .vp{flex:1;overflow:hidden;height:100%;display:flex;align-items:center}
+#tk{display:flex;width:max-content;animation:tk 60s linear infinite}
+#tk .seg{display:flex;flex:none}
+#tk span{font-size:3vh;font-weight:700;white-space:nowrap;padding-right:6vw}
+@keyframes tk{to{transform:translateX(-50%)}}
+
+/* ---------- 축하 배너 / 색종이 ---------- */
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+#banner{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%) scale(.6);opacity:0;z-index:60;pointer-events:none;text-align:center;padding:3vh 5vw;border-radius:2vh;background:linear-gradient(135deg,#f59e0b,#ef4444);border:.6vh solid #fff;box-shadow:0 0 6vh rgba(255,200,0,.8);font-size:7vh;font-weight:900;line-height:1.25;text-shadow:0 .4vh 1vh rgba(0,0,0,.45);transition:all .5s cubic-bezier(.3,1.5,.5,1)}
+#banner.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#banner small{display:block;font-size:3.2vh;font-weight:700;margin-top:1vh}
+
+/* ---------- 컨트롤 / 설정 ---------- */
+#ctrl{position:fixed;right:1.2vw;bottom:8vh;z-index:70;display:flex;gap:.5vw;opacity:0;transition:opacity .4s;pointer-events:none}
+#ctrl.show{opacity:1;pointer-events:auto}
+#ctrl button{background:rgba(0,0,0,.7);color:#fff;border:.2vh solid rgba(255,255,255,.4);border-radius:1vh;padding:1vh 1vw;font-size:1.9vh;cursor:pointer}
+#ctrl button:hover{background:rgba(255,255,255,.25)}
+#ctrl button.on{background:#2563eb}
+#settings{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center}
+#settings[hidden]{display:none}
+#settings .card{width:min(560px,92vw);max-height:92vh;overflow:auto;background:#fff;color:#1f2937;border-radius:14px;padding:22px 24px}
+#settings h2{font-size:20px;margin-bottom:12px}
+#settings label{display:block;font-size:13px;font-weight:700;margin-top:12px}
+#settings input[type=text],#settings input[type=number],#settings textarea{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
+#settings .row{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;font-weight:700}
+#settings .row input[type=number]{width:70px;margin:0}
+#s-info{margin-top:12px;font-size:12px;line-height:1.55;color:#475569;background:#f1f5f9;border-radius:8px;padding:8px 10px;white-space:pre-wrap}
+#settings .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+#settings .btns button{padding:9px 18px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700}
+#settings .btns button.pri{background:#2563eb;color:#fff;border-color:#2563eb}
+#empty{position:absolute;inset:0;display:grid;place-items:center;font-size:3vh;opacity:.8}
+</style>
+</head>
+<body class="t-moto">
+<div id="app">
+  <header>
+    <div class="title"><h1 id="h-title">-</h1><p id="h-sub">-</p></div>
+    <div class="overall">
+      <div class="lab"><span id="o-lab">센터 전체 달성률</span><b id="o-pct">0%</b></div>
+      <div class="bar" id="o-bar"><i></i></div>
+    </div>
+    <div class="meta">
+      <div class="dd" id="dd">-</div>
+      <div class="clk" id="clk">-</div>
+      <div class="stat" id="stat"><span class="dot"></span><span id="stat-t">연결 중…</span></div>
+    </div>
+  </header>
+  <div id="stage">
+    <div class="axis"><div></div><div class="axrun" id="axrun"></div><div></div></div>
+    <div id="lanes"><div class="finish"></div></div>
+  </div>
+  <div id="ticker"><div class="lbl">속보</div><div class="vp"><div id="tk"></div></div></div>
+</div>
+<canvas id="confetti"></canvas>
+<div id="banner"></div>
+<div id="ctrl">
+  <button data-th="moto" title="1">🏍️ 오토바이</button>
+  <button data-th="cycle" title="2">🚴 사이클</button>
+  <button data-th="mountain" title="3">⛰️ 등산</button>
+  <button data-th="election" title="4">📺 개표방송</button>
+  <button id="b-demo" title="D">🎮 데모</button>
+  <button id="b-full" title="F">⛶ 전체화면</button>
+  <button id="b-set" title="S">⚙️ 설정</button>
+</div>
+<div id="settings" hidden>
+  <div class="card">
+    <h2>⚙️ 현황판 설정</h2>
+    <label>목표 이름 (예: 나트랑)<input type="text" id="s-trip"></label>
+    <label>인당 월 목표 (만원)<input type="number" id="s-goal" min="1"></label>
+    <label>팀원 명단 (한 줄에 한 명 — 계약관리의 '담당 팀장' 이름과 똑같이)<textarea id="s-roster" rows="8"></textarea></label>
+    <label>보험료 컬럼명 (비워두면 자동 인식)<input type="text" id="s-col" placeholder="예: premium"></label>
+    <label>자동 갱신 주기 (초)<input type="number" id="s-poll" min="5"></label>
+    <div class="row"><input type="checkbox" id="s-auto"><label style="margin:0">테마 자동 순환</label><input type="number" id="s-autosec" min="10"> 초마다</div>
+    <div id="s-info">-</div>
+    <div class="btns"><button id="s-cancel">닫기</button><button class="pri" id="s-save">저장</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ===== 설정 ===== */
+var SB_URL='https://wxsscpjafyszvtdkzrgv.supabase.co';
+var SB_KEY='sb_publishable_gkQJVz2h0mvwR50OpgobRA_-ufWbsOT';
+var LS='afgRace.v1';
+var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60};
+var THEMES=['moto','cycle','mountain','election'];
+var PAL=['#ef4444','#f59e0b','#22c55e','#06b6d4','#6366f1','#d946ef','#f97316','#84cc16','#14b8a6','#ec4899','#a855f7','#eab308'];
+var PREM_CANDS=['premium','monthly_premium','insurance_premium','보험료','premium_amount','fee','amount'];
+
+function $(s){return document.querySelector(s);}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function pad(n){return n<10?'0'+n:''+n;}
+function fmt(won){return (won/10000).toLocaleString('ko-KR',{minimumFractionDigits:0,maximumFractionDigits:1});}
+
+var cfg=loadCfg();
+function loadCfg(){
+  var c={};for(var k in DEF)c[k]=DEF[k];
+  try{var s=JSON.parse(localStorage.getItem(LS)||'null');if(s)for(var k2 in s){if(k2 in DEF)c[k2]=s[k2];}}catch(e){}
+  if(!Array.isArray(c.roster))c.roster=DEF.roster.slice();
+  c.goal=Number(c.goal)>0?Number(c.goal):100;
+  c.poll=Math.max(5,Number(c.poll)||20);
+  c.autoSec=Math.max(10,Number(c.autoSec)||60);
+  if(THEMES.indexOf(c.theme)<0)c.theme='moto';
+  return c;
+}
+function saveCfg(){try{localStorage.setItem(LS,JSON.stringify(cfg));}catch(e){}}
+
+/* ===== 상태 ===== */
+var demo=/[?&]demo=1/.test(location.search);
+var demoSums=null;
+var lastSums=null;       // 마지막으로 정상 수신한 합계
+var prevBoard=null;
+var lanes={};            // name -> {el,...}
+var news=[];
+var info={col:null,unknown:[],err:'',rows:0,at:null};
+var pollTimer=null,autoTimer=null,demoTimer=null;
+
+/* ===== 날짜 ===== */
+function ym(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth()+1,d:d.getDate(),last:new Date(d.getFullYear(),d.getMonth()+1,0).getDate()};}
+
+/* ===== 데이터 ===== */
+function num(v){if(typeof v==='number')return isFinite(v)?v:0;var n=Number(String(v==null?'':v).replace(/[^0-9.\-]/g,''));return isFinite(n)?n:0;}
+function detectCol(rows){
+  if(cfg.premCol)return cfg.premCol;
+  if(!rows.length)return 'premium';
+  var r=rows[0],i;
+  for(i=0;i<PREM_CANDS.length;i++){if(PREM_CANDS[i] in r)return PREM_CANDS[i];}
+  for(var k in r){if(/prem|보험료/i.test(k)&&k.indexOf('수정')<0)return k;}
+  return null;
+}
+function sumRows(rows){
+  var col=detectCol(rows);
+  var sums={},unk={};
+  cfg.roster.forEach(function(n){sums[n]=0;});
+  rows.forEach(function(r){
+    var n=String(r.manager_name||'').replace(/\s+/g,'');
+    var hit=null;
+    cfg.roster.forEach(function(x){if(x.replace(/\s+/g,'')===n)hit=x;});
+    if(hit)sums[hit]+=col?num(r[col]):0;else if(n)unk[n]=1;
+  });
+  info.col=col;info.unknown=Object.keys(unk);info.rows=rows.length;
+  return sums;
+}
+function fetchLive(){
+  var t=ym(),nm=t.m===12?1:t.m+1,ny=t.m===12?t.y+1:t.y;
+  var url=SB_URL+'/rest/v1/contracts?select=*&contract_date=gte.'+t.y+'-'+pad(t.m)+'-01&contract_date=lt.'+ny+'-'+pad(nm)+'-01&limit=5000';
+  return fetch(url,{headers:{apikey:SB_KEY}}).then(function(r){
+    if(!r.ok)return r.text().then(function(tx){throw new Error('HTTP '+r.status+' '+tx.slice(0,120));});
+    return r.json();
+  }).then(function(rows){
+    if(!Array.isArray(rows))throw new Error('예상과 다른 응답');
+    return sumRows(rows);
+  });
+}
+
+/* ===== 보드 계산 ===== */
+function buildBoard(sums){
+  var goalWon=cfg.goal*10000;
+  var arr=cfg.roster.map(function(n,i){var v=sums[n]||0;return {name:n,idx:i,v:v,p:goalWon>0?v/goalWon*100:0};});
+  arr.sort(function(a,b){return b.v-a.v||a.idx-b.idx;});
+  arr.forEach(function(x,i){x.rank=i+1;});
+  return arr;
+}
+
+/* ===== 아바타 SVG ===== */
+function wheel(cx,cy,r){
+  return '<g class="spin"><circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#1b1b1f" stroke="#fff" stroke-width="2"/>'+
+  '<circle cx="'+cx+'" cy="'+cy+'" r="'+(r*0.55)+'" fill="none" stroke="#9aa3b2" stroke-width="1.5"/>'+
+  '<line x1="'+(cx-r)+'" y1="'+cy+'" x2="'+(cx+r)+'" y2="'+cy+'" stroke="#cfd6e4" stroke-width="1.5"/>'+
+  '<line x1="'+cx+'" y1="'+(cy-r)+'" x2="'+cx+'" y2="'+(cy+r)+'" stroke="#cfd6e4" stroke-width="1.5"/></g>';
+}
+function svgMoto(c){
+  return '<svg viewBox="0 0 120 72">'+
+  '<g class="spd" stroke="#fff" stroke-linecap="round" stroke-width="2.5"><line x1="2" y1="28" x2="16" y2="28"/><line x1="0" y1="38" x2="12" y2="38"/></g>'+
+  wheel(26,56,14)+wheel(96,56,14)+
+  '<path d="M26 56 L44 40 L78 40 L96 56" stroke="#222" stroke-width="4" fill="none"/>'+
+  '<polygon points="40,38 52,28 76,28 88,36 80,46 44,46" fill="'+c+'" stroke="#fff" stroke-width="1.5"/>'+
+  '<line x1="90" y1="32" x2="96" y2="56" stroke="#e5e7eb" stroke-width="4"/>'+
+  '<line x1="86" y1="28" x2="96" y2="26" stroke="#222" stroke-width="4" stroke-linecap="round"/>'+
+  '<line x1="46" y1="32" x2="62" y2="16" stroke="#222" stroke-width="9" stroke-linecap="round"/>'+
+  '<line x1="62" y1="18" x2="86" y2="27" stroke="#222" stroke-width="5" stroke-linecap="round"/>'+
+  '<line x1="48" y1="34" x2="66" y2="48" stroke="#222" stroke-width="6" stroke-linecap="round"/>'+
+  '<circle cx="68" cy="9" r="8" fill="'+c+'" stroke="#fff" stroke-width="2"/>'+
+  '<rect x="68" y="7" width="8" height="4" rx="2" fill="#111"/></svg>';
+}
+function svgCycle(c){
+  return '<svg viewBox="0 0 120 72">'+
+  '<g class="spd" stroke="#fff" stroke-linecap="round" stroke-width="2.5"><line x1="2" y1="30" x2="14" y2="30"/><line x1="0" y1="40" x2="10" y2="40"/></g>'+
+  wheel(26,54,15)+wheel(94,54,15)+
+  '<g stroke="'+c+'" stroke-width="3.2" stroke-linecap="round" fill="none"><path d="M26 54 L52 54 L46 32 L26 54 M46 32 L80 32 L52 54 M80 32 L84 26 M84 28 L94 54"/></g>'+
+  '<line x1="84" y1="26" x2="93" y2="23" stroke="#222" stroke-width="3.5" stroke-linecap="round"/>'+
+  '<line x1="44" y1="30" x2="46" y2="32" stroke="#222" stroke-width="5" stroke-linecap="round"/>'+
+  '<line x1="48" y1="30" x2="71" y2="16" stroke="'+c+'" stroke-width="9" stroke-linecap="round"/>'+
+  '<line x1="70" y1="18" x2="89" y2="24" stroke="#f5cba7" stroke-width="4.5" stroke-linecap="round"/>'+
+  '<polyline points="48,32 62,44 54,54" fill="none" stroke="#222" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>'+
+  '<circle cx="76" cy="10" r="7.5" fill="#f5cba7"/><path d="M68 9 Q76 0 84 9Z" fill="#fff" stroke="'+c+'" stroke-width="1.5"/></svg>';
+}
+function svgClimb(c){
+  return '<svg viewBox="0 0 60 80">'+
+  '<circle cx="30" cy="13" r="8" fill="#f5cba7"/><path d="M21 11 Q30 0 39 11Z" fill="'+c+'"/>'+
+  '<rect x="16" y="22" width="14" height="22" rx="4" fill="#333"/>'+
+  '<line x1="31" y1="23" x2="32" y2="46" stroke="'+c+'" stroke-width="10" stroke-linecap="round"/>'+
+  '<line x1="33" y1="27" x2="49" y2="35" stroke="'+c+'" stroke-width="5" stroke-linecap="round"/>'+
+  '<line x1="50" y1="26" x2="56" y2="77" stroke="#b08a4a" stroke-width="3" stroke-linecap="round"/>'+
+  '<g class="lg1"><line x1="31" y1="46" x2="22" y2="72" stroke="#222" stroke-width="6" stroke-linecap="round"/></g>'+
+  '<g class="lg2"><line x1="33" y1="46" x2="44" y2="72" stroke="#222" stroke-width="6" stroke-linecap="round"/></g></svg>';
+}
+function avatarFor(th,c){
+  if(th==='moto')return svgMoto(c);
+  if(th==='cycle')return svgCycle(c);
+  if(th==='mountain')return svgClimb(c);
+  return '';
+}
+function colorOf(i){return PAL[i%PAL.length];}
+
+/* ===== 화면 구성 ===== */
+function theme(){return cfg.theme;}
+function titles(){
+  var t=ym(),tr=cfg.trip||'목표',th=theme();
+  var h={moto:tr+' 그랑프리',cycle:'투르 드 '+tr,mountain:tr+' 정상 정복 대작전',election:tr+' 개표방송'}[th];
+  var ic={moto:'🏍️ ',cycle:'🚴 ',mountain:'⛰️ ',election:'📺 '}[th];
+  $('#h-title').textContent=ic+h;
+  $('#h-sub').textContent=t.m+'월 인당 '+cfg.goal+'만원 달성 레이스 · 골인하면 '+tr+' 출발!';
+  $('#o-lab').textContent=th==='election'?'전체 개표율':'센터 전체 달성률';
+  var ax=$('#axrun');
+  var pts=[[0,th==='election'?'0%':'출발'],[25,'25%'],[50,'50%'],[75,'75%'],[100,'🏁 '+cfg.goal+'만원']];
+  ax.innerHTML=pts.map(function(p){return '<span style="left:'+p[0]+'%">'+esc(p[1])+'</span>';}).join('');
+}
+function applyTheme(th,silent){
+  if(THEMES.indexOf(th)<0)return;
+  cfg.theme=th;if(!silent)saveCfg();
+  document.body.className='t-'+th+(document.body.classList.contains('idle')?' idle':'');
+  titles();
+  Object.keys(lanes).forEach(function(n){var L=lanes[n];L.av.innerHTML=avatarFor(th,L.color);});
+  [].forEach.call(document.querySelectorAll('#ctrl [data-th]'),function(b){b.classList.toggle('on',b.getAttribute('data-th')===th);});
+  layout();
+}
+function makeLane(name,idx){
+  var el=document.createElement('div');el.className='lane';
+  el.innerHTML='<div class="nm"><div class="rank"></div><div class="who"><b><i class="dot"></i><span class="n"></span></b><small></small></div></div>'+
+   '<div class="run"><i class="tick" style="left:25%"></i><i class="tick" style="left:50%"></i><i class="tick" style="left:75%"></i><div class="fill"><span class="stamp"></span></div><div class="av"></div><div class="goal"></div></div>'+
+   '<div class="pct"></div>';
+  var color=colorOf(idx);
+  var L={el:el,color:color,rank:el.querySelector('.rank'),amt:el.querySelector('small'),pct:el.querySelector('.pct'),run:el.querySelector('.run'),av:el.querySelector('.av'),stamp:el.querySelector('.stamp')};
+  el.querySelector('.n').textContent=name;
+  el.querySelector('.dot').style.background=color;
+  L.av.innerHTML=avatarFor(theme(),color);
+  var svg=L.av.firstChild;if(svg&&svg.style)svg.style.animationDelay=(-Math.random()*0.5)+'s';
+  $('#lanes').appendChild(el);
+  return L;
+}
+function syncLanes(){
+  var names=cfg.roster;
+  Object.keys(lanes).forEach(function(n){if(names.indexOf(n)<0){lanes[n].el.remove();delete lanes[n];}});
+  names.forEach(function(n,i){
+    if(!lanes[n])lanes[n]=makeLane(n,i);
+    else{lanes[n].color=colorOf(i);lanes[n].el.querySelector('.dot').style.background=lanes[n].color;lanes[n].av.innerHTML=avatarFor(theme(),lanes[n].color);}
+  });
+  var e=$('#empty');
+  if(!names.length){if(!e){e=document.createElement('div');e.id='empty';e.textContent='설정(⚙️)에서 팀원 명단을 입력해 주세요';$('#lanes').appendChild(e);}}
+  else if(e)e.remove();
+}
+var curLh=70;
+function layout(){
+  var n=Math.max(1,cfg.roster.length);
+  var h=$('#lanes').clientHeight||600;
+  var lh=Math.min(h/n,window.innerHeight*0.14);
+  curLh=lh;
+  document.documentElement.style.setProperty('--lh',lh+'px');
+  var board=prevBoard||buildBoard(lastSums||{});
+  board.forEach(function(x){var L=lanes[x.name];if(!L)return;L.el.style.height=lh+'px';L.el.style.top=((x.rank-1)*lh)+'px';});
+}
+function render(board){
+  var sumV=0;
+  board.forEach(function(x){
+    var L=lanes[x.name];if(!L)return;
+    var p=Math.min(x.p,100);
+    L.el.style.top=((x.rank-1)*curLh)+'px';L.el.style.height=curLh+'px';
+    L.rank.textContent=x.rank;
+    L.el.classList.toggle('first',x.rank===1&&x.v>0);
+    L.el.classList.toggle('done',x.p>=100);
+    L.amt.textContent=fmt(x.v)+'만원 / '+cfg.goal+'만원';
+    L.pct.textContent=Math.round(x.p)+'%';
+    L.run.style.setProperty('--p',p);
+    L.run.style.setProperty('--b',p*0.5);
+    L.run.style.setProperty('--pc',p);
+    var st=x.p>=100?'win':(x.p>=80?'likely':'fight');
+    L.el.setAttribute('data-st',st);
+    L.stamp.textContent=st==='win'?'당선 확실 🎉':(st==='likely'?'당선 유력':(x.p>=40?'경합 중':''));
+    sumV+=Math.min(x.v,cfg.goal*10000);
+  });
+  var tot=board.length?sumV/(board.length*cfg.goal*10000)*100:0;
+  $('#o-pct').textContent=Math.round(tot)+'%';
+  $('#o-bar').style.setProperty('--o',Math.min(tot,100));
+}
+
+/* ===== 속보 / 축하 ===== */
+function tips(){
+  var tr=cfg.trip||'목표';
+  return ['🏝️ '+tr+'행 티켓은 계약 한 건 차이로 갈립니다!','📞 지금 이 콜 한 통이 순위를 바꿉니다','☕ 물 한 잔 마시고 다음 콜 가볼까요?','🔥 오늘 계약 한 건이 내일의 여유가 됩니다','🤝 옆 팀원 응원 한마디가 팀 전체를 달리게 합니다'];
+}
+function setTicker(){
+  var list=news.concat(tips());
+  var seg='<div class="seg">'+list.map(function(s){return '<span>'+esc(s)+'</span>';}).join('')+'</div>';
+  var chars=list.join('').length;
+  var tk=$('#tk');tk.innerHTML=seg+seg;
+  tk.style.animationDuration=Math.max(40,chars*0.5)+'s';
+}
+function pushNews(msgs){
+  if(!msgs.length)return;
+  msgs.forEach(function(m){news.unshift(m);});
+  news=news.slice(0,8);
+  setTicker();
+}
+function detect(prev,next){
+  var msgs=[],wins=[],pm={};
+  prev.forEach(function(x){pm[x.name]=x;});
+  next.forEach(function(x){
+    var o=pm[x.name];if(!o)return;
+    if(x.v>o.v)msgs.push('💰 '+x.name+' 팀장 +'+fmt(x.v-o.v)+'만원 계약 접수! (누적 '+fmt(x.v)+'만원)');
+    [25,50,75].forEach(function(m){if(o.p<m&&x.p>=m&&x.p<100)msgs.push('🚨 속보! '+x.name+' 팀장 '+m+'% 돌파!');});
+    if(x.rank<o.rank&&x.v>o.v){
+      if(x.rank===1)msgs.push('👑 새로운 1위 등장! '+x.name+' 팀장이 선두로 치고 나갑니다!');
+      else msgs.push('📈 '+x.name+' 팀장 '+o.rank+'위 → '+x.rank+'위 급상승!');
+    }
+    if(o.p<100&&x.p>=100)wins.push(x);
+  });
+  return {msgs:msgs,wins:wins};
+}
+function celKey(){var t=ym();return 'afgRace.cel.'+t.y+'-'+t.m;}
+function celGet(){try{return JSON.parse(localStorage.getItem(celKey())||'[]');}catch(e){return [];}}
+function celAdd(n){try{var a=celGet();if(a.indexOf(n)<0)a.push(n);localStorage.setItem(celKey(),JSON.stringify(a));}catch(e){}}
+var bannerQ=[],bannerBusy=false;
+function showBanner(html){bannerQ.push(html);if(!bannerBusy)nextBanner();}
+function nextBanner(){
+  var h=bannerQ.shift();
+  if(!h){bannerBusy=false;return;}
+  bannerBusy=true;
+  var b=$('#banner');b.innerHTML=h;b.classList.add('on');burst();
+  setTimeout(function(){b.classList.remove('on');setTimeout(nextBanner,600);},6500);
+}
+/* 색종이 */
+var cv=$('#confetti'),cx=cv.getContext('2d'),parts=[],raf=0;
+function sizeCv(){cv.width=window.innerWidth;cv.height=window.innerHeight;}
+function burst(){
+  for(var i=0;i<200;i++){parts.push({x:Math.random()*cv.width,y:-20-Math.random()*cv.height*0.4,vx:(Math.random()-.5)*6,vy:2+Math.random()*5,r:5+Math.random()*7,c:'hsl('+Math.floor(Math.random()*360)+',90%,60%)',a:Math.random()*6,va:(Math.random()-.5)*.3});}
+  if(!raf)raf=requestAnimationFrame(loop);
+}
+function loop(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  parts.forEach(function(p){p.x+=p.vx;p.y+=p.vy;p.a+=p.va;p.vy+=0.04;cx.save();cx.translate(p.x,p.y);cx.rotate(p.a);cx.fillStyle=p.c;cx.fillRect(-p.r/2,-p.r/3,p.r,p.r*0.66);cx.restore();});
+  parts=parts.filter(function(p){return p.y<cv.height+30;});
+  if(parts.length)raf=requestAnimationFrame(loop);else{raf=0;cx.clearRect(0,0,cv.width,cv.height);}
+}
+
+/* ===== 갱신 ===== */
+function applySums(sums){
+  lastSums=sums;
+  var board=buildBoard(sums);
+  if(prevBoard){
+    var d=detect(prevBoard,board);
+    pushNews(d.msgs);
+    d.wins.forEach(function(x){if(celGet().indexOf(x.name)<0||demo){celAdd(x.name);showBanner('🎉 '+esc(x.name)+' 팀장<br>'+esc(cfg.trip)+' 티켓 획득!!<small>'+cfg.goal+'만원 골인 완료 🏁</small>');}});
+  }else{
+    var t=ym();
+    news=['🏁 '+t.m+'월 '+(cfg.trip||'목표')+' 레이스, 지금 시작합니다! 모두 출발선에서 준비!'];
+    setTicker();
+  }
+  prevBoard=board;
+  render(board);
+}
+function setStatus(kind,txt){
+  var s=$('#stat');s.className='stat'+(kind?' '+kind:'');
+  $('#stat-t').textContent=txt;
+}
+function pollOnce(){
+  if(demo)return Promise.resolve();
+  return fetchLive().then(function(sums){
+    info.err='';info.at=new Date();
+    applySums(sums);
+    var d=info.at;
+    setStatus('', 'LIVE · '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+' 갱신'+(info.col===null?' · 보험료 칸 못 찾음':''));
+  }).catch(function(e){
+    info.err=String(e&&e.message||e);
+    setStatus('err','연결 실패 · 재시도 중');
+    if(!prevBoard)applySums(lastSums||buildBoard({}).reduce(function(a,x){a[x.name]=0;return a;},{}));
+  });
+}
+function startPoll(){
+  clearInterval(pollTimer);
+  if(demo)return;
+  pollOnce();
+  pollTimer=setInterval(pollOnce,cfg.poll*1000);
+}
+/* 데모 */
+function initDemo(){
+  var g=cfg.goal*10000;demoSums={};
+  cfg.roster.forEach(function(n){demoSums[n]=Math.round((0.1+Math.random()*0.7)*g/10000)*10000;});
+}
+function startDemo(){
+  demo=true;clearInterval(pollTimer);clearInterval(demoTimer);
+  initDemo();prevBoard=null;news=[];applySums(demoSums);
+  setStatus('demo','DEMO 모드 (가짜 데이터)');
+  $('#b-demo').classList.add('on');
+  demoTimer=setInterval(function(){
+    if(!cfg.roster.length)return;
+    var n=cfg.roster[Math.floor(Math.random()*cfg.roster.length)];
+    demoSums[n]+=(3+Math.floor(Math.random()*10))*10000;
+    var o={};for(var k in demoSums)o[k]=demoSums[k];
+    applySums(o);
+  },2800);
+}
+function stopDemo(){
+  demo=false;clearInterval(demoTimer);$('#b-demo').classList.remove('on');
+  prevBoard=null;news=[];lastSums=null;setStatus('','연결 중…');startPoll();
+}
+
+/* ===== 시계 / D-day ===== */
+function tickClock(){
+  var d=new Date(),t=ym(),left=t.last-t.d;
+  $('#clk').textContent=(d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  $('#dd').textContent=left===0?'오늘 마감!':t.m+'월 마감 D-'+left;
+}
+
+/* ===== 설정창 ===== */
+function openSettings(){
+  $('#s-trip').value=cfg.trip;$('#s-goal').value=cfg.goal;$('#s-roster').value=cfg.roster.join('\n');
+  $('#s-col').value=cfg.premCol;$('#s-poll').value=cfg.poll;$('#s-auto').checked=!!cfg.auto;$('#s-autosec').value=cfg.autoSec;
+  var colTxt=demo?'데모 모드라 확인 안 함':(!info.at?'아직 확인 전':(info.col===null?'못 찾음 (컬럼명을 직접 입력해 주세요)':info.col));
+  var lines=['보험료 컬럼: '+colTxt,'이번 달 계약 건수(읽어온 행): '+(info.at?info.rows:'-')];
+  if(info.unknown.length)lines.push('명단에 없는 담당자(합계 제외): '+info.unknown.join(', '));
+  if(info.err)lines.push('최근 오류: '+info.err);
+  $('#s-info').textContent=lines.join('\n');
+  $('#settings').hidden=false;
+}
+function closeSettings(){$('#settings').hidden=true;}
+function saveSettings(){
+  cfg.trip=$('#s-trip').value.trim()||'나트랑';
+  cfg.goal=Math.max(1,Number($('#s-goal').value)||100);
+  var seen={};
+  cfg.roster=$('#s-roster').value.split(/\n/).map(function(s){return s.trim();}).filter(function(s){if(!s||seen[s])return false;seen[s]=1;return true;});
+  cfg.premCol=$('#s-col').value.trim();
+  cfg.poll=Math.max(5,Number($('#s-poll').value)||20);
+  cfg.auto=$('#s-auto').checked;cfg.autoSec=Math.max(10,Number($('#s-autosec').value)||60);
+  saveCfg();closeSettings();
+  syncLanes();titles();setupAuto();
+  prevBoard=null;news=[];
+  if(demo)startDemo();else{lastSums=null;setStatus('','연결 중…');startPoll();}
+  layout();
+}
+function setupAuto(){
+  clearInterval(autoTimer);
+  if(cfg.auto)autoTimer=setInterval(function(){var i=THEMES.indexOf(cfg.theme);applyTheme(THEMES[(i+1)%THEMES.length]);},cfg.autoSec*1000);
+}
+
+/* ===== 이벤트 ===== */
+var hideT=null;
+function wake(){
+  $('#ctrl').classList.add('show');document.body.classList.remove('idle');
+  clearTimeout(hideT);hideT=setTimeout(function(){$('#ctrl').classList.remove('show');document.body.classList.add('idle');},3500);
+}
+document.addEventListener('mousemove',wake);
+document.addEventListener('mousedown',wake);
+function toggleFull(){
+  var d=document;
+  if(!d.fullscreenElement){(d.documentElement.requestFullscreen||function(){}).call(d.documentElement);}
+  else if(d.exitFullscreen)d.exitFullscreen();
+}
+document.addEventListener('keydown',function(e){
+  var tg=e.target&&e.target.tagName;
+  if(e.key==='Escape'){closeSettings();return;}
+  if(tg==='INPUT'||tg==='TEXTAREA')return;
+  if(!$('#settings').hidden)return;
+  var k=e.key.toLowerCase();
+  if(k>='1'&&k<='4')applyTheme(THEMES[Number(k)-1]);
+  else if(k==='f')toggleFull();
+  else if(k==='s')openSettings();
+  else if(k==='d'){demo?stopDemo():startDemo();}
+});
+[].forEach.call(document.querySelectorAll('#ctrl [data-th]'),function(b){b.addEventListener('click',function(){applyTheme(b.getAttribute('data-th'));});});
+$('#b-full').addEventListener('click',toggleFull);
+$('#b-set').addEventListener('click',openSettings);
+$('#b-demo').addEventListener('click',function(){demo?stopDemo():startDemo();});
+$('#s-cancel').addEventListener('click',closeSettings);
+$('#s-save').addEventListener('click',saveSettings);
+window.addEventListener('resize',function(){sizeCv();layout();});
+
+/* ===== 시작 ===== */
+sizeCv();
+syncLanes();
+applyTheme(cfg.theme,true);
+tickClock();setInterval(tickClock,1000);
+setupAuto();
+setTicker();
+wake();
+if(demo)startDemo();else{setStatus('','연결 중…');startPoll();}
+window.__race={applyTheme:applyTheme,startDemo:startDemo};
+})();
+</script>
+</body>
+</html>
