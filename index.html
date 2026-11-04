@@ -721,6 +721,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     <div class="sg-items">
       <button class="tabbtn active" data-tab="home" onclick="switchTab('home')">🏠 오늘의 할 일<span id="hm_badge"></span></button>
       <button class="tabbtn" data-tab="board" onclick="switchTab('board')">📋 보험사 상황판</button>
+      <button class="tabbtn" data-tab="notice" onclick="switchTab('notice')">📢 보험사 공지</button>
     </div>
   </div>
   <div class="sg" data-group="manage">
@@ -1278,6 +1279,70 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <tbody id="cr_body"><tr><td colspan="9" style="color:var(--muted);">불러오는 중...</td></tr></tbody>
     </table>
   </div>
+</div>
+
+<!-- ===== 보험사 공지 (보험사별 변경사항 · 절판 · 전략상품 한 장) ===== -->
+<div class="panel" id="panel-notice">
+<style>
+#panel-notice .ntc-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;margin-bottom:12px;}
+#panel-notice .ntc-h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em;}
+#panel-notice .ntc-upd{font-size:12.5px;color:var(--muted);}
+#panel-notice .ntc-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;}
+#panel-notice .ntc-bar input{flex:1 1 220px;max-width:340px;}
+#panel-notice .ntc-feat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px;}
+#panel-notice .ntc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+#panel-notice .ntc-card{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--ntc-c,#0D9488);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;min-width:0;box-shadow:0 1px 3px rgba(15,23,42,.06);}
+#panel-notice .ntc-card.feat{padding:14px 16px;}
+#panel-notice .ntc-ch{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+#panel-notice .ntc-ct{font-weight:800;font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#panel-notice .ntc-cd{font-size:12px;color:var(--muted);white-space:nowrap;}
+#panel-notice .ntc-new{font-size:10px;font-weight:800;background:#EF4444;color:#fff;border-radius:999px;padding:1px 6px;}
+#panel-notice .ntc-ed{border:0;background:transparent;cursor:pointer;font-size:13px;padding:2px 4px;color:var(--muted);}
+#panel-notice .ntc-body{font-size:13px;line-height:1.6;word-break:break-word;overflow-wrap:anywhere;position:relative;}
+#panel-notice .ntc-card:not(.feat) .ntc-body{max-height:230px;overflow:hidden;cursor:pointer;}
+#panel-notice .ntc-card:not(.feat) .ntc-body.clip::after{content:'';position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(rgba(255,255,255,0),var(--card));}
+#panel-notice .ntc-body a,#panel-notice .ntc-view a{color:#2563EB;text-decoration:underline;}
+#panel-notice .ntc-empty{color:var(--muted);font-size:12.5px;}
+#panel-notice .ntc-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:12.5px;}
+#panel-notice .ntc-lnk{color:#2563EB;cursor:pointer;font-weight:700;text-decoration:underline;}
+#panel-notice .ntc-more{color:#2563EB;cursor:pointer;font-weight:700;display:none;}
+#panel-notice .ntc-ov{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1500;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:30px 12px;}
+#panel-notice .ntc-md{background:var(--card);border-radius:16px;max-width:760px;width:100%;padding:18px 20px;box-shadow:0 20px 50px rgba(0,0,0,.3);}
+#panel-notice .ntc-tb{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;}
+#panel-notice .ntc-tb button{background:var(--ui-slate-100,#F1F5F9);border:1px solid var(--line);border-radius:7px;padding:4px 9px;font-size:13px;cursor:pointer;color:var(--ink);}
+#panel-notice .ntc-edit{min-height:200px;max-height:50vh;overflow:auto;border:1px solid #CBD5E1;border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.6;background:#fff;outline:none;}
+#panel-notice .ntc-edit:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(99,102,241,.18);}
+#panel-notice .ntc-sw{display:inline-block;width:22px;height:22px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #CBD5E1;cursor:pointer;margin-right:4px;}
+#panel-notice .ntc-sw.on{box-shadow:0 0 0 2px #0F172A;}
+#panel-notice .ntc-th{display:inline-block;position:relative;margin:4px 6px 0 0;}
+#panel-notice .ntc-th img{height:78px;border-radius:8px;border:1px solid var(--line);display:block;}
+#panel-notice .ntc-th b{position:absolute;top:-6px;right:-6px;background:#EF4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:18px;text-align:center;cursor:pointer;}
+#panel-notice .ntc-gal img{max-width:100%;border-radius:10px;border:1px solid var(--line);margin-top:8px;cursor:zoom-in;display:block;}
+@media (max-width:700px){#panel-notice .ntc-feat{grid-template-columns:1fr;}}
+</style>
+  <div class="ntc-head">
+    <h1 class="ntc-h1">📢 보험사별 공지사항</h1>
+    <div class="ntc-upd" id="ntc_upd"></div>
+  </div>
+
+  <div id="ntc_setupBox" class="card" style="display:none;border-color:var(--amber);background:var(--amber-bg);">
+    <div style="font-weight:700;margin-bottom:6px;">⚠ 보험사 공지용 테이블을 불러오지 못했습니다</div>
+    <div id="ntc_setupMsg" style="font-size:12.5px;margin-bottom:8px;"></div>
+    <div style="font-size:12.5px;margin-bottom:6px;">아래 SQL을 Supabase SQL Editor에 붙여넣어 <b>먼저 실행</b>한 뒤 새로고침 해주세요. (처음 한 번만)</div>
+    <pre id="ntc_sqlText" style="white-space:pre-wrap;font-size:11.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:260px;overflow:auto;margin:0 0 8px;"></pre>
+    <button class="secondary small" onclick="ntcCopySql()">SQL 복사</button>
+  </div>
+
+  <div class="ntc-bar">
+    <input type="text" id="ntc_search" placeholder="🔍 공지 검색 (보험사 · 내용)..." oninput="ntcRenderGrid()">
+    <button class="act small" id="ntc_addBtn" style="display:none;" onclick="ntcEdit('insurer',0)">＋ 보험사 공지 추가</button>
+  </div>
+
+  <div class="ntc-feat" id="ntc_feat"></div>
+  <div class="ntc-grid" id="ntc_grid"><div class="ntc-empty">불러오는 중...</div></div>
+
+  <div class="ntc-ov" id="ntc_ov" onclick="if(event.target===this)ntcCloseModal()"><div class="ntc-md" id="ntc_md"></div></div>
+  <div class="ntc-ov" id="ntc_lb" style="z-index:1600;align-items:center;" onclick="this.style.display='none'"><img id="ntc_lbImg" style="max-width:96vw;max-height:92vh;border-radius:10px;background:#fff;"></div>
 </div>
 
 <!-- ===== 이슈/마감일정 ===== -->
@@ -2333,6 +2398,7 @@ function switchTab(name) {
   if (name === 'hospmap') loadHospMap();
   if (name === 'cancertl') loadCancerTimeline();
   if (name === 'home') hmRender();
+  if (name === 'notice') ntcOpenTab();
 }
 
 /* ============================================================
@@ -9291,6 +9357,363 @@ async function saveDutiesNotice(){
   if (error) { alert('저장 실패: ' + error.message); return; }
   cancelEditDutiesNotice();
   await loadDutiesNotice();
+}
+
+/* ============================================================
+   보험사 공지 — insurer_notices / insurer_notice_images
+   · kind: 'insurer'(보험사별 카드, 보험사당 1장) / 'stop'(이번달 절판) / 'strategy'(이번달 전략상품)
+   · 조회는 전체, 작성·수정·삭제는 마스터만(NTC_EDIT_ALL = true 로 바꾸면 모든 팀장이 작성 가능)
+   · 글은 서식(굵게·색·형광펜·크기) 있는 HTML로 저장하고, 보여줄 때마다 안전한 태그만 남긴다(ntcSanitize)
+   · 이미지는 줄여서(가로세로 1400px, JPEG) 글자(data URL)로 DB에 저장 — 보관함(Storage) 설정 불필요
+   · Claude API 호출 없음
+============================================================ */
+const NTC_EDIT_ALL = false;
+const NTC_COLORS = ['#0D9488', '#16A34A', '#7C3AED', '#DB2777', '#F59E0B', '#2563EB', '#EA580C', '#64748B'];
+const NTC_FEAT = { stop: { title: '📌 이번달 절판', color: '#0D9488' }, strategy: { title: '🎯 이번달 전략상품', color: '#2563EB' } };
+const NTC_MAX_IMGS = 8;
+const NTC_SQL = `create table if not exists insurer_notices (
+  id bigint generated always as identity primary key,
+  kind text not null default 'insurer',   -- insurer(보험사 카드) / stop(이번달 절판) / strategy(이번달 전략상품)
+  title text,                              -- 보험사 이름 (절판·전략상품은 비워둠)
+  notice_date date,
+  body_html text,
+  color text,
+  updated_by text,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+create unique index if not exists insurer_notices_kind_uq on insurer_notices (kind) where kind in ('stop','strategy');
+
+create table if not exists insurer_notice_images (
+  id bigint generated always as identity primary key,
+  notice_id bigint not null references insurer_notices(id) on delete cascade,
+  file_name text,
+  file_data text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists insurer_notice_images_nid_idx on insurer_notice_images (notice_id);
+
+grant select, insert, update, delete on insurer_notices, insurer_notice_images to anon, authenticated;`;
+
+let ntcRows = [], ntcImgs = [], ntcInsurers = [], ntcLoadError = '', ntcEd = null;
+
+function ntcCanEdit() { return !!(currentUser && (NTC_EDIT_ALL || currentUser.role === 'master')); }
+function ntcCopySql() {
+  try { navigator.clipboard.writeText(NTC_SQL).then(() => alert('SQL을 복사했습니다.'), () => alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.')); }
+  catch (e) { alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.'); }
+}
+
+/* ---------- 안전한 서식만 남기기 ---------- */
+function ntcCleanStyle(s) {
+  const OK = { 'color': 1, 'background-color': 1, 'font-size': 1, 'font-weight': 1, 'text-decoration': 1, 'text-decoration-line': 1 };
+  return String(s || '').split(';').map(p => {
+    const i = p.indexOf(':'); if (i < 0) return '';
+    const k = p.slice(0, i).trim().toLowerCase(), v = p.slice(i + 1).trim();
+    if (!OK[k] || !/^[#a-zA-Z0-9(),.%\s-]+$/.test(v) || /url|expression|import/i.test(v)) return '';
+    return k + ':' + v;
+  }).filter(Boolean).join(';');
+}
+function ntcSanitize(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = String(html || '');
+  const KEEP = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, S: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, UL: 1, OL: 1, LI: 1, A: 1 };
+  const DROP = /^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|LINK|META|SVG|MATH|FORM|INPUT|BUTTON|TEXTAREA|SELECT|IMG|VIDEO|AUDIO|CANVAS|NOSCRIPT|TEMPLATE)$/;
+  (function walk(node) {
+    Array.from(node.childNodes).forEach(ch => {
+      if (ch.nodeType === 3) return;
+      if (ch.nodeType !== 1) { ch.remove(); return; }
+      const tag = ch.tagName;
+      if (DROP.test(tag)) { ch.remove(); return; }
+      walk(ch);
+      if (!KEEP[tag]) { while (ch.firstChild) node.insertBefore(ch.firstChild, ch); ch.remove(); return; }
+      Array.from(ch.attributes).forEach(a => {
+        const n = a.name.toLowerCase();
+        if (n === 'style' && tag !== 'A') { const st = ntcCleanStyle(a.value); if (st) ch.setAttribute('style', st); else ch.removeAttribute('style'); }
+        else if (n === 'href' && tag === 'A') { if (!/^https?:\/\//i.test(a.value.trim())) ch.removeAttribute('href'); }
+        else ch.removeAttribute(a.name);
+      });
+      if (tag === 'A') { ch.setAttribute('target', '_blank'); ch.setAttribute('rel', 'noopener noreferrer'); }
+    });
+  })(tpl.content);
+  return tpl.innerHTML;
+}
+function ntcText(html) { const d = document.createElement('div'); d.innerHTML = ntcSanitize(html); return (d.textContent || '').replace(/\s+/g, ' ').trim(); }
+function ntcMD(d) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || ''); return m ? Number(m[2]) + '/' + Number(m[3]) : ''; }
+function ntcToday() { const n = new Date(); return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0'); }
+function ntcStamp(iso) {
+  const d = new Date(iso); if (isNaN(d)) return '';
+  const h = d.getHours(), ap = h < 12 ? '오전' : '오후', h12 = h % 12 === 0 ? 12 : h % 12;
+  return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + ap + ' ' + h12 + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+/* ---------- 불러오기 ---------- */
+async function ntcLoad() {
+  ntcLoadError = '';
+  try {
+    if (!sb) throw new Error('DB 연결이 아직 준비되지 않았습니다.');
+    const r1 = await sb.from('insurer_notices').select('*').order('id', { ascending: true });
+    if (r1.error) throw r1.error;
+    const r2 = await sb.from('insurer_notice_images').select('id,notice_id,file_name').order('id', { ascending: true });
+    if (r2.error) throw r2.error;
+    ntcRows = r1.data || []; ntcImgs = r2.data || [];
+    try {
+      const r3 = await sb.from('insurer_contacts').select('insurer_name');
+      const set = {}; (r3.data || []).forEach(x => { if (x.insurer_name) set[x.insurer_name] = 1; });
+      ntcInsurers = Object.keys(set).sort();
+    } catch (e) { ntcInsurers = []; }
+  } catch (e) {
+    ntcLoadError = (e && e.message) ? e.message : String(e);
+    ntcRows = []; ntcImgs = [];
+  }
+}
+async function ntcOpenTab() {
+  document.getElementById('ntc_addBtn').style.display = ntcCanEdit() ? '' : 'none';
+  await ntcLoad();
+  const box = document.getElementById('ntc_setupBox');
+  if (ntcLoadError) {
+    box.style.display = '';
+    document.getElementById('ntc_setupMsg').textContent = '오류 내용: ' + ntcLoadError;
+    document.getElementById('ntc_sqlText').textContent = NTC_SQL;
+  } else box.style.display = 'none';
+  ntcRender();
+}
+
+/* ---------- 화면 그리기 ---------- */
+function ntcImgLink(id) {
+  const n = ntcImgs.filter(i => i.notice_id === id).length;
+  return n ? `<span class="ntc-lnk" onclick="event.stopPropagation();ntcView(${id})">🖼 관련 이미지 ${n}장</span>` : '<span></span>';
+}
+function ntcCardHtml(r, color, feat) {
+  const isNew = r.updated_at && (Date.now() - new Date(r.updated_at).getTime()) < 3 * 864e5;
+  const title = feat ? NTC_FEAT[r.kind].title : escapeHtml(r.title || '(이름 없음)');
+  const date = feat ? '' : ntcMD(r.notice_date);
+  const body = ntcSanitize(r.body_html);
+  const edit = ntcCanEdit() ? `<button class="ntc-ed" title="수정" onclick="event.stopPropagation();ntcEdit('${r.kind}',${r.id})">✏️</button>` : '';
+  return `<div class="ntc-card${feat ? ' feat' : ''}" style="--ntc-c:${color}">
+    <div class="ntc-ch"><span class="ntc-ct">${title}</span>${isNew ? '<span class="ntc-new">NEW</span>' : ''}<span class="ntc-cd">${escapeHtml(date)}</span>${edit}</div>
+    <div class="ntc-body" ${feat ? '' : `onclick="ntcView(${r.id})"`}>${body || '<span class="ntc-empty">내용이 없습니다.</span>'}</div>
+    <div class="ntc-foot">${ntcImgLink(r.id)}<span class="ntc-more" onclick="ntcView(${r.id})">더보기</span></div>
+  </div>`;
+}
+function ntcRenderFeat() {
+  const el = document.getElementById('ntc_feat');
+  el.innerHTML = ['stop', 'strategy'].map(k => {
+    const r = ntcRows.find(x => x.kind === k);
+    if (r) return ntcCardHtml(r, NTC_FEAT[k].color, true);
+    const add = ntcCanEdit() ? `<button class="secondary small" onclick="ntcEdit('${k}',0)">＋ 작성하기</button>` : '';
+    return `<div class="ntc-card feat" style="--ntc-c:${NTC_FEAT[k].color}"><div class="ntc-ch"><span class="ntc-ct">${NTC_FEAT[k].title}</span></div><div class="ntc-body"><span class="ntc-empty">등록된 내용이 없습니다.</span></div><div class="ntc-foot">${add}</div></div>`;
+  }).join('');
+}
+function ntcRenderGrid() {
+  const el = document.getElementById('ntc_grid');
+  const q = (document.getElementById('ntc_search').value || '').replace(/\s+/g, '').toLowerCase();
+  let list = ntcRows.filter(r => r.kind === 'insurer');
+  list.sort((a, b) => String(b.notice_date || '').localeCompare(String(a.notice_date || '')) || b.id - a.id);
+  const all = list.length;
+  if (q) list = list.filter(r => ((r.title || '') + ntcText(r.body_html)).replace(/\s+/g, '').toLowerCase().indexOf(q) >= 0);
+  if (!list.length) {
+    el.innerHTML = `<div class="ntc-empty">${all ? '검색 결과가 없습니다.' : '등록된 보험사 공지가 없습니다.' + (ntcCanEdit() ? ' 위의 "＋ 보험사 공지 추가"로 시작해보세요.' : '')}</div>`;
+    return;
+  }
+  el.innerHTML = list.map((r, i) => ntcCardHtml(r, r.color || NTC_COLORS[i % NTC_COLORS.length], false)).join('');
+  /* 잘린 카드에만 "더보기" 표시 */
+  el.querySelectorAll('.ntc-card').forEach(c => {
+    const b = c.querySelector('.ntc-body'), m = c.querySelector('.ntc-more');
+    if (b && m && b.scrollHeight > b.clientHeight + 2) { m.style.display = 'inline'; b.classList.add('clip'); }
+  });
+}
+function ntcRender() {
+  const last = ntcRows.reduce((m, r) => (r.updated_at && r.updated_at > m ? r.updated_at : m), '');
+  document.getElementById('ntc_upd').textContent = last ? '🕐 마지막 업데이트 · ' + ntcStamp(last) : '';
+  ntcRenderFeat();
+  ntcRenderGrid();
+}
+
+/* ---------- 창(모달) ---------- */
+function ntcShowModal(html) {
+  document.getElementById('ntc_md').innerHTML = html;
+  document.getElementById('ntc_ov').style.display = 'flex';
+}
+function ntcCloseModal() { document.getElementById('ntc_ov').style.display = 'none'; document.getElementById('ntc_md').innerHTML = ''; ntcEd = null; }
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const lb = document.getElementById('ntc_lb');
+  if (lb && lb.style.display !== 'none' && lb.style.display !== '') lb.style.display = 'none';
+  else if (document.getElementById('ntc_ov') && document.getElementById('ntc_ov').style.display === 'flex') ntcCloseModal();
+});
+function ntcZoom(el) { document.getElementById('ntc_lbImg').src = el.src; document.getElementById('ntc_lb').style.display = 'flex'; }
+function ntcImgSafe(d) { return /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(d || ''); }
+
+async function ntcView(id) {
+  const r = ntcRows.find(x => x.id === id); if (!r) return;
+  const feat = r.kind !== 'insurer';
+  const title = feat ? NTC_FEAT[r.kind].title : escapeHtml(r.title || '');
+  const edit = ntcCanEdit() ? `<button class="secondary small" onclick="ntcEdit('${r.kind}',${r.id})">✏️ 수정</button>` : '';
+  ntcShowModal(`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <div style="font-weight:800;font-size:18px;flex:1;">${title} <span class="ntc-cd" style="font-weight:500;font-size:12.5px;color:var(--muted);">${escapeHtml(feat ? '' : ntcMD(r.notice_date))}</span></div>
+      ${edit}<button class="secondary small" onclick="ntcCloseModal()">닫기</button></div>
+    <div class="ntc-view" style="font-size:14px;line-height:1.7;word-break:break-word;">${ntcSanitize(r.body_html) || '<span class="ntc-empty">내용이 없습니다.</span>'}</div>
+    <div class="ntc-gal" id="ntc_gal"></div>
+    <div style="margin-top:10px;font-size:11.5px;color:var(--muted);">${r.updated_by ? escapeHtml(r.updated_by) + ' · ' : ''}${escapeHtml(ntcStamp(r.updated_at))} 수정</div>`);
+  if (ntcImgs.some(i => i.notice_id === id)) {
+    const gal = document.getElementById('ntc_gal'); gal.innerHTML = '<div class="ntc-empty" style="margin-top:8px;">이미지 불러오는 중...</div>';
+    const { data, error } = await sb.from('insurer_notice_images').select('id,file_name,file_data').eq('notice_id', id).order('id', { ascending: true });
+    const g2 = document.getElementById('ntc_gal'); if (!g2) return;
+    if (error) { g2.innerHTML = '<div class="ntc-empty">이미지를 불러오지 못했습니다.</div>'; return; }
+    g2.innerHTML = (data || []).filter(x => ntcImgSafe(x.file_data)).map(x => `<img src="${x.file_data}" alt="${escAttr(x.file_name || '')}" onclick="ntcZoom(this)">`).join('');
+  }
+}
+
+/* ---------- 작성 · 수정 ---------- */
+async function ntcEdit(kind, id) {
+  if (!ntcCanEdit()) { alert('작성 권한이 없습니다.'); return; }
+  let r = id ? ntcRows.find(x => x.id === id) : null;
+  if (!r && kind !== 'insurer') r = ntcRows.find(x => x.kind === kind) || null;
+  ntcEd = { kind, id: r ? r.id : 0, color: r && r.color ? r.color : '', imgs: [] };
+  if (r && ntcImgs.some(i => i.notice_id === r.id)) {
+    const { data } = await sb.from('insurer_notice_images').select('id,file_name,file_data').eq('notice_id', r.id).order('id', { ascending: true });
+    ntcEd.imgs = (data || []).map(x => ({ id: x.id, name: x.file_name, data: x.file_data }));
+  }
+  const feat = kind !== 'insurer';
+  const idx = ntcRows.filter(x => x.kind === 'insurer').length;
+  if (!ntcEd.color) ntcEd.color = NTC_COLORS[idx % NTC_COLORS.length];
+  const tb = (cmd, label, extra) => `<button type="button" onmousedown="event.preventDefault()" onclick="${cmd}" ${extra || ''}>${label}</button>`;
+  const html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="font-weight:800;font-size:17px;flex:1;">${feat ? NTC_FEAT[kind].title + ' 수정' : (r ? '보험사 공지 수정' : '보험사 공지 추가')}</div></div>
+    ${feat ? '' : `<div class="row" style="margin-bottom:8px;">
+      <div><label>보험사 이름</label><input type="text" id="ntc_f_title" list="ntc_dl" value="${escAttr(r ? r.title : '')}" placeholder="예: 메리츠화재"><datalist id="ntc_dl">${ntcInsurers.map(n => `<option value="${escAttr(n)}">`).join('')}</datalist></div>
+      <div><label>공지 날짜</label><input type="date" id="ntc_f_date" value="${escAttr((r && r.notice_date) || ntcToday())}"></div>
+    </div>
+    <div style="margin-bottom:8px;"><label>카드 색</label><div id="ntc_f_sw">${NTC_COLORS.map(c => `<span class="ntc-sw${c === ntcEd.color ? ' on' : ''}" data-c="${c}" style="background:${c}" onclick="ntcPickColor('${c}')"></span>`).join('')}</div></div>`}
+    <label>내용</label>
+    <div class="ntc-tb">
+      ${tb("ntcCmd('bold')", '<b>B</b>')}${tb("ntcCmd('underline')", '<u>U</u>')}
+      ${tb("ntcCmd('foreColor','#DC2626')", '<span style="color:#DC2626;font-weight:700">빨강</span>')}${tb("ntcCmd('foreColor','#2563EB')", '<span style="color:#2563EB;font-weight:700">파랑</span>')}${tb("ntcCmd('foreColor','#16A34A')", '<span style="color:#16A34A;font-weight:700">초록</span>')}${tb("ntcCmd('foreColor','#EA580C')", '<span style="color:#EA580C;font-weight:700">주황</span>')}
+      ${tb("ntcCmd('hiliteColor','#FEF08A')", '<span style="background:#FEF08A">형광펜</span>')}
+      ${tb('ntcSize(1)', '가+')}${tb('ntcSize(-1)', '가-')}${tb('ntcInsertText(\'☑ \')', '☑')}${tb('ntcLink()', '🔗 링크')}${tb("ntcCmd('removeFormat')", '서식 지우기')}
+    </div>
+    <div class="ntc-edit" id="ntc_ed" contenteditable="true">${ntcSanitize(r ? r.body_html : '')}</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">글을 붙여넣으면 글자 모양 없이 들어옵니다. 필요한 곳만 위 버튼으로 꾸미세요. 화면 캡처는 여기에 Ctrl+V 로 바로 붙여넣어도 이미지로 첨부돼요.</div>
+    <div style="margin-top:10px;"><label>관련 이미지 (최대 ${NTC_MAX_IMGS}장)</label>
+      <input type="file" id="ntc_f_img" accept="image/*" multiple onchange="ntcPickImages(this)">
+      <div id="ntc_f_thumbs"></div></div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+      <button class="act" id="ntc_saveBtn" onclick="ntcSave()">저장</button>
+      <button class="secondary" style="border-radius:8px;" onclick="ntcCloseModal()">취소</button>
+      ${r ? `<button class="danger" style="margin-left:auto;" onclick="ntcDelete()">${feat ? '내용 비우기(삭제)' : '이 카드 삭제'}</button>` : ''}
+    </div>`;
+  ntcShowModal(html);
+  ntcRenderThumbs();
+  const ed = document.getElementById('ntc_ed');
+  ed.addEventListener('paste', async e => {
+    const cd = e.clipboardData; if (!cd) return;
+    const files = Array.from(cd.files || []).filter(f => /^image\//.test(f.type));
+    if (files.length) { e.preventDefault(); await ntcAddFiles(files); return; }
+    e.preventDefault();
+    const t = cd.getData('text/plain') || '';
+    document.execCommand('insertText', false, t);
+  });
+  (document.getElementById('ntc_f_title') || ed).focus();
+}
+function ntcPickColor(c) {
+  if (!ntcEd) return; ntcEd.color = c;
+  document.querySelectorAll('#ntc_f_sw .ntc-sw').forEach(s => s.classList.toggle('on', s.dataset.c === c));
+}
+function ntcCmd(cmd, val) {
+  const ed = document.getElementById('ntc_ed'); if (!ed) return; ed.focus();
+  try { document.execCommand('styleWithCSS', false, true); } catch (e) {}
+  document.execCommand(cmd, false, val || null);
+}
+function ntcSize(d) {
+  const ed = document.getElementById('ntc_ed'); if (!ed) return; ed.focus();
+  try { document.execCommand('styleWithCSS', false, true); } catch (e) {}
+  let cur = 3; try { cur = parseInt(document.queryCommandValue('fontSize'), 10) || 3; } catch (e) {}
+  document.execCommand('fontSize', false, Math.max(1, Math.min(6, cur + d)));
+}
+function ntcInsertText(t) { const ed = document.getElementById('ntc_ed'); if (!ed) return; ed.focus(); document.execCommand('insertText', false, t); }
+function ntcLink() {
+  const u = prompt('연결할 주소(https://...)를 입력하세요.', 'https://');
+  if (!u) return;
+  if (!/^https?:\/\//i.test(u.trim())) { alert('https:// 로 시작하는 주소만 넣을 수 있어요.'); return; }
+  const ed = document.getElementById('ntc_ed'); ed.focus();
+  const sel = window.getSelection();
+  if (sel && sel.isCollapsed) document.execCommand('insertHTML', false, `<a href="${escAttr(u.trim())}">${escapeHtml(u.trim())}</a>`);
+  else document.execCommand('createLink', false, u.trim());
+}
+
+/* ---------- 이미지 ---------- */
+function ntcResize(file) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const M = 1400, s = Math.min(1, M / Math.max(im.width, im.height));
+        const w = Math.max(1, Math.round(im.width * s)), h = Math.max(1, Math.round(im.height * s));
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(im, 0, 0, w, h);
+        res(c.toDataURL('image/jpeg', 0.82));
+      };
+      im.onerror = () => rej(new Error('이미지를 읽지 못했습니다.'));
+      im.src = fr.result;
+    };
+    fr.onerror = () => rej(new Error('파일을 읽지 못했습니다.'));
+    fr.readAsDataURL(file);
+  });
+}
+async function ntcAddFiles(files) {
+  if (!ntcEd) return;
+  for (const f of files) {
+    if (ntcEd.imgs.length >= NTC_MAX_IMGS) { alert('이미지는 최대 ' + NTC_MAX_IMGS + '장까지 넣을 수 있어요.'); break; }
+    try { const data = await ntcResize(f); ntcEd.imgs.push({ id: 0, name: f.name || 'capture.jpg', data }); }
+    catch (e) { alert((f.name || '이미지') + ': ' + e.message); }
+  }
+  ntcRenderThumbs();
+}
+async function ntcPickImages(inp) { const fs = Array.from(inp.files || []); inp.value = ''; await ntcAddFiles(fs); }
+function ntcRenderThumbs() {
+  const el = document.getElementById('ntc_f_thumbs'); if (!el || !ntcEd) return;
+  el.innerHTML = ntcEd.imgs.map((m, i) => ntcImgSafe(m.data) ? `<span class="ntc-th"><img src="${m.data}" alt=""><b title="빼기" onclick="ntcRemoveImg(${i})">×</b></span>` : '').join('');
+}
+function ntcRemoveImg(i) { if (!ntcEd) return; ntcEd.imgs.splice(i, 1); ntcRenderThumbs(); }
+
+/* ---------- 저장 · 삭제 ---------- */
+async function ntcSave() {
+  const e = ntcEd; if (!e || !ntcCanEdit()) return;
+  const html = ntcSanitize(document.getElementById('ntc_ed').innerHTML).trim();
+  let title = null, date = null, color = null;
+  if (e.kind === 'insurer') {
+    title = (document.getElementById('ntc_f_title').value || '').trim();
+    if (!title) { alert('보험사 이름을 입력해주세요.'); return; }
+    date = document.getElementById('ntc_f_date').value || null;
+    color = e.color;
+    const dup = ntcRows.find(r => r.kind === 'insurer' && (r.title || '').trim() === title && r.id !== e.id);
+    if (dup) { if (confirm('이미 "' + title + '" 카드가 있습니다. 그 카드를 열어서 수정할까요?')) { ntcCloseModal(); ntcEdit('insurer', dup.id); } return; }
+  }
+  const btn = document.getElementById('ntc_saveBtn'); btn.disabled = true; btn.textContent = '저장 중...';
+  const row = { kind: e.kind, title, notice_date: date, body_html: html, color, updated_by: currentUser.manager_name, updated_at: new Date().toISOString() };
+  try {
+    let id = e.id;
+    if (id) { const r = await sb.from('insurer_notices').update(row).eq('id', id); if (r.error) throw r.error; }
+    else { const r = await sb.from('insurer_notices').insert([row]).select('id'); if (r.error) throw r.error; id = r.data && r.data[0] && r.data[0].id; if (!id) throw new Error('저장된 번호를 받지 못했습니다.'); }
+    const keep = e.imgs.filter(m => m.id).map(m => m.id);
+    const old = ntcImgs.filter(i => i.notice_id === id).map(i => i.id);
+    const gone = old.filter(x => keep.indexOf(x) < 0);
+    if (gone.length) { const r = await sb.from('insurer_notice_images').delete().in('id', gone); if (r.error) throw r.error; }
+    const fresh = e.imgs.filter(m => !m.id).map(m => ({ notice_id: id, file_name: m.name || null, file_data: m.data }));
+    if (fresh.length) { const r = await sb.from('insurer_notice_images').insert(fresh); if (r.error) throw r.error; }
+    ntcCloseModal();
+    await ntcLoad(); ntcRender();
+  } catch (err) {
+    btn.disabled = false; btn.textContent = '저장';
+    alert('저장 실패: ' + ((err && err.message) || err));
+  }
+}
+async function ntcDelete() {
+  const e = ntcEd; if (!e || !e.id || !ntcCanEdit()) return;
+  if (!confirm(e.kind === 'insurer' ? '이 보험사 카드를 삭제할까요? (이미지도 함께 삭제됩니다)' : '이번달 내용을 모두 비울까요? (이미지도 함께 삭제됩니다)')) return;
+  const { error } = await sb.from('insurer_notices').delete().eq('id', e.id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  ntcCloseModal(); await ntcLoad(); ntcRender();
 }
 
 if (tryAutoLogin()) {
