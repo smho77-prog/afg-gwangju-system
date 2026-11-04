@@ -1784,7 +1784,8 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div class="card" style="padding:10px 16px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
     <b>🏁 목표달성 레이스 현황판</b>
     <span class="sub" style="margin:0;flex:1;min-width:220px;">이번 달 계약 보험료 기준으로 팀장님들이 골인선을 향해 달립니다. 현황판 안을 한 번 클릭하면 숫자키 1~4로 테마를 바꿀 수 있어요.</span>
-    <button class="act small" onclick="raceOpenWindow()">🖥️ 중앙 모니터용 새 창</button>
+    <button class="act small" onclick="raceFullscreen()">📺 전체화면으로 보기</button>
+    <button class="act small" onclick="raceOpenWindow()">🖥️ 새 창으로 열기</button>
   </div>
   <div class="card" style="padding:0;overflow:hidden;">
     <iframe id="raceFrame" title="목표달성 레이스 현황판" allow="fullscreen" style="width:100%;height:calc(100vh - 230px);min-height:560px;border:none;display:block;background:#0b1020;"></iframe>
@@ -2034,6 +2035,13 @@ function raceSync(name){
   }
 }
 function raceOpenWindow(){ window.open('race-board.html', 'afg_race_board', 'noopener'); }
+/* 로그인한 상태 그대로 현황판만 화면 가득 보여준다(왼쪽 메뉴·위쪽 바 숨김). Esc로 돌아온다. 안 되는 브라우저는 새 창으로 대신 연다 */
+function raceFullscreen(){
+  var f = document.getElementById('raceFrame');
+  if (f && f.dataset.on === '1' && f.requestFullscreen) {
+    f.requestFullscreen().catch(function(){ raceOpenWindow(); });
+  } else { raceOpenWindow(); }
+}
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
