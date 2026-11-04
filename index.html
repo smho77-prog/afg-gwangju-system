@@ -720,7 +720,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div class="sg" data-group="home">
     <div class="sg-items">
       <button class="tabbtn active" data-tab="home" onclick="switchTab('home')">🏠 오늘의 할 일<span id="hm_badge"></span></button>
-      <button class="tabbtn" data-tab="board" onclick="switchTab('board')">📋 보험사 상황판</button>
+      <button class="tabbtn" data-tab="board" onclick="switchTab('board')">📋 보험사별 변동사항</button>
       <button class="tabbtn" data-tab="notice" onclick="switchTab('notice')">📢 보험사 공지</button>
     </div>
   </div>
@@ -1982,7 +1982,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 <div class="panel" id="panel-board">
   <div id="bd_setup" style="display:none;"></div>
   <div class="card" style="padding:10px 16px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-    <b>📋 보험사 상황판</b>
+    <b>📋 보험사별 변동사항</b>
     <span class="sub" id="bd_info" style="margin:0;flex:1;min-width:220px;">-</span>
     <button class="secondary small" type="button" id="bd_btn_auto">⏸ 자동 넘김 끄기</button>
     <button class="act small" type="button" id="bd_btn_full">📺 전체화면</button>
@@ -12597,7 +12597,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   var PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
   var PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
   var BD_SQL = [
-    "-- 보험사 상황판 PDF 보관함 (한 번만 실행)",
+    "-- 보험사별 변동사항 PDF 보관함 (한 번만 실행)",
     "insert into storage.buckets (id, name, public) values ('board-slides', 'board-slides', false) on conflict (id) do nothing;",
     "drop policy if exists \"bs_select\" on storage.objects;",
     "create policy \"bs_select\" on storage.objects for select to anon, authenticated using (bucket_id = 'board-slides');",
