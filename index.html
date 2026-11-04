@@ -720,6 +720,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div class="sg" data-group="home">
     <div class="sg-items">
       <button class="tabbtn active" data-tab="home" onclick="switchTab('home')">🏠 오늘의 할 일<span id="hm_badge"></span></button>
+      <button class="tabbtn" data-tab="board" onclick="switchTab('board')">📋 보험사 상황판</button>
     </div>
   </div>
   <div class="sg" data-group="manage">
@@ -740,6 +741,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="tabbtn" data-tab="guide" onclick="openGuideTab()">📚 상품별 비교가이드</button>
       <button class="tabbtn" data-tab="coverage" onclick="switchTab('coverage')">📑 보장분석</button>
       <button class="tabbtn" data-tab="cancertl" data-members="cancertl,hospmap" onclick="switchTab('cancertl')">🏥 암·병원 자료</button>
+      <button class="tabbtn" data-tab="greet" onclick="switchTab('greet')">💌 안부카드</button>
     </div>
   </div>
   <div class="sg" data-group="edu">
@@ -1783,12 +1785,70 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 <div class="panel" id="panel-race">
   <div class="card" style="padding:10px 16px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
     <b>🏁 목표달성 레이스 현황판</b>
-    <span class="sub" style="margin:0;flex:1;min-width:220px;">이번 달 계약 보험료 기준으로 팀장님들이 골인선을 향해 달립니다. 현황판 안을 한 번 클릭하면 숫자키 1~4로 테마를 바꿀 수 있어요.</span>
+    <span class="sub" style="margin:0;flex:1;min-width:220px;">이번 달 계약 보험료 기준으로 팀장님들이 골인선을 향해 달립니다. 현황판 안을 한 번 클릭하면 숫자키 1~7로 테마를 바꿀 수 있어요.</span>
     <button class="act small" onclick="raceFullscreen()">📺 전체화면으로 보기</button>
     <button class="act small" onclick="raceOpenWindow()">🖥️ 새 창으로 열기</button>
   </div>
   <div class="card" style="padding:0;overflow:hidden;">
     <iframe id="raceFrame" title="목표달성 레이스 현황판" allow="fullscreen" style="width:100%;height:calc(100vh - 230px);min-height:560px;border:none;display:block;background:#0b1020;"></iframe>
+  </div>
+</div>
+
+<!-- ===== 보험사 상황판 (PDF 슬라이드 자동 넘김, 마스터만 올림) ===== -->
+<style>
+#bd_stage{position:relative;background:#0b1020;border-radius:12px;overflow:hidden}
+#bd_view{display:flex;align-items:center;justify-content:center;width:100%;height:calc(100vh - 215px);min-height:420px}
+#bd_stage:fullscreen{border-radius:0;background:#000}
+#bd_stage:fullscreen #bd_view{height:100vh}
+#bd_stage:-webkit-full-screen{border-radius:0;background:#000}
+#bd_stage:-webkit-full-screen #bd_view{height:100vh}
+#bd_view canvas{display:block;background:#fff}
+.bd-msg{color:#cbd5e1;text-align:center;padding:24px;font-size:16px;line-height:1.7}
+#bd_prog{position:absolute;left:0;right:0;top:0;height:4px;background:rgba(255,255,255,.12);z-index:3}
+#bd_prog i{display:block;height:100%;width:0;background:#38bdf8}
+.bd-ctl{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;padding:26px 14px 10px;background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;opacity:0;transition:opacity .3s;z-index:3}
+#bd_stage:hover .bd-ctl,.bd-ctl.show{opacity:1}
+.bd-ctl button{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:6px 12px;font-size:15px;cursor:pointer}
+.bd-ctl button:hover{background:rgba(255,255,255,.32)}
+#bd_pos{flex:1;text-align:center;font-size:13px;opacity:.95;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px 0;border-top:1px solid var(--line,#e5e7eb)}
+.bd-on{display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+.bd-nm{flex:1;min-width:180px;display:flex;flex-direction:column}
+.bd-nm span{font-size:12px;color:var(--muted,#6b7280)}
+.bd-bt{display:flex;flex-wrap:wrap;gap:6px}
+</style>
+<div class="panel" id="panel-board">
+  <div id="bd_setup" style="display:none;"></div>
+  <div class="card" style="padding:10px 16px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+    <b>📋 보험사 상황판</b>
+    <span class="sub" id="bd_info" style="margin:0;flex:1;min-width:220px;">-</span>
+    <button class="secondary small" type="button" id="bd_btn_auto">⏸ 자동 넘김 끄기</button>
+    <button class="act small" type="button" id="bd_btn_full">📺 전체화면</button>
+    <button class="secondary small" type="button" id="bd_btn_mgr" style="display:none;">⚙️ 자료 관리 <span style="font-size:11px;">(마스터)</span></button>
+  </div>
+  <div class="card" id="bd_mgr" style="display:none;margin-bottom:10px;"></div>
+  <div id="bd_stage">
+    <div id="bd_prog"><i></i></div>
+    <div id="bd_view"></div>
+    <div class="bd-ctl">
+      <button type="button" id="bd_ctl_prev" title="이전 쪽 (←)">◀</button>
+      <button type="button" id="bd_ctl_auto" title="자동 넘김 켜기/끄기 (스페이스)">⏸</button>
+      <button type="button" id="bd_ctl_next" title="다음 쪽 (→)">▶</button>
+      <div id="bd_pos"></div>
+      <button type="button" id="bd_ctl_full" title="전체화면 (F)">⛶</button>
+    </div>
+  </div>
+  <input type="file" id="bd_file" accept="application/pdf,.pdf" hidden>
+</div>
+
+<!-- ===== 안부카드 (greeting-card.html 을 화면 안에 끼워 넣음) ===== -->
+<div class="panel" id="panel-greet">
+  <div class="card" style="padding:10px 16px;margin-bottom:10px;">
+    <b>💌 안부카드 만들기</b>
+    <span class="sub" style="margin:0 0 0 8px;">사진을 고르고 글을 얹어 한 장의 이미지(PNG)로 저장해요. 카톡으로 보내실 때 쓰세요. 사진 올리기는 마스터만 할 수 있어요.</span>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <iframe id="greetFrame" title="안부카드 만들기" style="width:100%;height:calc(100vh - 150px);min-height:720px;border:none;display:block;background:#EEF1F6;"></iframe>
   </div>
 </div>
 
@@ -2034,6 +2094,14 @@ function raceSync(name){
     f.src = 'about:blank'; f.dataset.on = '';
   }
 }
+function boardSync(name){
+  if (name === 'board') { if (window.bdOpen) window.bdOpen(); }
+  else if (window.bdClose) window.bdClose();
+}
+function greetSync(name){
+  var f = document.getElementById('greetFrame');
+  if (f && name === 'greet' && f.dataset.on !== '1') { f.src = 'greeting-card.html'; f.dataset.on = '1'; }
+}
 function raceOpenWindow(){ window.open('race-board.html', 'afg_race_board', 'noopener'); }
 /* 로그인한 상태 그대로 현황판만 화면 가득 보여준다(왼쪽 메뉴·위쪽 바 숨김). Esc로 돌아온다. 안 되는 브라우저는 새 창으로 대신 연다 */
 function raceFullscreen(){
@@ -2051,6 +2119,7 @@ const SUPABASE_URL = "https://wxsscpjafyszvtdkzrgv.supabase.co";
 const SUPABASE_KEY = "sb_publishable_gkQJVz2h0mvwR50OpgobRA_-ufWbsOT";
 let sb = null;
 let currentUser = null; // { employee_no, manager_name, role }
+window.afgApi = { sb: function(){ return sb; }, user: function(){ return currentUser; } };
 const statusEl = document.getElementById('connStatus');
 function setStatus(state, msg) { statusEl.className = 'st-' + state; statusEl.textContent = msg; }
 function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -2148,6 +2217,8 @@ function switchTab(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
   renderSubTabs(name);
   raceSync(name);
+  boardSync(name);
+  greetSync(name);
   if (name === 'underwriting') {
     const gv = document.getElementById('uwmode-guide');
     if (gv && gv.style.display !== 'none') switchUwMode('disease'); /* 사이드의 '인수·병력 확인'을 누르면 가이드 말고 기본 화면 */
@@ -11928,6 +11999,405 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     wire();
     $('pg_btn_up').style.display = isMaster() ? '' : 'none';
     if (G.state === 'idle') load();
+  };
+})();
+</script>
+<script id="board_slides">
+/* ===== 보험사 상황판: PDF를 슬라이드처럼 자동으로 넘겨 보여주는 화면 =====
+   PDF는 Supabase Storage(board-slides 보관함, 비공개)에 두고, 자료 목록(순서·사용 여부·쪽당 초)은 보관함 안의 manifest.json 한 개에 적는다.
+   마스터만 올리고 지우고 순서를 바꾼다. 누구나 볼 수 있다. Claude API 호출 없음, 새 DB 테이블 없음(보관함 + 정책 SQL만 필요). */
+(function () {
+  'use strict';
+  var BUCKET = 'board-slides', MF = 'manifest.json';
+  var PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+  var PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  var BD_SQL = [
+    "-- 보험사 상황판 PDF 보관함 (한 번만 실행)",
+    "insert into storage.buckets (id, name, public) values ('board-slides', 'board-slides', false) on conflict (id) do nothing;",
+    "drop policy if exists \"bs_select\" on storage.objects;",
+    "create policy \"bs_select\" on storage.objects for select to anon, authenticated using (bucket_id = 'board-slides');",
+    "drop policy if exists \"bs_insert\" on storage.objects;",
+    "create policy \"bs_insert\" on storage.objects for insert to anon, authenticated with check (bucket_id = 'board-slides');",
+    "drop policy if exists \"bs_update\" on storage.objects;",
+    "create policy \"bs_update\" on storage.objects for update to anon, authenticated using (bucket_id = 'board-slides') with check (bucket_id = 'board-slides');",
+    "drop policy if exists \"bs_delete\" on storage.objects;",
+    "create policy \"bs_delete\" on storage.objects for delete to anon, authenticated using (bucket_id = 'board-slides');"
+  ].join('\n');
+
+  var B = { man: null, sig: '', list: [], i: 0, auto: true, timer: null, active: false, token: 0, pdfs: {}, loadedAt: 0, state: 'idle', mgrOpen: false, upMode: null, ctlT: null, wired: false };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
+  function isMaster() { return typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'master'; }
+  function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function fmtDate(iso) { try { var d = new Date(iso); return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0'); } catch (e) { return ''; } }
+  function defMan() { return { v: 1, settings: { sec: 15 }, decks: [] }; }
+  function secOf() { var s = B.man && B.man.settings && Number(B.man.settings.sec); return (s >= 3 && s <= 300) ? s : 15; }
+
+  var pdfP = null;
+  function ensurePdf() {
+    if (window.pdfjsLib) { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; return Promise.resolve(); }
+    if (!pdfP) {
+      pdfP = new Promise(function (res, rej) {
+        var s = document.createElement('script'); s.src = PDFJS_URL; s.onload = res;
+        s.onerror = function () { rej(new Error('PDF 읽기 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.')); };
+        document.head.appendChild(s);
+      }).then(function () { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; }).catch(function (e) { pdfP = null; throw e; });
+    }
+    return pdfP;
+  }
+
+  /* ---------- 자료 목록(manifest.json) 읽기·쓰기 ---------- */
+  function readMan() {
+    if (typeof sb === 'undefined' || !sb) return Promise.resolve({ status: 'noconn', msg: '아직 서버에 연결되지 않았어요.' });
+    return sb.storage.from(BUCKET).download(MF).then(function (r) {
+      if (r.error || !r.data) {
+        var m = String((r.error && r.error.message) || '');
+        var st = /bucket/i.test(m) ? 'nobucket' : (/not found|object|404|없/i.test(m) ? 'missing' : 'error');
+        return { status: st, msg: m };
+      }
+      return r.data.text().then(function (t) {
+        var man;
+        try { man = JSON.parse(t); } catch (e) { return { status: 'error', msg: '자료 목록 파일이 올바르지 않아요.' }; }
+        if (!man || !Array.isArray(man.decks)) man = defMan();
+        man.settings = man.settings || { sec: 15 };
+        return { status: 'ok', man: man };
+      });
+    }).catch(function (e) { return { status: 'error', msg: String(e && e.message || e) }; });
+  }
+  function mutate(fn) {
+    return readMan().then(function (r) {
+      var m;
+      if (r.status === 'ok') m = r.man;
+      else if (r.status === 'missing') m = defMan();
+      else throw new Error(r.status === 'nobucket' ? '보관함이 아직 없어요. 화면의 SQL을 Supabase에서 먼저 실행해 주세요.' : (r.msg || '자료 목록을 읽지 못했어요.'));
+      fn(m);
+      return sb.storage.from(BUCKET).upload(MF, new Blob([JSON.stringify(m)], { type: 'application/json' }), { upsert: true, contentType: 'application/json', cacheControl: '0' }).then(function (u) {
+        if (u.error) throw u.error;
+        return m;
+      });
+    });
+  }
+  function applyMan(man) {
+    B.man = man; B.sig = JSON.stringify(man); B.loadedAt = Date.now();
+    buildList();
+    var keep = {}; man.decks.forEach(function (d) { keep[d.file] = 1; });
+    Object.keys(B.pdfs).forEach(function (f) { if (!keep[f]) delete B.pdfs[f]; });
+    renderMgr();
+  }
+  function buildList() {
+    var L = [];
+    ((B.man && B.man.decks) || []).forEach(function (d) { if (d.enabled === false) return; for (var p = 1; p <= (d.pages || 0); p++) L.push({ d: d, p: p }); });
+    B.list = L;
+  }
+  function reload(silent) {
+    return readMan().then(function (r) {
+      if (r.status === 'ok') {
+        if (B.man && JSON.stringify(r.man) === B.sig) { B.loadedAt = Date.now(); return false; }
+        applyMan(r.man); return true;
+      }
+      if (r.status === 'missing') { applyMan(defMan()); return true; }
+      if (!silent) throw new Error(r.msg || '자료 목록을 읽지 못했어요.');
+      return false;
+    });
+  }
+
+  /* ---------- 화면 조각 ---------- */
+  function setMsg(html) { var v = $('bd_view'); if (v) v.innerHTML = html ? '<div class="bd-msg">' + html + '</div>' : ''; }
+  function setInfo(html) { var e = $('bd_info'); if (e) e.innerHTML = html; }
+  function showSetup(msg) {
+    var box = $('bd_setup'); if (!box) return;
+    if (!isMaster()) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = 'block';
+    box.innerHTML = '<div class="card" style="border-color:#E5B96B;">' +
+      '<div style="font-weight:700;margin-bottom:6px;">📌 처음 한 번만 준비하면 돼요</div>' +
+      (msg ? '<div class="sub" style="margin-bottom:8px;">' + esc(msg) + '</div>' : '') +
+      '<div class="sub" style="margin-bottom:8px;">① Supabase 왼쪽 메뉴 <b>SQL Editor</b>에 아래 SQL을 붙여넣고 <b>Run</b> → ② 이 화면의 <b>⚙️ 자료 관리</b>에서 PDF를 올려 주세요. (SQL은 처음 한 번만 실행)</div>' +
+      '<textarea readonly id="bd_sql" style="width:100%;height:150px;font-family:monospace;font-size:12px;">' + esc(BD_SQL) + '</textarea>' +
+      '<div style="margin-top:6px;"><button class="secondary" type="button" id="bd_copy_sql">SQL 복사</button></div></div>';
+    var b = $('bd_copy_sql');
+    if (b) b.onclick = function () {
+      var t = $('bd_sql'); t.select();
+      try { navigator.clipboard.writeText(BD_SQL).then(function () { alert('SQL을 복사했습니다.'); }, function () { document.execCommand('copy'); alert('SQL을 복사했습니다.'); }); }
+      catch (e) { try { document.execCommand('copy'); alert('SQL을 복사했습니다.'); } catch (e2) { alert('복사에 실패했습니다. 직접 선택해서 복사해 주세요.'); } }
+    };
+  }
+  function hideSetup() { var box = $('bd_setup'); if (box) { box.style.display = 'none'; box.innerHTML = ''; } }
+
+  function renderMgr() {
+    var box = $('bd_mgr'); if (!box) return;
+    if (!isMaster() || !B.mgrOpen || !B.man) { box.style.display = 'none'; return; }
+    var decks = B.man.decks;
+    box.style.display = 'block';
+    var rows = decks.length ? decks.map(function (d, k) {
+      var on = d.enabled !== false;
+      return '<div class="bd-row" data-id="' + esc(d.id) + '">' +
+        '<label class="bd-on"><input type="checkbox" data-bd="on"' + (on ? ' checked' : '') + '> 화면에 띄움</label>' +
+        '<div class="bd-nm"><b>' + esc(d.name) + '</b><span>' + (d.pages || 0) + '쪽 · ' + esc(fmtDate(d.uploadedAt)) + '</span></div>' +
+        '<div class="bd-bt">' +
+        '<button class="secondary small" type="button" data-bd="up"' + (k === 0 ? ' disabled' : '') + '>↑</button>' +
+        '<button class="secondary small" type="button" data-bd="down"' + (k === decks.length - 1 ? ' disabled' : '') + '>↓</button>' +
+        '<button class="secondary small" type="button" data-bd="rename">이름 바꾸기</button>' +
+        '<button class="secondary small" type="button" data-bd="replace">PDF 교체</button>' +
+        '<button class="secondary small" type="button" data-bd="del" style="color:#B3261E;">삭제</button>' +
+        '</div></div>';
+    }).join('') : '<div class="sub" style="padding:8px 0;">아직 올린 자료가 없어요. 아래 “＋ PDF 올리기”로 시작해 보세요.</div>';
+    box.innerHTML = '<div style="font-weight:700;margin-bottom:8px;">⚙️ 자료 관리 <span class="sub" style="margin:0 0 0 6px;font-weight:400;">(마스터만 보여요 · 위에서부터 차례로 나와요)</span></div>' + rows +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;">' +
+      '<button class="act small" type="button" data-bd="new">＋ PDF 올리기</button>' +
+      '<span class="sub" style="margin:0;">쪽당</span><input type="number" id="bd_sec" min="3" max="300" value="' + secOf() + '" style="width:70px;padding:5px 8px;"><span class="sub" style="margin:0;">초씩 넘김</span>' +
+      '<button class="secondary small" type="button" data-bd="sec">저장</button>' +
+      '<span id="bd_busy" class="sub" style="margin:0;color:#B45309;"></span></div>' +
+      '<div class="sub" style="margin-top:8px;">PDF는 쪽마다 한 화면으로 보여줘요(가로 슬라이드 모양이 가장 보기 좋아요). 사내 교육용·외부 배포 금지 자료는 이 보관함에만 올라가요.</div>';
+  }
+  function busy(t) { var e = $('bd_busy'); if (e) e.textContent = t || ''; }
+
+  function updateBar() {
+    var it = B.list[B.i], pos = $('bd_pos'), n = B.list.length;
+    if (pos) pos.textContent = it ? (it.d.name + ' · ' + it.p + '/' + it.d.pages + '쪽 (전체 ' + (B.i + 1) + '/' + n + ')') : '';
+    var a = $('bd_btn_auto');
+    if (a) a.textContent = B.auto ? '⏸ 자동 넘김 끄기' : '▶ 자동 넘김 켜기';
+    var a2 = $('bd_ctl_auto'); if (a2) a2.textContent = B.auto ? '⏸' : '▶';
+    var info = '쪽당 ' + secOf() + '초 · ' + (B.auto ? '자동으로 넘어가는 중' : '자동 넘김 꺼짐 (◀ ▶ 또는 방향키로 넘겨요)');
+    setInfo(info);
+  }
+  function resetProg() { var p = document.querySelector('#bd_prog i'); if (p) { p.style.transition = 'none'; p.style.width = '0'; } }
+  function startProg(sec) {
+    var p = document.querySelector('#bd_prog i'); if (!p) return;
+    p.style.transition = 'none'; p.style.width = '0'; void p.offsetWidth;
+    p.style.transition = 'width ' + sec + 's linear'; p.style.width = '100%';
+  }
+  function clearTimer() { if (B.timer) { clearTimeout(B.timer); B.timer = null; } }
+
+  /* ---------- PDF 한 쪽 그리기 ---------- */
+  function getPdf(d) {
+    if (B.pdfs[d.file]) return B.pdfs[d.file];
+    var pr = ensurePdf().then(function () { return sb.storage.from(BUCKET).download(d.file); }).then(function (r) {
+      if (r.error || !r.data) throw new Error((r.error && r.error.message) || 'PDF를 불러오지 못했어요');
+      return r.data.arrayBuffer();
+    }).then(function (buf) { return window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise; });
+    B.pdfs[d.file] = pr;
+    pr.catch(function () { if (B.pdfs[d.file] === pr) delete B.pdfs[d.file]; });
+    return pr;
+  }
+  function renderPage(pdf, n) {
+    var v = $('bd_view');
+    return pdf.getPage(n).then(function (pg) {
+      var v1 = pg.getViewport({ scale: 1 });
+      var cw = Math.max(200, v.clientWidth), ch = Math.max(200, v.clientHeight);
+      var s = Math.min(cw / v1.width, ch / v1.height);
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var vp = pg.getViewport({ scale: s * dpr });
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      cv.style.width = Math.round(v1.width * s) + 'px'; cv.style.height = Math.round(v1.height * s) + 'px';
+      return pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise.then(function () { return cv; });
+    });
+  }
+  function showIdx(i) {
+    var L = B.list;
+    clearTimer(); resetProg();
+    if (!L.length) { B.token++; updateBar(); setMsg(B.man && B.man.decks.length ? '화면에 띄우도록 켜 둔 자료가 없어요.' : '아직 올라온 자료가 없어요.' + (isMaster() ? '<br>위의 <b>⚙️ 자료 관리</b>에서 PDF를 올려 주세요.' : '<br>마스터가 자료를 올리면 여기에 나와요.')); return; }
+    i = ((i % L.length) + L.length) % L.length; B.i = i;
+    var tok = ++B.token, it = L[i];
+    updateBar();
+    getPdf(it.d).then(function (pdf) {
+      if (tok !== B.token) return null;
+      return renderPage(pdf, it.p);
+    }).then(function (cv) {
+      if (!cv || tok !== B.token) return;
+      var v = $('bd_view'); v.innerHTML = ''; v.appendChild(cv);
+      schedule(); prefetch();
+    }).catch(function (e) {
+      if (tok !== B.token) return;
+      setMsg('이 쪽을 불러오지 못했어요.<br><span style="font-size:13px;">' + esc(e && e.message || e) + '</span>');
+      if (B.auto && B.active && L.length > 1) B.timer = setTimeout(function () { next(); }, 5000);
+    });
+  }
+  function schedule() {
+    clearTimer();
+    if (!(B.auto && B.active && B.list.length > 1)) { resetProg(); return; }
+    var sec = secOf();
+    startProg(sec);
+    B.timer = setTimeout(function () { next(); }, sec * 1000);
+  }
+  function prefetch() {
+    var n = B.list[B.i + 1];
+    if (n && n.d !== B.list[B.i].d) getPdf(n.d).catch(function () { /* 나중에 다시 시도 */ });
+  }
+  function next() {
+    if (!B.list.length) return;
+    if (B.i >= B.list.length - 1 && Date.now() - B.loadedAt > 120000) {   /* 한 바퀴 돌 때마다, 마스터가 바꾼 자료가 있으면 반영 */
+      reload(true).then(function () { showIdx(0); });
+      return;
+    }
+    showIdx(B.i + 1);
+  }
+  function prev() { if (B.list.length) showIdx(B.i - 1); }
+  function setAuto(v) {
+    B.auto = !!v;
+    try { localStorage.setItem('afg_bd_auto', v ? '1' : '0'); } catch (e) { /* 무시 */ }
+    updateBar();
+    if (B.auto) schedule(); else { clearTimer(); resetProg(); }
+  }
+
+  /* ---------- 불러오기 ---------- */
+  function load() {
+    if (B.state === 'loading') return;
+    B.state = 'loading'; hideSetup();
+    setInfo('자료를 불러오는 중…'); setMsg('불러오는 중…');
+    readMan().then(function (r) {
+      if (r.status === 'ok' || r.status === 'missing') {
+        applyMan(r.status === 'ok' ? r.man : defMan());
+        B.state = 'ready';
+        if (r.status === 'missing' && isMaster()) showSetup('아직 올린 자료가 없어요. 처음이라면 아래 SQL을 먼저 실행한 뒤 PDF를 올려 주세요. (이미 실행했다면 바로 PDF를 올리면 돼요)');
+        showIdx(0);
+        return;
+      }
+      B.state = 'idle';
+      setInfo('불러오지 못했어요');
+      setMsg(r.status === 'nobucket' ? '아직 자료 보관함이 준비되지 않았어요.' + (isMaster() ? '<br>아래 안내의 SQL을 먼저 실행해 주세요.' : '<br>마스터가 준비하면 볼 수 있어요.') : '자료를 불러오지 못했어요.<br><span style="font-size:13px;">' + esc(r.msg || '') + '</span>');
+      showSetup(r.status === 'nobucket' ? '' : '불러오기에 실패했어요(' + (r.msg || '') + '). 처음이라면 아래 SQL을 먼저 실행하세요.');
+    });
+  }
+
+  /* ---------- PDF 올리기(마스터) ---------- */
+  function afterEdit() {
+    hideSetup();
+    return reload(false).then(function () { renderMgr(); showIdx(Math.min(B.i, Math.max(0, B.list.length - 1))); });
+  }
+  function fail(err) {
+    var m = String(err && err.message || err);
+    busy('');
+    alert('저장하지 못했어요: ' + m + (/row-level|policy|bucket|not found|Unauthorized|403|보관함/i.test(m) ? '\n\n처음이라면 화면의 SQL을 Supabase에서 먼저 실행해 주세요.' : ''));
+    if (/row-level|policy|bucket|Unauthorized|403|보관함/i.test(m)) showSetup('저장에 실패했어요(' + m + ').');
+  }
+  function doUpload(file, replaceId) {
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { alert('PDF 파일만 올릴 수 있어요.'); return; }
+    if (file.size > 45 * 1024 * 1024 && !confirm('파일이 45MB가 넘어요. 보관함 용량 제한(약 50MB)에 걸릴 수 있어요. 그래도 올릴까요?')) return;
+    if (replaceId && !confirm('이 자료를 “' + file.name + '” 로 바꿀까요?\n(이전 파일은 되돌릴 수 없어요)')) return;
+    busy('PDF 확인 중…');
+    var pages = 0, path = 'decks/' + newId() + '.pdf', oldFile = '';
+    ensurePdf().then(function () { return file.arrayBuffer(); }).then(function (buf) {
+      return window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    }).then(function (pdf) {
+      pages = pdf.numPages; try { pdf.destroy(); } catch (e) { /* 무시 */ }
+      if (!pages) throw new Error('쪽이 없는 PDF예요.');
+      busy('올리는 중… (' + pages + '쪽)');
+      return sb.storage.from(BUCKET).upload(path, file, { upsert: true, contentType: 'application/pdf', cacheControl: '3600' });
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      busy('목록 저장 중…');
+      var who = (currentUser && currentUser.manager_name) || '';
+      return mutate(function (m) {
+        if (replaceId) {
+          var d = m.decks.filter(function (x) { return x.id === replaceId; })[0];
+          if (!d) throw new Error('바꿀 자료를 찾지 못했어요. 새로고침 후 다시 해 주세요.');
+          oldFile = d.file; d.file = path; d.pages = pages; d.uploadedAt = new Date().toISOString(); d.uploadedBy = who;
+        } else {
+          m.decks.push({ id: newId(), name: file.name.replace(/\.pdf$/i, ''), file: path, pages: pages, enabled: true, uploadedAt: new Date().toISOString(), uploadedBy: who });
+        }
+      });
+    }).then(function () {
+      if (oldFile) sb.storage.from(BUCKET).remove([oldFile]);
+      busy(''); return afterEdit();
+    }).catch(fail);
+  }
+
+  function onMgrClick(e) {
+    var t = e.target.closest('[data-bd]'); if (!t || t.type === 'checkbox') return;
+    var act = t.getAttribute('data-bd'), row = t.closest('.bd-row'), id = row ? row.getAttribute('data-id') : '';
+    if (act === 'new') { B.upMode = { id: '' }; $('bd_file').click(); return; }
+    if (act === 'replace') { B.upMode = { id: id }; $('bd_file').click(); return; }
+    if (act === 'sec') {
+      var n = parseInt($('bd_sec').value, 10);
+      if (!(n >= 3 && n <= 300)) { alert('3초에서 300초 사이로 입력해 주세요.'); return; }
+      busy('저장 중…'); mutate(function (m) { m.settings = m.settings || {}; m.settings.sec = n; }).then(function () { busy(''); return afterEdit(); }).catch(fail); return;
+    }
+    if (act === 'rename') {
+      var d0 = B.man.decks.filter(function (x) { return x.id === id; })[0]; if (!d0) return;
+      var nn = prompt('자료 이름', d0.name); if (nn == null) return; nn = nn.trim(); if (!nn) return;
+      busy('저장 중…'); mutate(function (m) { m.decks.forEach(function (x) { if (x.id === id) x.name = nn; }); }).then(function () { busy(''); return afterEdit(); }).catch(fail); return;
+    }
+    if (act === 'up' || act === 'down') {
+      busy('저장 중…');
+      mutate(function (m) {
+        var k = m.decks.map(function (x) { return x.id; }).indexOf(id), j = act === 'up' ? k - 1 : k + 1;
+        if (k < 0 || j < 0 || j >= m.decks.length) return;
+        var tmp = m.decks[k]; m.decks[k] = m.decks[j]; m.decks[j] = tmp;
+      }).then(function () { busy(''); return afterEdit(); }).catch(fail); return;
+    }
+    if (act === 'del') {
+      var d1 = B.man.decks.filter(function (x) { return x.id === id; })[0]; if (!d1) return;
+      if (!confirm('“' + d1.name + '” 을(를) 삭제할까요?\n(되돌릴 수 없어요. 잠시 안 보이게만 하려면 “화면에 띄움”을 꺼 두세요)')) return;
+      busy('삭제 중…');
+      mutate(function (m) { m.decks = m.decks.filter(function (x) { return x.id !== id; }); }).then(function () {
+        sb.storage.from(BUCKET).remove([d1.file]); busy(''); return afterEdit();
+      }).catch(fail);
+    }
+  }
+  function onMgrChange(e) {
+    var t = e.target; if (!t || t.getAttribute('data-bd') !== 'on') return;
+    var row = t.closest('.bd-row'), id = row.getAttribute('data-id'), on = t.checked;
+    busy('저장 중…');
+    mutate(function (m) { m.decks.forEach(function (x) { if (x.id === id) x.enabled = on; }); }).then(function () { busy(''); return afterEdit(); }).catch(function (err) { t.checked = !on; fail(err); });
+  }
+
+  /* ---------- 전체화면 / 조작 ---------- */
+  function fsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function goFull() {
+    var st = $('bd_stage'); if (!st) return;
+    if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    var f = st.requestFullscreen || st.webkitRequestFullscreen;
+    if (f) { var p = f.call(st); if (p && p.catch) p.catch(function () { alert('이 브라우저에서는 전체화면이 안 돼요. F11 키로 브라우저 전체화면을 써 주세요.'); }); }
+    else alert('이 브라우저에서는 전체화면이 안 돼요. F11 키로 브라우저 전체화면을 써 주세요.');
+  }
+  function flashCtl() {
+    var c = document.querySelector('#bd_stage .bd-ctl'); if (!c) return;
+    c.classList.add('show'); clearTimeout(B.ctlT);
+    B.ctlT = setTimeout(function () { c.classList.remove('show'); }, 3000);
+  }
+  function wire() {
+    if (B.wired) return; B.wired = true;
+    try { B.auto = localStorage.getItem('afg_bd_auto') !== '0'; } catch (e) { B.auto = true; }
+    $('bd_btn_auto').onclick = function () { setAuto(!B.auto); };
+    $('bd_ctl_auto').onclick = function () { setAuto(!B.auto); };
+    $('bd_btn_full').onclick = goFull;
+    $('bd_ctl_prev').onclick = prev;
+    $('bd_ctl_next').onclick = function () { showIdx(B.i + 1); };
+    $('bd_ctl_full').onclick = goFull;
+    $('bd_btn_mgr').onclick = function () { B.mgrOpen = !B.mgrOpen; renderMgr(); };
+    var mg = $('bd_mgr'); mg.addEventListener('click', onMgrClick); mg.addEventListener('change', onMgrChange);
+    $('bd_file').onchange = function () { var f = this.files && this.files[0]; var mode = B.upMode || { id: '' }; this.value = ''; doUpload(f, mode.id); };
+    $('bd_stage').addEventListener('mousemove', flashCtl);
+    $('bd_stage').addEventListener('touchstart', flashCtl, { passive: true });
+    document.addEventListener('fullscreenchange', function () { if (B.active) setTimeout(function () { showIdx(B.i); }, 150); });
+    document.addEventListener('webkitfullscreenchange', function () { if (B.active) setTimeout(function () { showIdx(B.i); }, 150); });
+    var rt = null;
+    window.addEventListener('resize', function () { if (!B.active) return; clearTimeout(rt); rt = setTimeout(function () { showIdx(B.i); }, 300); });
+    document.addEventListener('keydown', function (e) {
+      if (!B.active) return;
+      var tg = e.target && e.target.tagName; if (tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT') return;
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); showIdx(B.i + 1); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+      else if (e.key === ' ') { e.preventDefault(); setAuto(!B.auto); }
+      else if (e.key === 'f' || e.key === 'F') { goFull(); }
+    });
+  }
+
+  window.bdOpen = function () {
+    wire();
+    B.active = true;
+    $('bd_btn_mgr').style.display = isMaster() ? '' : 'none';
+    if (!isMaster()) { B.mgrOpen = false; renderMgr(); hideSetup(); }
+    if (B.state === 'idle') load();
+    else if (B.state === 'ready') showIdx(B.i);
+  };
+  window.bdClose = function () {
+    if (!B.active) return;
+    B.active = false; B.token++; clearTimer(); resetProg();
+    if (fsEl()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { /* 무시 */ } }
   };
 })();
 </script>
