@@ -1319,6 +1319,25 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 #panel-notice .ntc-th b{position:absolute;top:-6px;right:-6px;background:#EF4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:18px;text-align:center;cursor:pointer;}
 #panel-notice .ntc-gal img{max-width:100%;border-radius:10px;border:1px solid var(--line);margin-top:8px;cursor:zoom-in;display:block;}
 @media (max-width:700px){#panel-notice .ntc-feat{grid-template-columns:1fr;}}
+/* 전체화면(사무실 모니터용): 글자 크게, 잘림 없이 전부 보여주고, 입력·수정 버튼은 숨김 */
+#panel-notice .ntc-fsbar{display:none;}
+#panel-notice:fullscreen{--s:1;background:var(--paper);overflow:auto;padding:22px 34px 40px;box-sizing:border-box;}
+#panel-notice:fullscreen .ntc-bar,#panel-notice:fullscreen .ntc-ed,#panel-notice:fullscreen #ntc_setupBox{display:none !important;}
+#panel-notice:fullscreen .ntc-fsbar{display:flex;gap:6px;position:fixed;top:10px;right:14px;z-index:1400;opacity:.3;transition:opacity .2s;}
+#panel-notice:fullscreen .ntc-fsbar:hover{opacity:1;}
+#panel-notice:fullscreen .ntc-fsbar button{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;color:var(--ink);}
+#panel-notice:fullscreen .ntc-h1{font-size:calc(32px * var(--s));}
+#panel-notice:fullscreen .ntc-upd{font-size:calc(15px * var(--s));margin-right:150px;}
+#panel-notice:fullscreen .ntc-feat{gap:18px;margin-bottom:20px;}
+#panel-notice:fullscreen .ntc-grid{grid-template-columns:repeat(auto-fill,minmax(calc(330px * var(--s)),1fr));gap:18px;align-items:start;}
+#panel-notice:fullscreen .ntc-card{padding:16px 18px;}
+#panel-notice:fullscreen .ntc-ct{font-size:calc(21px * var(--s));}
+#panel-notice:fullscreen .ntc-cd{font-size:calc(15px * var(--s));}
+#panel-notice:fullscreen .ntc-new{font-size:calc(12px * var(--s));}
+#panel-notice:fullscreen .ntc-body{font-size:calc(17px * var(--s));line-height:1.65;}
+#panel-notice:fullscreen .ntc-card:not(.feat) .ntc-body{max-height:none;overflow:visible;cursor:default;}
+#panel-notice:fullscreen .ntc-body.clip::after,#panel-notice:fullscreen .ntc-more{display:none !important;}
+#panel-notice:fullscreen .ntc-foot{font-size:calc(15px * var(--s));}
 </style>
   <div class="ntc-head">
     <h1 class="ntc-h1">📢 보험사별 공지사항</h1>
@@ -1336,7 +1355,9 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div class="ntc-bar">
     <input type="text" id="ntc_search" placeholder="🔍 공지 검색 (보험사 · 내용)..." oninput="ntcRenderGrid()">
     <button class="act small" id="ntc_addBtn" style="display:none;" onclick="ntcEdit('insurer',0)">＋ 보험사 공지 추가</button>
+    <button class="secondary small" onclick="ntcFullscreen()" title="사무실 모니터에 띄울 때 (Esc로 나오기)">📺 전체화면으로 보기</button>
   </div>
+  <div class="ntc-fsbar"><button onclick="ntcFsScale(-0.1)">글자 −</button><button onclick="ntcFsScale(0.1)">글자 +</button><button onclick="ntcFsExit()">✕ 나가기 (Esc)</button></div>
 
   <div class="ntc-feat" id="ntc_feat"></div>
   <div class="ntc-grid" id="ntc_grid"><div class="ntc-empty">불러오는 중...</div></div>
@@ -9522,6 +9543,50 @@ function ntcRenderGrid() {
     if (b && m && b.scrollHeight > b.clientHeight + 2) { m.style.display = 'inline'; b.classList.add('clip'); }
   });
 }
+/* ---------- 전체화면 (사무실 모니터용) ----------
+   · 글자 키움·잘림 없음·수정 버튼 숨김은 CSS(:fullscreen)가 처리
+   · 1분마다 자동으로 새로 읽어 마스터가 고친 내용이 모니터에 반영됨
+   · 화면이 길면 천천히 아래로 내려갔다가 처음으로 돌아옴(마우스·키보드를 쓰면 30초 멈춤) */
+let ntcFsTimer = null, ntcFsScroll = null, ntcFsPauseUntil = 0, ntcFsHold = 0, ntcFsDir = 1;
+function ntcFsEl() { return document.getElementById('panel-notice'); }
+function ntcFullscreen() {
+  const el = ntcFsEl();
+  const f = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!f) { alert('이 브라우저는 전체화면을 지원하지 않습니다. 크롬을 사용해주세요.'); return; }
+  const r = f.call(el); if (r && r.catch) r.catch(() => alert('전체화면을 열지 못했습니다.'));
+}
+function ntcFsExit() { if (document.fullscreenElement) document.exitFullscreen(); }
+function ntcFsScale(d) {
+  const el = ntcFsEl();
+  let v = Math.max(0.7, Math.min(1.8, (parseFloat(el.style.getPropertyValue('--s')) || ntcFsScaleLoad()) + d));
+  v = Math.round(v * 10) / 10;
+  el.style.setProperty('--s', v);
+  try { localStorage.setItem('afg_ntc_fs_scale', String(v)); } catch (e) {}
+}
+function ntcFsScaleLoad() { try { const v = parseFloat(localStorage.getItem('afg_ntc_fs_scale')); return v > 0 ? v : 1; } catch (e) { return 1; } }
+function ntcFsStop() {
+  if (ntcFsTimer) { clearInterval(ntcFsTimer); ntcFsTimer = null; }
+  if (ntcFsScroll) { clearInterval(ntcFsScroll); ntcFsScroll = null; }
+}
+function ntcFsChange() {
+  const el = ntcFsEl(), on = document.fullscreenElement === el;
+  ntcFsStop();
+  if (!on) { el.style.removeProperty('--s'); return; }
+  el.style.setProperty('--s', ntcFsScaleLoad());
+  el.scrollTop = 0; ntcFsHold = 0; ntcFsDir = 1;
+  ntcFsTimer = setInterval(async () => { await ntcLoad(); if (!ntcLoadError) ntcRender(); }, 60000);
+  ntcFsScroll = setInterval(() => {
+    if (Date.now() < ntcFsPauseUntil) return;
+    if (ntcFsHold > 0) { ntcFsHold--; return; }
+    const max = el.scrollHeight - el.clientHeight;
+    if (max <= 4) return;
+    if (ntcFsDir > 0) { el.scrollTop += 1; if (el.scrollTop >= max - 1) { ntcFsDir = -1; ntcFsHold = 100; } }
+    else { el.scrollTop = 0; ntcFsDir = 1; ntcFsHold = 100; }
+  }, 50);
+}
+document.addEventListener('fullscreenchange', ntcFsChange);
+['wheel', 'keydown', 'touchstart', 'mousedown'].forEach(ev => document.addEventListener(ev, () => { if (document.fullscreenElement === ntcFsEl()) ntcFsPauseUntil = Date.now() + 30000; }, { passive: true }));
+
 function ntcRender() {
   const last = ntcRows.reduce((m, r) => (r.updated_at && r.updated_at > m ? r.updated_at : m), '');
   document.getElementById('ntc_upd').textContent = last ? '🕐 마지막 업데이트 · ' + ntcStamp(last) : '';
