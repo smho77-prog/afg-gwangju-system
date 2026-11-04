@@ -1331,6 +1331,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     <div class="row" style="margin:0;gap:6px;">
       <button class="act uwmode-btn" id="uwmode-btn-disease" onclick="switchUwMode('disease')" style="flex:none;">🦠 예외질환/사고이력 검색</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-limit" onclick="switchUwMode('limit')" style="flex:none;padding:9px 16px;border-radius:8px;">📊 담보별 업계누적 확인</button>
+      <button class="secondary uwmode-btn" id="uwmode-btn-notice" onclick="switchUwMode('notice')" style="flex:none;padding:9px 16px;border-radius:8px;">📋 고지유형 읽는 법</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-foreign" onclick="switchUwMode('foreign')" style="flex:none;padding:9px 16px;border-radius:8px;">🌏 외국인 인수기준</button>
       <button class="secondary uwmode-btn" id="uwmode-btn-bmi" onclick="switchUwMode('bmi')" style="flex:none;padding:9px 16px;border-radius:8px;">📅 나이/BMI 계산기</button>
     </div>
@@ -1420,6 +1421,102 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     </div>
     <div id="pg_setup" style="display:none;"></div>
     <div class="card" style="padding:0;overflow:hidden;"><div id="pg_view" style="min-height:120px;"></div></div>
+  </div>
+
+  <!-- 2-3) 고지유형 읽는 법 (3.N.N) — DB 없음, 화면에 내장된 기준표 -->
+  <div id="uwmode-notice" style="display:none;">
+    <style>
+      #uwmode-notice .nt-formula{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin:10px 0 6px;}
+      #uwmode-notice .nt-box{flex:1 1 210px;min-width:200px;border:1px solid var(--ui-slate-200);border-radius:12px;padding:12px 14px;background:var(--card);}
+      #uwmode-notice .nt-num{font-size:26px;font-weight:800;line-height:1;margin-bottom:6px;}
+      #uwmode-notice .nt-box b{display:block;font-size:13.5px;margin-bottom:3px;}
+      #uwmode-notice .nt-box span{font-size:12.5px;color:var(--muted);line-height:1.55;display:block;}
+      #uwmode-notice .nt-dot{align-self:center;font-size:22px;font-weight:800;color:var(--ui-slate-400);}
+      #uwmode-notice .nt-c1{background:#EEF2FF;border-color:#C7D2FE;} #uwmode-notice .nt-c1 .nt-num{color:#4338CA;}
+      #uwmode-notice .nt-c2{background:#ECFDF5;border-color:#A7F3D0;} #uwmode-notice .nt-c2 .nt-num{color:#047857;}
+      #uwmode-notice .nt-c3{background:#FFFBEB;border-color:#FDE68A;} #uwmode-notice .nt-c3 .nt-num{color:#B45309;}
+      #uwmode-notice .nt-call{border-left:4px solid #F59E0B;background:#FFFBEB;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.6;margin-top:10px;}
+      #uwmode-notice .nt-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px;}
+      #uwmode-notice .nt-chip{border:1px solid var(--ui-slate-200);background:var(--card);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--ink);}
+      #uwmode-notice .nt-chip.on{background:#4F46E5;border-color:#4F46E5;color:#fff;}
+      #uwmode-notice .nt-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:10px;}
+      #uwmode-notice .nt-res>div{border:1px solid var(--ui-slate-200);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.55;}
+      #uwmode-notice .nt-res .t{font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:3px;}
+      #uwmode-notice .nt-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+      #uwmode-notice .nt-tbl th,#uwmode-notice .nt-tbl td{border-bottom:1px solid var(--ui-slate-200);padding:7px 8px;text-align:left;vertical-align:top;}
+      #uwmode-notice .nt-tbl tr.hi td{background:#EEF2FF;}
+      #uwmode-notice .nt-tbl td:first-child{font-weight:800;white-space:nowrap;}
+      #uwmode-notice .nt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;font-size:12.5px;line-height:1.6;}
+      #uwmode-notice .nt-grid>div{border:1px solid var(--ui-slate-200);border-radius:10px;padding:10px 12px;}
+      #uwmode-notice details summary{cursor:pointer;font-weight:700;font-size:13.5px;}
+    </style>
+
+    <div class="card">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px;">📋 간편보험 고지유형 읽는 법 <span style="color:var(--muted);font-weight:500;">(3.N.N)</span></div>
+      <div class="sub" style="margin-bottom:6px;">간편보험 고지유형은 <b>3 . N . N</b> 세 자리 숫자로 "얼마나 거슬러 올라가서 묻는지"를 나타내요. 숫자가 작을수록 묻는 기간이 짧아서 가입 문이 넓어요.</div>
+      <div class="nt-formula">
+        <div class="nt-box nt-c1"><div class="nt-num">3</div><b>최근 3개월</b><span>질병확정진단 · 질병의심소견 · 입원 · 수술 · 추가검사(재검사) 필요소견 (간편보험 공통)</span></div>
+        <div class="nt-dot">.</div>
+        <div class="nt-box nt-c2"><div class="nt-num">N</div><b>입원 · 수술 이력</b><span>최근 N년 안에 입원 또는 수술(제왕절개 포함)한 적이 있는지</span></div>
+        <div class="nt-dot">.</div>
+        <div class="nt-box nt-c3"><div class="nt-num">N</div><b>중대질병 진단·입원·수술</b><span>최근 N년 안에 중대질병(암·협심증·심근경색·뇌졸중·간경화·심장판막증 등)으로 진단·입원·수술을 받은 적이 있는지</span></div>
+      </div>
+      <div class="nt-call">💡 <b>3.5.5</b> = 3개월 / 입원·수술 <b>5년</b> / 중대질병(암·뇌·심) <b>5년</b><br>
+        💡 <b>3.10.5</b> = 3개월 / 입원·수술 <b>10년</b> / 중대질병(암·뇌·심) <b>5년</b> &nbsp;→ 입원·수술만 10년으로 늘어난 유형<br>
+        💡 <b>3.10.10</b> = 3개월 / 입원·수술 <b>10년</b> / 중대질병 <b>10년</b> &nbsp;→ 10년/10년은 3.10.10이에요 (3.10.5와 다름)</div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">🔎 유형을 누르거나 직접 입력해서 확인</div>
+      <div class="row" style="align-items:flex-end;gap:8px;">
+        <div style="max-width:220px;"><label>고지유형</label><input type="text" id="nt_in" placeholder="예: 3.5.5" autocomplete="off" oninput="ntShow(this.value)"></div>
+      </div>
+      <div class="nt-chips" id="nt_chips"></div>
+      <div id="nt_res"></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;">📊 유형별 한눈에 보기</div>
+      <div style="overflow-x:auto;"><table class="nt-tbl"><thead><tr><th>고지유형</th><th>① 3개월</th><th>② 입원·수술</th><th>③ 중대질병 진단·입원·수술</th></tr></thead><tbody id="nt_tbl"></tbody></table></div>
+      <div class="sub" style="margin:8px 0 0;">파란 줄은 가장 많이 쓰는 3.5.5 / 3.10.5예요. 표는 유형 이름이 뜻하는 기본 기준이고, 상품마다 대상 질병이 조금씩 달라서 실제 문항은 아래 "상품별 비교가이드"나 청약서로 꼭 확인하세요.</div>
+      <div style="margin-top:10px;"><button class="secondary" type="button" style="padding:8px 14px;border-radius:8px;" onclick="openGuideTab()">📚 상품별 비교가이드에서 상품 찾기</button></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;">🩺 "중대질병"에 들어가는 병 (상품마다 5대~7대)</div>
+      <div class="nt-grid">
+        <div><b>5대 질병</b><br>암 · 협심증 · 심근경색 · 심장판막증 · 뇌졸중</div>
+        <div><b>6대 질병 (가장 흔함)</b><br>5대 + 간경화</div>
+        <div><b>7대 질병</b><br>6대 + 투석중인 만성신부전증<br>(일부 상품만 해당)</div>
+        <div><b>3대 질병 (10년 고지용)</b><br>암 · 심근경색 · 뇌졸중<br>→ 3.N.10 유형의 10년 항목</div>
+      </div>
+      <div class="sub" style="margin:8px 0 0;">· 뇌졸중은 뇌출혈·뇌경색을 말해요. 암은 상품에 따라 백혈병 포함 여부, 유사암 제외 여부가 달라요.<br>· 가이드에 나온 3.10.10 상품들은 "10년 내 3대질병" 고지 위에 "5년 내 6대질병" 고지도 함께 붙어 있어요.<br>· 암 전용 상품(예: 3.0.5 / 3.2.5 암보험)은 중대질병 중 <b>암만</b> 물어보는 경우가 있어요.<br>· 고혈압·당뇨(·고지혈증) 추가 고지형은 3.5.5 / 3.10.5 뒤에 "고당지"가 붙고, 3.10.5.5처럼 네 자리로 쓰면 마지막 5는 <b>고혈압·당뇨 등 5년 추가고지</b>예요.</div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>📖 고지 용어 기준 (3개월 항목 판단할 때)</summary>
+        <div class="nt-grid" style="margin-top:10px;">
+          <div><b>질병확정진단</b><br>진단서를 받았는지가 아니라, 진료기록에 병명 확정 내용이 남아 있는지가 기준이에요.</div>
+          <div><b>질병의심소견</b><br>의사가 진단서·소견서·진료의뢰서 등을 서면(전자문서 포함)으로 발급한 경우예요. 건강검진 결과의 소견도 해당돼요.</div>
+          <div><b>입원</b><br>하루라도 입원했으면 고지 대상이에요. 응급실에 6시간 이상 머문 경우도 포함돼요.</div>
+          <div><b>수술</b><br>제왕절개를 포함해서, 약관에서 정한 수술 범위에 해당하면 고지 대상이에요.</div>
+          <div><b>추가검사(재검사)</b><br>검사 후 더 정확한 진단을 위해 다른 종류의 검사를 추가로 받은 경우예요. 시간 간격이 있어도 해당돼요.</div>
+          <div><b>동일 질병 판단</b><br>발생 원인이 같은 질병은 하나의 질병으로 봐요. 치료 중 생긴 합병증도 원래 질병과 하나로 봐요.</div>
+        </div>
+      </details>
+      <details style="margin-top:10px;">
+        <summary>📑 참고: 표준체(건강체) 공통 알릴의무 5문항</summary>
+        <div class="sub" style="margin:10px 0 0;">
+          ① 최근 3개월 — 질병확정진단 · 질병의심소견 · 치료 · 입원 · 수술 · 투약<br>
+          ② 최근 3개월 — 마약류, 혈압강하제, 신경안정제, 수면제, 각성제, 진통제 등 상시 복용<br>
+          ③ 최근 1년 — 진찰·검사 후 추가검사(재검사)<br>
+          ④ 최근 5년 — 입원 · 수술(제왕절개 포함) · 계속하여 7일 이상 치료 · 계속하여 30일 이상 투약 (같은 질병이면 5년 안의 일수를 모두 합산)<br>
+          ⑤ 최근 5년 — 11대 질병(암, 백혈병, 고혈압, 협심증, 심근경색, 심장판막증, 간경화증, 뇌졸중증(뇌출혈·뇌경색), 당뇨병, 에이즈(AIDS) 및 HIV 보균, 직장 또는 항문 관련 질환)으로 진단 · 치료 · 입원 · 수술 · 투약 (직장·항문 질환은 실손의료보험 가입 시에만 기재)
+        </div>
+      </details>
+      <div class="sub" style="margin:12px 0 0;font-size:12px;">※ AFG 언더라이팅가이드 26.08(p.4~8 알릴의무 해설, p.9~16 손보 유병자 상품현황, p.17~28 생보·고당지 상품현황) 기준 정리예요. 사내 확인용이며 고객에게 그대로 보내거나 설명자료·광고자료로 쓰면 안 돼요. 완치·예외 기준은 회사·상품별로 다르니 최종 판단은 해당 상품의 청약서·약관으로 확인하세요.</div>
+    </div>
   </div>
 
   <!-- 3) 외국인 인수기준 -->
@@ -8680,8 +8777,72 @@ async function deleteCallCenterFile(id){
 /* ============================================================
    인수기준 검색 - 모드 전환
 ============================================================ */
+/* ============================================================
+   고지유형 읽는 법 (3.N.N) — DB 없음, Claude API 없음
+   3 . N . N = 3개월 / 입원·수술 N년 / 중대질병(진단·입원·수술) N년
+============================================================ */
+const NT_CHIPS = ['3.1','3.1.1','3.0.5','3.1.5','3.2.5','3.3.5','3.4.5','3.5.5','3.6.5','3.7.5','3.8.5','3.9.5','3.10.5','3.5.10','3.6.10','3.7.10','3.8.10','3.9.10','3.10.10','3.10.5.5'];
+const NT_TABLE = ['3.1','3.1.1','3.0.5','3.1.5','3.2.5','3.3.5','3.4.5','3.5.5','3.6.5','3.7.5','3.8.5','3.9.5','3.10.5','3.5.10','3.6.10','3.7.10','3.8.10','3.9.10','3.10.10'];
+const NT_HI = ['3.5.5','3.10.5'];
+const NT_H3 = '질병확정진단 · 의심소견 · 입원 · 수술 · 추가검사(재검사) 필요소견';
+let ntInited = false;
+function ntDescribe(raw){
+  const s = String(raw||'').trim().replace(/\s+/g,'').replace(/,/g,'.');
+  if (!s) return null;
+  const m = s.match(/^(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
+  if (!m) return { error:'형식이 맞지 않아요. 예) 3.5.5 · 3.10.5 · 3.10.10' };
+  if (m[1] !== '3') return { error:'간편보험 고지유형은 3으로 시작해요. 예) 3.5.5' };
+  const a = Number(m[2]);
+  const b = (m[3] === undefined) ? null : Number(m[3]);
+  const c = (m[4] === undefined) ? null : Number(m[4]);
+  if (a > 30 || (b !== null && b > 30) || (c !== null && c > 30)) return { error:'숫자가 너무 커요. 예) 3.5.5 · 3.10.5' };
+  let hosp, hospNote = '';
+  if (a === 0) { hosp = '별도 기간 없음'; hospNote = '입원·수술은 ① 3개월 항목 안에서만 확인해요.'; }
+  else hosp = `최근 ${a}년 내 입원 · 수술`;
+  let major, majorNote = '';
+  if (b === null) { major = '고지 없음'; majorNote = '중대질병은 따로 묻지 않아요.'; }
+  else if (b === 10) { major = '최근 10년 내 3대질병(암 · 심근경색 · 뇌졸중) 진단 · 입원 · 수술'; majorNote = '10년 항목은 3대질병만 해당돼요. 가이드의 3.N.10 상품들은 5년 내 6대질병 고지도 함께 붙어 있어요(상품별 확인).'; }
+  else if (b === 5) { major = '최근 5년 내 중대질병(암 · 뇌 · 심 등) 진단 · 입원 · 수술'; majorNote = '암 · 뇌졸중 · 협심증 · 심근경색 · 심장판막증이 중심이고, 상품에 따라 간경화(6대), 투석중인 만성신부전증(7대)까지 붙어요.'; }
+  else { major = `최근 ${b}년 내 중대질병(5대 내외) 진단 · 입원 · 수술`; }
+  let extra = '';
+  if (c !== null) extra = `최근 ${c}년 내 고혈압 · 당뇨(· 고지혈증) 추가고지 — 상품별로 대상 질환이 달라요.`;
+  return { a, b, c, h3: NT_H3, hosp, hospNote, major, majorNote, extra };
+}
+function ntShow(raw){
+  const el = document.getElementById('nt_res'); if (!el) return;
+  const d = ntDescribe(raw);
+  document.querySelectorAll('#nt_chips .nt-chip').forEach(c => c.classList.toggle('on', c.dataset.t === String(raw||'').trim()));
+  if (!d) { el.innerHTML = '<div class="sub" style="margin:8px 0 0;">위 유형을 누르거나 직접 입력해보세요.</div>'; return; }
+  if (d.error) { el.innerHTML = `<div style="color:var(--red);font-size:13px;margin-top:8px;">${escapeHtml(d.error)}</div>`; return; }
+  const title = String(raw).trim().replace(/\s+/g,'');
+  el.innerHTML = `<div style="font-weight:800;font-size:15px;margin-top:10px;">${escapeHtml(title)}</div>
+    <div class="nt-res">
+      <div class="nt-c1" style="background:#EEF2FF;border-color:#C7D2FE;"><div class="t">① 최근 3개월</div>${escapeHtml(d.h3)}</div>
+      <div style="background:#ECFDF5;border-color:#A7F3D0;"><div class="t">② 입원 · 수술</div><b>${escapeHtml(d.hosp)}</b>${d.hospNote ? `<div style="color:var(--muted);font-size:12px;margin-top:3px;">${escapeHtml(d.hospNote)}</div>` : ''}</div>
+      <div style="background:#FFFBEB;border-color:#FDE68A;"><div class="t">③ 중대질병</div><b>${escapeHtml(d.major)}</b>${d.majorNote ? `<div style="color:var(--muted);font-size:12px;margin-top:3px;">${escapeHtml(d.majorNote)}</div>` : ''}</div>
+      ${d.extra ? `<div style="background:#FDF2F8;border-color:#FBCFE8;"><div class="t">④ 추가고지(고·당·지)</div>${escapeHtml(d.extra)}</div>` : ''}
+    </div>`;
+}
+function ntPick(t){
+  const inp = document.getElementById('nt_in'); if (inp) inp.value = t;
+  ntShow(t);
+}
+function ntOpen(){
+  if (!ntInited) {
+    ntInited = true;
+    const chips = document.getElementById('nt_chips');
+    if (chips) chips.innerHTML = NT_CHIPS.map(t => `<button type="button" class="nt-chip" data-t="${t}" onclick="ntPick('${t}')">${t}</button>`).join('');
+    const tb = document.getElementById('nt_tbl');
+    if (tb) tb.innerHTML = NT_TABLE.map(t => {
+      const d = ntDescribe(t);
+      return `<tr class="${NT_HI.includes(t) ? 'hi' : ''}"><td>${t}</td><td>3개월</td><td>${escapeHtml(d.hosp)}</td><td>${escapeHtml(d.major)}</td></tr>`;
+    }).join('');
+    ntPick('3.5.5');
+  }
+}
+
 function switchUwMode(mode){
-  ['disease','limit','guide','foreign','bmi'].forEach(m => {
+  ['disease','limit','guide','notice','foreign','bmi'].forEach(m => {
     document.getElementById('uwmode-'+m).style.display = (m===mode) ? 'block' : 'none';
     const btn = document.getElementById('uwmode-btn-'+m);
     if (!btn) return; /* 비교가이드는 사이드 메뉴로 옮겨서 이 줄에는 버튼이 없음 */
@@ -8691,6 +8852,7 @@ function switchUwMode(mode){
   });
   if (mode === 'limit') updateLimitCoverageOptions();
   if (mode === 'foreign') updateForeignVisaOptions();
+  if (mode === 'notice') ntOpen();
   if (mode === 'guide' && window.pgOpen) window.pgOpen();
   uwSyncSide(mode === 'guide');
 }
