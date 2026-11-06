@@ -12597,9 +12597,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 #panel-claimform .cf-dot { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 14px; }
 #panel-claimform .cf-nm { font-size: 17px; font-weight: 800; color: #0F172A; word-break: keep-all; }
 #panel-claimform .cf-badge { flex: 0 0 auto; background: #F1F5F9; color: #475569; border-radius: 6px; padding: 3px 9px; font-size: 11.5px; font-weight: 700; }
-#panel-claimform .cf-gwrap { padding: 0 18px 14px; }
-#panel-claimform .cf-gbtn { width: 100%; border: 0; border-radius: 8px; background: #0F1B3D; color: #fff; font-size: 13px; font-weight: 800; padding: 9px 12px; cursor: pointer; }
+#panel-claimform .cf-gwrap { display: flex; gap: 8px; padding: 0 14px 14px; }
+#panel-claimform .cf-gbtn { flex: 1 1 0; min-width: 0; white-space: nowrap; border: 0; border-radius: 8px; background: #0F1B3D; color: #fff; font-size: 13px; font-weight: 800; padding: 9px 12px; cursor: pointer; }
 #panel-claimform .cf-gbtn:hover { background: #1E2F63; }
+#panel-claimform .cf-gbtn.dl { background: #4F46E5; }
+#panel-claimform .cf-gbtn.dl:hover { background: #4338CA; }
+#panel-claimform .cf-gbtn.off { background: #E2E8F0; color: #94A3B8; }
+#panel-claimform .cf-gbtn.off:hover { background: #E2E8F0; }
+@media (max-width: 420px) { #panel-claimform .cf-gbtn { font-size: 12px; padding: 9px 6px; } }
 #panel-claimform .cf-gbtn.big { width: auto; font-size: 14px; padding: 10px 16px; }
 #panel-claimform .cf-gbox { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
 #panel-claimform .cf-gnote { font-size: 12.5px; color: #475569; }
@@ -12738,6 +12743,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     if (C.sel && isMaster() && s && typeOf(C.sel)) s.value = C.sel;
     if (C.sel) { var d = $('cf_detail'); if (d && d.scrollIntoView) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   };
+  window.cfOpenDocs = function (name) { if (C.sel !== name) cfPick(name); else { var d = $('cf_detail'); if (d && d.scrollIntoView) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } };
   window.cfInsChange = function () { var v = $('cf_ins').value; $('cf_insx_w').style.display = v === '__etc' ? '' : 'none'; };
 
   function renderSetup() {
@@ -12775,7 +12781,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       + '<div class="cf-top">' + logoHtml(name)
       + '<span class="cf-badge">' + (type === '생명' ? '생명보험' : (type === '손해' ? '손해보험' : '기타')) + '</span></div>'
       + '<div class="cf-bot"><span><b>' + esc(name) + '</b><span class="cf-cnt' + (n ? ' has' : '') + '">· ' + (n ? '청구서류 ' + n + '건' : '서류 없음') + '</span></span><span class="cf-arrow">›</span></div>'
-      + (gl ? '<div class="cf-gwrap"><button type="button" class="cf-gbtn" data-n="' + esc(name) + '" onclick="event.stopPropagation();cfGuide(this.dataset.n)">청구 서류 안내 ↗</button></div>' : '')
+      + '<div class="cf-gwrap"><button type="button" class="cf-gbtn' + (gl ? '' : ' off') + '" data-n="' + esc(name) + '" onclick="event.stopPropagation();cfGuide(this.dataset.n)">청구서류 안내 ↗</button>'
+      + '<button type="button" class="cf-gbtn dl" data-n="' + esc(name) + '" onclick="event.stopPropagation();cfOpenDocs(this.dataset.n)">청구서류 다운로드 ⬇</button></div>'
       + '</div>';
   }
   function renderGrid() {
@@ -12834,7 +12841,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   function render() { renderSetup(); renderSeg(); renderGrid(); renderDetail(); }
 
   window.cfGuide = function (name) {
-    var u = guideOf(name); if (!u) return;
+    var u = guideOf(name);
+    if (!u) {
+      if (isMaster()) { if (C.sel !== name) cfPick(name); alert('아직 ' + name + ' 청구서류 안내 페이지 주소가 없어요.\n열린 화면 위쪽 입력칸에 주소를 붙여넣고 저장해 주세요.'); }
+      else alert(name + ' 청구서류 안내 페이지는 아직 등록되지 않았어요.\n[청구서류 다운로드]에서 올라온 서류를 받아 주세요.');
+      return;
+    }
     window.open(u, '_blank', 'noopener');
   };
   window.cfGuideSave = function (name, clear) {
