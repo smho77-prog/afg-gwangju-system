@@ -12591,6 +12591,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 #panel-claimform .cf-card:hover { box-shadow: 0 4px 14px rgba(15,23,42,.10); border-color: #A5B4FC; }
 #panel-claimform .cf-card.sel { border-color: #4F46E5; box-shadow: 0 0 0 2px #C7D2FE; }
 #panel-claimform .cf-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 18px 16px; border-bottom: 1px solid #EEF2F7; }
+#panel-claimform .cf-logobox { flex: 1 1 auto; min-width: 0; height: 40px; display: flex; align-items: center; }
+#panel-claimform .cf-logo { max-height: 36px; max-width: 100%; width: auto; height: auto; object-fit: contain; display: block; }
 #panel-claimform .cf-mono { display: flex; align-items: center; gap: 10px; min-width: 0; }
 #panel-claimform .cf-dot { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 14px; }
 #panel-claimform .cf-nm { font-size: 17px; font-weight: 800; color: #0F172A; word-break: keep-all; }
@@ -12643,6 +12645,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     "drop policy if exists \"cf_delete\" on storage.objects;",
     "create policy \"cf_delete\" on storage.objects for delete to anon, authenticated using (bucket_id = 'claim-forms');"
   ].join('\n');
+  var CF_LOGO = {
+    '삼성화재': 'samsung_f', '현대해상': 'hyundai', 'DB손해보험': 'db_f', 'KB손해보험': 'kb_f', '메리츠화재': 'meritz', '한화손해보험': 'hanwha_f',
+    '롯데손해보험': 'lotte_f', '흥국화재': 'heungkuk_f', 'MG손해보험': 'mg', 'NH손해보험': 'nh_f', 'AIG손해보험': 'aig', '하나손해보험': 'hana_f', '라이나손해보험': 'lina_f',
+    '삼성생명': 'samsung_l', '한화생명': 'hanwha_l', '교보생명': 'kyobo', '농협생명': 'nh_l', '메트라이프생명': 'metlife', 'KDB생명': 'kdb', 'DB생명': 'db_l',
+    '흥국생명': 'heungkuk_l', '동양생명': 'dongyang', '미래에셋생명': 'mirae', '라이나생명': 'lina_l', '푸본현대생명': 'fubon', '신한라이프': 'shinhan', 'ABL생명': 'abl',
+    'iM라이프생명': 'im', 'KB라이프생명': 'kb_l', 'IBK연금보험': 'ibk', '처브라이프': 'chubb', '하나생명': 'hana_l', '카디프생명': 'cardif'
+  };
   var COLORS = ['#2563EB', '#059669', '#D97706', '#7C3AED', '#DB2777', '#0891B2', '#DC2626', '#4F46E5', '#65A30D', '#475569'];
   var C = { man: null, status: 'idle', q: '', seg: 'all', sel: '', busy: false, msg: '' };
 
@@ -12743,10 +12752,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       return '<button type="button" class="cf-seg' + (C.seg === o[0] ? ' on' : '') + '" onclick="cfSeg(\'' + o[0] + '\')">' + o[1] + '</button>';
     }).join('') + '<span class="cf-segc">생보 ' + nl + '개 · 손보 ' + nn + '개 · 서류 ' + items().length + '건</span>';
   }
+  function monoHtml(name) { return '<div class="cf-mono"><span class="cf-dot" style="background:' + colorOf(name) + '">' + esc(mono(name)) + '</span><span class="cf-nm">' + esc(name) + '</span></div>'; }
+  function logoHtml(name) {
+    var f = CF_LOGO[name];
+    if (!f) return monoHtml(name);
+    return '<div class="cf-logobox"><img class="cf-logo" src="logos/' + f + '.png" alt="' + esc(name) + '" loading="lazy" data-fb="' + esc(monoHtml(name)) + '" onerror="this.parentNode.innerHTML=this.dataset.fb"></div>';
+  }
   function cardHtml(name, type) {
     var n = docsForCard(name).length;
     return '<button type="button" class="cf-card' + (C.sel === name ? ' sel' : '') + '" data-n="' + esc(name) + '" onclick="cfPick(this.dataset.n)">'
-      + '<div class="cf-top"><div class="cf-mono"><span class="cf-dot" style="background:' + colorOf(name) + '">' + esc(mono(name)) + '</span><span class="cf-nm">' + esc(name) + '</span></div>'
+      + '<div class="cf-top">' + logoHtml(name)
       + '<span class="cf-badge">' + (type === '생명' ? '생명보험' : (type === '손해' ? '손해보험' : '기타')) + '</span></div>'
       + '<div class="cf-bot"><span><b>' + esc(name) + '</b><span class="cf-cnt' + (n ? ' has' : '') + '">· ' + (n ? '청구서류 ' + n + '건' : '서류 없음') + '</span></span><span class="cf-arrow">›</span></div></button>';
   }
