@@ -12597,6 +12597,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 #panel-claimform .cf-dot { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 14px; }
 #panel-claimform .cf-nm { font-size: 17px; font-weight: 800; color: #0F172A; word-break: keep-all; }
 #panel-claimform .cf-badge { flex: 0 0 auto; background: #F1F5F9; color: #475569; border-radius: 6px; padding: 3px 9px; font-size: 11.5px; font-weight: 700; }
+#panel-claimform .cf-gwrap { padding: 0 18px 14px; }
+#panel-claimform .cf-gbtn { width: 100%; border: 0; border-radius: 8px; background: #0F1B3D; color: #fff; font-size: 13px; font-weight: 800; padding: 9px 12px; cursor: pointer; }
+#panel-claimform .cf-gbtn:hover { background: #1E2F63; }
+#panel-claimform .cf-gbtn.big { width: auto; font-size: 14px; padding: 10px 16px; }
+#panel-claimform .cf-gbox { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
+#panel-claimform .cf-gnote { font-size: 12.5px; color: #475569; }
+#panel-claimform .cf-gedit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 12px; padding: 8px 10px; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px; }
+#panel-claimform .cf-gedit input { flex: 1 1 260px; min-width: 0; font-size: 13px; padding: 6px 9px; border: 1px solid #CBD5E1; border-radius: 8px; }
+#panel-claimform .cf-gmsg { font-size: 12px; color: #64748B; }
 #panel-claimform .cf-bot { display: flex; align-items: center; justify-content: space-between; padding: 11px 18px; font-size: 13px; }
 #panel-claimform .cf-bot b { color: #0F172A; }
 #panel-claimform .cf-cnt { font-size: 12px; color: #94A3B8; margin-left: 6px; }
@@ -12697,6 +12706,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     });
   }
   function items() { return (C.man && C.man.items) || []; }
+  function guideOf(name) { var u = C.man && C.man.links && C.man.links[name]; return (typeof u === 'string' && /^https?:\/\//i.test(u)) ? u : ''; }
   function docsOf(name) { return items().filter(function (it) { return (it.insurer || ETC) === name; }); }
   function find(id) { return items().filter(function (x) { return x.id === id; })[0]; }
   /* 목록에 없는 이름으로 올라온 서류는 '기타' 카드로 모은다 */
@@ -12760,10 +12770,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   }
   function cardHtml(name, type) {
     var n = docsForCard(name).length;
-    return '<button type="button" class="cf-card' + (C.sel === name ? ' sel' : '') + '" data-n="' + esc(name) + '" onclick="cfPick(this.dataset.n)">'
+    var gl = guideOf(name);
+    return '<div role="button" tabindex="0" class="cf-card' + (C.sel === name ? ' sel' : '') + '" data-n="' + esc(name) + '" onclick="cfPick(this.dataset.n)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();cfPick(this.dataset.n);}">'
       + '<div class="cf-top">' + logoHtml(name)
       + '<span class="cf-badge">' + (type === '생명' ? '생명보험' : (type === '손해' ? '손해보험' : '기타')) + '</span></div>'
-      + '<div class="cf-bot"><span><b>' + esc(name) + '</b><span class="cf-cnt' + (n ? ' has' : '') + '">· ' + (n ? '청구서류 ' + n + '건' : '서류 없음') + '</span></span><span class="cf-arrow">›</span></div></button>';
+      + '<div class="cf-bot"><span><b>' + esc(name) + '</b><span class="cf-cnt' + (n ? ' has' : '') + '">· ' + (n ? '청구서류 ' + n + '건' : '서류 없음') + '</span></span><span class="cf-arrow">›</span></div>'
+      + (gl ? '<div class="cf-gwrap"><button type="button" class="cf-gbtn" data-n="' + esc(name) + '" onclick="event.stopPropagation();cfGuide(this.dataset.n)">청구 서류 안내 ↗</button></div>' : '')
+      + '</div>';
   }
   function renderGrid() {
     var el = $('cf_grid'); if (!el) return;
@@ -12789,6 +12802,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     }
     el.innerHTML = any ? html : '<div class="cf-empty">조건에 맞는 보험사·서류가 없어요.</div>';
   }
+  function guideBlock(name) {
+    var u = guideOf(name), h = '';
+    if (u) h += '<div class="cf-gbox"><button type="button" class="cf-gbtn big" data-n="' + esc(name) + '" onclick="cfGuide(this.dataset.n)">🔗 ' + esc(name) + ' 청구 서류 안내 페이지 열기 ↗</button>'
+      + '<span class="cf-gnote">추가로 필요한 서류는 이 페이지에서 바로 받을 수 있어요.</span></div>';
+    if (isMaster() && name !== ETC) h += '<div class="cf-gedit"><input type="text" id="cf_gurl" placeholder="안내 페이지 주소(https://… 붙여넣기)" value="' + esc(u) + '">'
+      + '<button type="button" class="secondary small" data-n="' + esc(name) + '" onclick="cfGuideSave(this.dataset.n)">' + (u ? '주소 바꾸기' : '주소 저장') + '</button>'
+      + (u ? '<button type="button" class="secondary small" style="color:#B91C1C;" data-n="' + esc(name) + '" onclick="cfGuideSave(this.dataset.n,true)">주소 지우기</button>' : '')
+      + '<span class="cf-gmsg" id="cf_gmsg"></span></div>';
+    return h;
+  }
   function renderDetail() {
     var el = $('cf_detail'); if (!el) return;
     if (!C.sel) { el.innerHTML = ''; return; }
@@ -12796,6 +12819,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     var t = typeOf(C.sel);
     el.innerHTML = '<div class="cf-dt"><div class="cf-dth"><b>' + esc(C.sel) + ' <span class="cf-badge" style="margin-left:6px;">' + (t === '생명' ? '생명보험' : (t === '손해' ? '손해보험' : '기타')) + '</span></b>'
       + '<button class="secondary small" onclick="cfPick(\'' + esc(C.sel).replace(/'/g, "\\'") + '\')">✕ 닫기</button></div>'
+      + guideBlock(C.sel)
       + (docs.length ? docs.map(function (it) {
         var viewable = /^(pdf|png|jpe?g|gif|webp)$/.test(extOf(it.file));
         return '<div class="cf-it"><div class="cf-main"><div class="cf-t">' + esc(it.title || it.orig) + (it.insurer && it.insurer !== C.sel ? ' <span class="sub">(' + esc(it.insurer) + ')</span>' : '') + '</div>'
@@ -12809,6 +12833,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   }
   function render() { renderSetup(); renderSeg(); renderGrid(); renderDetail(); }
 
+  window.cfGuide = function (name) {
+    var u = guideOf(name); if (!u) return;
+    window.open(u, '_blank', 'noopener');
+  };
+  window.cfGuideSave = function (name, clear) {
+    if (!isMaster()) return;
+    var inp = $('cf_gurl'), msg = $('cf_gmsg'), v = clear ? '' : (inp ? inp.value.trim() : '');
+    if (v && !/^https?:\/\/[^\s]+$/i.test(v)) { if (msg) msg.textContent = '주소는 https:// 로 시작해야 해요.'; return; }
+    if (msg) msg.textContent = '저장 중…';
+    mutate(function (m) {
+      if (!m.links || typeof m.links !== 'object') m.links = {};
+      if (v) m.links[name] = v; else delete m.links[name];
+    }).then(function (m) { C.man = m; C.status = 'ok'; render(); var g = $('cf_gmsg'); if (g) g.textContent = v ? '저장했어요.' : '지웠어요.'; })
+      .catch(function (e) { var g = $('cf_gmsg'); if (g) g.textContent = '저장하지 못했어요. ' + (e && e.message || e); });
+  };
   window.cfDownload = function (id) {
     var it = find(id); if (!it) return;
     conn().storage.from(BUCKET).download(it.file).then(function (r) {
