@@ -824,7 +824,6 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
       <button class="tabbtn" data-tab="race" onclick="switchTab('race')">🏁 목표달성 레이스</button>
       <button class="tabbtn" data-tab="dbmgmt" onclick="switchTab('dbmgmt')">🗃️ DB관리</button>
-      <button class="tabbtn" data-tab="history" onclick="switchTab('history')">📜 상품 변천사·제도</button>
     </div>
   </div>
   <div class="sg" data-group="tools">
@@ -832,6 +831,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     <div class="sg-items">
       <button class="tabbtn" data-tab="proposal" onclick="switchTab('proposal')">🎯 제안 준비 (상품광고3)</button>
       <button class="tabbtn" data-tab="underwriting" data-members="underwriting,kcd,surgery" onclick="switchTab('underwriting')">🔍 인수·병력 확인</button>
+      <button class="tabbtn" data-tab="history" onclick="switchTab('history')">📜 상품 변천사·제도</button>
       <button class="tabbtn" data-tab="guide" onclick="openGuideTab()">📚 상품별 비교가이드</button>
       <button class="tabbtn" data-tab="coverage" onclick="switchTab('coverage')">📑 보장분석</button>
       <button class="tabbtn" data-tab="cancertl" data-members="cancertl,hospmap" onclick="switchTab('cancertl')">🏥 암·병원 자료</button>
@@ -12532,16 +12532,16 @@ const HY_NB4 = '도수/증식/체외충격파 350만(50회), 주사제 250만(50
 /* 표 내용 — 각 행의 v 배열 길이는 HY_GENS와 같아야 한다(hyValidate가 확인) */
 const HY_SECTIONS = [
   { id: 'base', title: '기본 구조', rows: [
-    { l: '담보구성', v: [HY_CUT, HY_A, HY_A, HY_A, HY_A, HY_A,
+    { l: '담보구성', v: ['상해입원, 상해통원, 질병입원, 질병통원, 일반상해의료비', HY_A, HY_A, HY_A, HY_A, HY_A,
       '상해급여, 상해비급여, 질병급여, 질병비급여',
       '기본계약: 상해·질병 급여 / 특약1: 중증 비급여 / 특약2: 비중증 비급여 (가입 특약은 약관 확인) ※'] },
-    { l: '가입금액', v: [HY_CUT, HY_B, HY_B, HY_B, HY_B, HY_B,
+    { l: '가입금액', v: ['입원 3천만/5천만/1억, 통원 10~30만, 일반상해의료비 1백~1천만', HY_B, HY_B, HY_B, HY_B, HY_B,
       '급여·비급여 각 5천만, 통원 회당 20만 포함',
       '급여·비급여 각 5천만, 통원 회당 20만 / 비급여 비중증 연 1천만, 통원 일당 20만 ※'] },
-    { l: '보장기간', v: [HY_CUT, HY_P1, HY_P1, HY_P1, HY_P2, HY_P2, '계약일 기준 매년 가입금액 한도', '계약일 기준 매년 가입금액 한도'] },
-    { l: '면책기간', v: [HY_CUT, '입원: 90일 면책기간 경과 후 재보장', HY_M1, HY_M1, HY_M2, HY_M2, '한도 소진시 다음 계약일', '한도 소진시 다음 계약일'] },
-    { l: '만기·갱신주기', v: [HY_CUT, '100세 만기 / 3년 갱신', HY_R15, HY_R15, HY_R15, HY_R15, HY_R5, HY_R5] },
-    { l: '재가입주기', v: [HY_CUT, '없음', '15년', '15년', '15년', '15년', '5년', '5년'] }
+    { l: '보장기간', v: ['사고일로부터 365일. 통원 30회 한도, 일반상해의료비 180일', HY_P1, HY_P1, HY_P1, HY_P2, HY_P2, '계약일 기준 매년 가입금액 한도', '계약일 기준 매년 가입금액 한도'] },
+    { l: '면책기간', v: ['상해: 재보장 없음, 질병: 180일', '입원: 90일 면책기간 경과 후 재보장', HY_M1, HY_M1, HY_M2, HY_M2, '한도 소진시 다음 계약일', '한도 소진시 다음 계약일'] },
+    { l: '만기·갱신주기', v: ['80세·100세 만기 / 5년 갱신', '100세 만기 / 3년 갱신', HY_R15, HY_R15, HY_R15, HY_R15, HY_R5, HY_R5] },
+    { l: '재가입주기', v: ['없음', '없음', '15년', '15년', '15년', '15년', '5년', '5년'] }
   ] },
   { id: 'inpatient', title: '입원', rows: [
     { l: '보장비율', v: ['100%', '90%', '표준형 80%, 선택형 90%',
@@ -12833,7 +12833,6 @@ function hyHistHtml() {
 
   h += '<div class="hy-foot">'
     + '<div>※ 5세대 칸 중 캡처에서 글자가 잘린 부분(담보구성·가입금액)은 금융위 발표(2026.5.5)로 보완했습니다.</div>'
-    + '<div><span class="hy-cut">자료 보완 필요</span> 표시는 캡처에서 잘려 옮기지 못한 칸입니다(1세대 일부). 원본 표의 왼쪽 끝을 다시 받으면 채워 넣습니다.</div>'
     + '<div>연표·표의 숫자는 약관 원문이 아니라 비교표 기준입니다. 고객 안내 전에는 해당 계약의 증권·약관을 함께 확인하세요.</div>'
     + '</div></div>';
   return h;
