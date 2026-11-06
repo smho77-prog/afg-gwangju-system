@@ -687,6 +687,98 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   st.setProperty('--hdr', c.hdr); st.setProperty('--hdr-b', c.hb); st.setProperty('--th', c.th);
 })();
 </script>
+<style id="hy_style">
+/* ===== 상품 변천사 · 제도 ===== */
+#panel-history .hy-card { padding: 18px 20px; }
+#panel-history .hy-bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+#panel-history .hy-mode { border: 1px solid var(--line); background: var(--card, #fff); color: #334155; border-radius: 12px; padding: 10px 22px; font-size: 15px; font-weight: 800; cursor: pointer; }
+#panel-history .hy-mode:hover { background: #F1F5F9; }
+#panel-history .hy-mode.on { background: #4F46E5; border-color: #4F46E5; color: #fff; }
+#panel-history .hy-prods { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+#panel-history .hy-prod { border: 1px solid var(--line); background: var(--card, #fff); border-radius: 999px; padding: 6px 14px; font-size: 13.5px; font-weight: 700; color: #334155; cursor: pointer; }
+#panel-history .hy-prod.on { background: #EEF2FF; border-color: #4F46E5; color: #3730A3; }
+#panel-history .hy-prod.off { opacity: .55; cursor: not-allowed; }
+#panel-history .hy-prod small { font-weight: 500; color: #64748B; }
+#panel-history .hy-title { margin: 0 0 6px; font-size: 18px; font-weight: 800; }
+#panel-history .hy-sub { margin: 0 0 12px; font-size: 15px; font-weight: 800; }
+#panel-history .hy-meta { font-size: 12.5px; color: #64748B; line-height: 1.6; }
+#panel-history .hy-tag { display: inline-block; margin: 2px 0 6px; padding: 3px 10px; border-radius: 999px; background: #EEF2FF; color: #3730A3; font-size: 12.5px; font-weight: 700; }
+#panel-history .hy-lead { margin: 10px 0 0; font-size: 14px; line-height: 1.75; color: #1E293B; }
+
+/* 연표 */
+#panel-history .hy-tl { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 10px; }
+#panel-history .hy-tl-item { flex: 0 0 180px; border: 1px solid var(--line); border-top: 4px solid #94A3B8; border-radius: 10px; background: #fff; padding: 10px 12px; }
+#panel-history .hy-tl-item.new { border-top-color: #D97706; background: #FFFBEB; }
+#panel-history .hy-tl-d { font-size: 12px; font-weight: 800; color: #475569; }
+#panel-history .hy-tl-t { margin: 2px 0 4px; font-size: 14px; font-weight: 800; color: #0F172A; }
+#panel-history .hy-tl-s { font-size: 12.5px; line-height: 1.55; color: #475569; }
+#panel-history .hy-tl-link { margin-top: 8px; border: 0; background: #D97706; color: #fff; border-radius: 8px; padding: 5px 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+
+/* 세대 고르기 */
+#panel-history .hy-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
+#panel-history .hy-pick-l { font-size: 12.5px; font-weight: 700; color: #64748B; margin-right: 4px; }
+#panel-history .hy-chip { border: 1px solid #CBD5E1; background: #fff; color: #64748B; border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+#panel-history .hy-chip.on { color: #fff; border-color: transparent; }
+#panel-history .hy-chip.f1.on { background: #64748B; }
+#panel-history .hy-chip.f2.on { background: #2563EB; }
+#panel-history .hy-chip.f3.on { background: #059669; }
+#panel-history .hy-chip.f4.on { background: #D97706; }
+#panel-history .hy-chip.f5.on { background: #4F46E5; }
+#panel-history .hy-mini { border: 1px solid var(--line); background: #F8FAFC; color: #334155; border-radius: 8px; padding: 4px 10px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+#panel-history .hy-mini:hover { background: #E2E8F0; }
+#panel-history .hy-diff { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 0 6px; width: auto; white-space: nowrap; font-size: 12.5px; font-weight: 600; color: #475569; }
+#panel-history .hy-diff input { width: auto; margin: 0; padding: 0; }
+
+/* 표 */
+#panel-history .hy-sec { margin: 0 0 12px; }
+#panel-history .hy-sec > summary { cursor: pointer; font-size: 14px; font-weight: 800; padding: 8px 2px; color: #0F172A; }
+#panel-history .hy-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+#panel-history .hy-table { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 13px; }
+#panel-history .hy-table.hy-cmp { table-layout: auto; width: 100%; min-width: 640px; }
+#panel-history .hy-table th, #panel-history .hy-table td { padding: 10px 12px; vertical-align: top; white-space: normal; line-height: 1.6; text-align: left; border-bottom: 1px solid #EEF2F7; border-right: 1px solid #EEF2F7; word-break: keep-all; overflow-wrap: anywhere; }
+#panel-history .hy-table tr:last-child th, #panel-history .hy-table tr:last-child td { border-bottom: 0; }
+#panel-history .hy-table th.hy-l { position: sticky; left: 0; z-index: 2; background: #F8FAFC; font-weight: 800; color: #0F172A; font-size: 13px; }
+#panel-history .hy-table thead th { background: #F8FAFC; }
+#panel-history .hy-table thead th.hy-l { z-index: 3; }
+#panel-history .hy-gh { border-top: 4px solid #94A3B8; }
+#panel-history .hy-gh.f1 { border-top-color: #64748B; }
+#panel-history .hy-gh.f2 { border-top-color: #2563EB; }
+#panel-history .hy-gh.f3 { border-top-color: #059669; }
+#panel-history .hy-gh.f4 { border-top-color: #D97706; }
+#panel-history .hy-gh.f5 { border-top-color: #4F46E5; }
+#panel-history .hy-gn { font-size: 13px; font-weight: 800; }
+#panel-history .hy-gh.f2 .hy-gn { color: #2563EB; }
+#panel-history .hy-gh.f3 .hy-gn { color: #059669; }
+#panel-history .hy-gh.f4 .hy-gn { color: #D97706; }
+#panel-history .hy-gh.f5 .hy-gn { color: #4F46E5; }
+#panel-history .hy-gt { font-size: 13px; font-weight: 800; color: #0F172A; }
+#panel-history .hy-gp { font-size: 12px; font-weight: 600; color: #64748B; }
+#panel-history .hy-chg { background: #FEF9C3; }
+#panel-history .hy-cutcell { background: #F8FAFC; }
+#panel-history .hy-cut { display: inline-block; padding: 2px 8px; border-radius: 6px; background: #F1F5F9; color: #94A3B8; font-size: 12px; font-weight: 700; border: 1px dashed #CBD5E1; }
+#panel-history .hy-foot { margin-top: 10px; font-size: 12.5px; line-height: 1.7; color: #64748B; }
+
+/* 제도 */
+#panel-history .hy-rtab { border: 1px solid var(--line); background: #fff; color: #334155; border-radius: 10px; padding: 8px 16px; font-size: 14px; font-weight: 800; cursor: pointer; }
+#panel-history .hy-rtab.on { background: #D97706; border-color: #D97706; color: #fff; }
+#panel-history .hy-dl { margin: 0; }
+#panel-history .hy-dr { display: grid; grid-template-columns: 112px 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px solid #F1F5F9; }
+#panel-history .hy-dr:last-child { border-bottom: 0; }
+#panel-history .hy-dr dt { font-size: 13px; font-weight: 800; color: #334155; }
+#panel-history .hy-dr dd { margin: 0; font-size: 13.5px; line-height: 1.75; color: #1E293B; word-break: keep-all; }
+#panel-history .hy-check { margin: 0 0 16px; padding: 14px 18px; border: 1px solid #FCD34D; border-radius: 12px; background: #FFFBEB; color: #78350F; font-size: 13px; line-height: 1.7; }
+#panel-history .hy-check ul { margin: 6px 0 0; padding-left: 20px; }
+#panel-history .hy-src { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.9; }
+#panel-history .hy-src a { color: #2563EB; text-decoration: none; }
+#panel-history .hy-src a:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+  #panel-history .hy-card { padding: 14px 14px; }
+  #panel-history .hy-dr { grid-template-columns: 1fr; gap: 2px; }
+  #panel-history .hy-mode { flex: 1; text-align: center; padding: 10px 8px; }
+  #panel-history .hy-tl-item { flex-basis: 160px; }
+}
+</style>
 </head>
 <body>
 <div id="loginGate" class="card" style="max-width:340px;margin:80px auto;">
@@ -732,6 +824,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
       <button class="tabbtn" data-tab="race" onclick="switchTab('race')">🏁 목표달성 레이스</button>
       <button class="tabbtn" data-tab="dbmgmt" onclick="switchTab('dbmgmt')">🗃️ DB관리</button>
+      <button class="tabbtn" data-tab="history" onclick="switchTab('history')">📜 상품 변천사·제도</button>
     </div>
   </div>
   <div class="sg" data-group="tools">
@@ -2172,6 +2265,11 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 </div>
 
 <!-- ===== 제안 준비 (상품광고3) ===== -->
+<!-- ===== 상품 변천사·제도 (실손) ===== -->
+<div class="panel" id="panel-history">
+  <div id="hy_root"><div class="card"><div class="sub" style="margin:0;">불러오는 중...</div></div></div>
+</div>
+
 <div class="panel" id="panel-proposal">
   <div class="card" style="padding:14px 18px;">
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;" id="prop_subtabs">
@@ -2418,6 +2516,7 @@ function switchTab(name) {
   if (name === 'practice') initPracticeSetup();
   if (name === 'hospmap') loadHospMap();
   if (name === 'cancertl') loadCancerTimeline();
+  if (name === 'history') hyOpen();
   if (name === 'home') hmRender();
   if (name === 'notice') ntcOpenTab();
 }
@@ -12396,6 +12495,384 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   setInterval(loadWeather, 30*60*1000);   // 날씨 30분마다
   setInterval(syncTime, 10*60*1000);      // 시각 10분마다 재보정
 })();
+</script>
+<script id="history_tab">
+/* ===== 상품 변천사 · 제도 (panel-history) =====
+   DB·Claude API 없음. 모든 내용은 이 파일 안의 고정 데이터이며, 항목마다 출처·확인일을 표시한다.
+   변천사 표는 센터가 가진 세대별 비교표(캡처)를 그대로 옮긴 것이고, 잘려서 못 옮긴 칸은 HY_CUT(null)로 두어 "자료 보완 필요"로 보인다. */
+const HY_UPDATED = '2026.11.06';
+const HY_CUT = null;
+
+/* 세대(열) 정의 — 표의 열 순서와 항상 같다 */
+const HY_GENS = [
+  { k: 'g1', fam: 1, n: '1세대', t: '표준화 이전', p: '~2009.09' },
+  { k: 's0', fam: 2, n: '2세대', t: '표준화', p: '2009.10~2013.03' },
+  { k: 's1', fam: 2, n: '2세대', t: '1차개정', p: '2013.04~2015.08' },
+  { k: 's2', fam: 2, n: '2세대', t: '2차개정', p: '2015.09~2015.12' },
+  { k: 's3', fam: 2, n: '2세대', t: '3차개정', p: '2016.01~2017.03' },
+  { k: 'g3', fam: 3, n: '3세대', t: '착한실손', p: '2017.04~2021.06' },
+  { k: 'g4', fam: 4, n: '4세대', t: '비급여 할증제', p: '2021.07 출시' },
+  { k: 'g5', fam: 5, n: '5세대', t: '비급여 중증/비중증', p: '2026.05.06 출시' }
+];
+
+/* 같은 값이 여러 열에 반복되는 칸 */
+const HY_A = '상해입원, 상해통원, 질병입원, 질병통원';
+const HY_B = '입원 5천만, 통원 30만 (25만/5천, 20만/10만)';
+const HY_P1 = '입원: 입원일부터 365일, 통원: 계약일 기준 연간 180회';
+const HY_P2 = '입원: 가입금액 소진시까지, 통원: 계약일 기준 연간 180회';
+const HY_M1 = '입원: 90일 면책기간 경과 후 재보장. 2014.04부터 퇴원 후 180일 지나면 다시 365일';
+const HY_M2 = '입원 275일 이상시 90일 면책, 275일 미만시 365일까지 면책';
+const HY_R15 = '1년 갱신, 15년 만기 (100세 보장)';
+const HY_R5 = '1년 갱신, 5년 만기 (100세 보장)';
+const HY_OUT1 = '표준형: MAX(1~2만 or 20%), 선택형: MAX(1~2만 or 급여 10%, 비급여 20%)';
+const HY_RX2 = '표준형: MAX(8천원, 보상대상의료비×20%). 선택형Ⅱ: MAX(8천원, 급여×10% + 비급여×20%)';
+const HY_NB3 = '도수/증식/체외충격파 350만(50회), 주사제 250만(50회), MRI/MRA 300만. 공제: MAX(2만 or 30%)';
+const HY_NB4 = '도수/증식/체외충격파 350만(50회), 주사제 250만(50회), MRI/MRA 300만. 공제: MAX(3만 or 30%)';
+
+/* 표 내용 — 각 행의 v 배열 길이는 HY_GENS와 같아야 한다(hyValidate가 확인) */
+const HY_SECTIONS = [
+  { id: 'base', title: '기본 구조', rows: [
+    { l: '담보구성', v: [HY_CUT, HY_A, HY_A, HY_A, HY_A, HY_A,
+      '상해급여, 상해비급여, 질병급여, 질병비급여',
+      '기본계약: 상해·질병 급여 / 특약1: 중증 비급여 / 특약2: 비중증 비급여 (가입 특약은 약관 확인) ※'] },
+    { l: '가입금액', v: [HY_CUT, HY_B, HY_B, HY_B, HY_B, HY_B,
+      '급여·비급여 각 5천만, 통원 회당 20만 포함',
+      '급여·비급여 각 5천만, 통원 회당 20만 / 비급여 비중증 연 1천만, 통원 일당 20만 ※'] },
+    { l: '보장기간', v: [HY_CUT, HY_P1, HY_P1, HY_P1, HY_P2, HY_P2, '계약일 기준 매년 가입금액 한도', '계약일 기준 매년 가입금액 한도'] },
+    { l: '면책기간', v: [HY_CUT, '입원: 90일 면책기간 경과 후 재보장', HY_M1, HY_M1, HY_M2, HY_M2, '한도 소진시 다음 계약일', '한도 소진시 다음 계약일'] },
+    { l: '만기·갱신주기', v: [HY_CUT, '100세 만기 / 3년 갱신', HY_R15, HY_R15, HY_R15, HY_R15, HY_R5, HY_R5] },
+    { l: '재가입주기', v: [HY_CUT, '없음', '15년', '15년', '15년', '15년', '5년', '5년'] }
+  ] },
+  { id: 'inpatient', title: '입원', rows: [
+    { l: '보장비율', v: ['100%', '90%', '표준형 80%, 선택형 90%',
+      '표준형 80%, 선택형: 급여 90% / 비급여 80%', '표준형 80%, 선택형: 급여 90% / 비급여 80%',
+      '표준형: 급여 80% / 비급여 80%, 선택형: 급여 90% / 비급여 80%',
+      '급여 80%, 비급여 70%',
+      '급여 80% / 비급여 중증 70% / 비급여 비중증 50%. 비중증 병의원 회당 300만원'] },
+    { l: '본인부담 한도', v: ['없음', '200만원', '200만원', '200만원', '200만원', '200만원', '급여 200만원',
+      '급여 200만원, 비급여(중증) 종합/상급종합 500만원'] }
+  ] },
+  { id: 'outpatient', title: '통원 (외래·처방조제비 공제)', rows: [
+    { l: '외래 공제', v: ['5천원', '1만/1.5만/2만원 중 공제', '표준형: MAX(1~2만 or 20%), 선택형: 1~2만', HY_OUT1, HY_OUT1, HY_OUT1,
+      '외래+처방 합산. 급여: MAX(1~2만 or 20%), 비급여: MAX(3만 or 30%)',
+      '외래+처방 합산. 급여: 급여 본인부담액×건보본인부담률, 급여 본인부담액×20%, 1~2만원 중 가장 큰 금액 공제. 비급여 중증: MAX(30%, 3만), 비급여 비중증: MAX(50%, 5만)'] },
+    { l: '처방조제비 공제', v: ['5천원', '8천원 공제', '표준형: MAX(8천원 or 20%), 선택형: 8천원', HY_RX2, HY_RX2, HY_RX2,
+      '외래와 합산 (위 칸과 동일)', '외래와 합산 (위 칸과 동일)'] }
+  ] },
+  { id: 'nonpay', title: '비급여 (3대 비급여 분리와 공제)', rows: [
+    { l: '3대 비급여', v: ['없음', '없음', '없음', '없음', '없음', HY_NB3, HY_NB4,
+      '특약1(중증)·특약2(비중증)로 구분. 특약2는 근골격계 물리치료·체외충격파치료·비급여 주사제 등 제외. MRI/MRA 등은 가입 특약·질병·계약 약관 확인'] }
+  ] }
+];
+
+/* 한눈에 보는 연표 — 위 표에서 바뀐 점만 뽑았다(표에 없는 내용은 쓰지 않음) */
+const HY_TIMELINE = [
+  { d: '2009.10', t: '2세대 표준화', s: '보장비율 90%, 본인부담 한도 200만원, 100세 만기·3년 갱신' },
+  { d: '2013.04', t: '1차개정', s: '표준형 80%·선택형 90% 구분, 1년 갱신·15년 만기' },
+  { d: '2015.09', t: '2차개정', s: '선택형을 급여 90%/비급여 80%로 구분, 처방조제비 공제 방식 변경' },
+  { d: '2016.01', t: '3차개정', s: '입원 보장기간이 가입금액 소진시까지로 변경, 입원 면책 방식 변경' },
+  { d: '2017.04', t: '3세대 착한실손', s: '3대 비급여(도수·주사·MRI) 별도 한도·횟수로 분리' },
+  { d: '2021.07', t: '4세대', s: '급여 80%/비급여 70%, 재가입주기 5년' },
+  { d: '2026.05.06', t: '5세대', s: '비급여를 중증/비중증으로 구분, 비중증 보장비율 50%' },
+  { d: '2026.11', t: '초기 실손 할인제도', s: '1·2세대 선택형 할인 특약 / 5세대 전환 할인 시행 예정', rule: 3 }
+];
+
+/* 상품 선택 칩 — 실손만 열려 있고 나머지는 자료가 준비되면 연다 */
+const HY_PRODUCTS = [
+  { k: 'silson', n: '💊 실손의료비', on: true },
+  { k: 'driver', n: '🚗 운전자보험' },
+  { k: 'cancer', n: '🎗️ 암보험' },
+  { k: 'brain', n: '🧠 뇌·심장질환' },
+  { k: 'dementia', n: '🧓 치매보험' }
+];
+
+/* ===== 제도 (3가지) ===== */
+const HY_RULES = [
+  {
+    id: 1, tab: '① 중지·환급', title: '중지 및 환급제도 (개인실손 / 단체실손)',
+    tag: '개인·단체 실손 중복가입 · 2018.12 연계제도 도입 / 2022.9 개선방안',
+    lead: '개인실손과 단체실손에 함께 가입하면 보험료를 이중으로 내게 됩니다. 한쪽을 중지해 이중 부담을 줄이고, 단체실손이 끝나면 다시 살리는 제도입니다.',
+    blocks: [
+      { h: '개인실손 중지', items: [
+        ['대상', '개인실손을 가입 후 1년 이상 유지했고, 단체실손에 중복 가입된 사람'],
+        ['중지 범위', '단체·개인 보장이 겹치는 보장종목(상해입원, 질병입원 등)만 중지. 종목이 일치하지 않으면 소비자 동의를 얻어 중지할 수 있음 (예: 개인 종합(상해+질병)입원 + 단체 상해입원 → 개인 종합입원 전체 중지)'],
+        ['중지 기간', '개인실손의 보험료 납입과 보장이 함께 멈춤 (이 기간엔 단체실손 보장만 받음)'],
+        ['신청', '개인실손에 가입된 보험회사에 신청'],
+        ['철회', '중지 확인서를 받은 날부터 15일 이내 철회 가능']
+      ] },
+      { h: '개인실손 재개', items: [
+        ['무심사 재개', '퇴직 등으로 단체실손이 끝난 뒤 1개월 이내에 신청하면 심사 없이 재개'],
+        ['1개월이 지나면', '재개 청약은 단체실손 종료일부터 1개월 이내로 규정되어 있어, 기한을 넘기면 개인실손 보장을 받지 못함 (금감원 분쟁 판단, 2024.11)'],
+        ['미가입 공백', '단체·개인실손 모두 없는 기간이 1회당 1개월, 누적 3개월을 넘으면 보험사 인수지침에 따라 재개가 거절될 수 있음'],
+        ['재개 상품', '예전에는 재개 시점에 판매 중인 상품으로만 재개. 2022.9 금감원 개선방안은 "중지 당시 상품 또는 현재 판매 상품 중 선택"하도록 발표함 (시행 여부는 보험사 확인)']
+      ] },
+      { h: '단체실손 중지·환급 (2022.9 개선방안)', items: [
+        ['이전', '중복가입자도 개인실손만 중지 가능. 단체실손은 계약자(회사)를 통해 신청해야 했고, 중지로 생긴 환급보험료도 회사에 지급됨'],
+        ['개선', '단체실손 피보험자(종업원 등)가 보험회사에 직접 단체실손 중지를 신청할 수 있고, 환급보험료는 소비자(종업원)에게 지급'],
+        ['안내 강화', '2023.1월부터 보험회사가 보험금 지급 시 피보험자에게 중지제도를 직접 안내'],
+        ['참고(보도)', '단체실손은 1년 단위 갱신이라 회사가 낸 보험료가 적어, 해지해도 환급액이 많지 않을 수 있음']
+      ] },
+      { h: '중복가입 확인', items: [
+        ['조회', '한국신용정보원 크레딧포유(credit4u.or.kr)의 실손보험 가입현황 조회']
+      ] }
+    ],
+    check: [
+      '개인실손을 중지할 때 이미 낸 보험료를 어떻게 정산·환급하는지는 공식 자료에서 확정하지 못했습니다. 보험사별 안내로 확인이 필요합니다.',
+      '2022.9 개선방안(단체실손 중지 신청, 재개 시 상품 선택)의 실제 시행 시점과 범위는 보험사 안내로 다시 확인하세요.'
+    ],
+    sources: [
+      ['금융위원회 보도자료 — 실손보험 연계제도(중지·재개·전환)', 'https://www.fsc.go.kr/po010101/73428'],
+      ['금융위원회 — 단체·개인실손보험 중지제도 개선(2022.9)', 'https://fsc.go.kr/po010103/79180'],
+      ['이투데이 — 개인·단체실손 중복가입 단체보험 중지 신청 가능(2022.9)', 'https://www.etoday.co.kr/news/view/2169504'],
+      ['SBS Biz — 퇴사 후 개인실손 재개는 한 달 내 신청(금감원 분쟁사례, 2024.11)', 'https://biz.sbs.co.kr/amp/article/20000203638'],
+      ['하나손해보험 — 단체·개인 실손 연계제도 안내', 'https://www.hanainsure.co.kr/download/24bf3042f0']
+    ]
+  },
+  {
+    id: 2, tab: '② 단체→개인 전환', title: '단체 → 개인 실손보험 연계제도 / 무심사 전환 조건',
+    tag: '2018.12 도입 · 퇴직 등 단체실손 종료 후 1개월 이내',
+    lead: '직장 단체실손은 퇴직하면 보장이 끝납니다. 일정 조건을 채운 사람은 심사 없이 개인실손으로 이어갈 수 있습니다.',
+    blocks: [
+      { h: '무심사 전환 조건', items: [
+        ['가입 기간', '단체실손에 5년 이상 가입. 단체실손 미가입 기간이 1회당 1개월, 누적 3개월 이내면 계속 가입한 것으로 인정'],
+        ['신청 기한', '단체실손 종료(퇴직 등) 후 1개월 이내'],
+        ['신청처', '직전에 단체보험이 가입되어 있던 보험회사'],
+        ['심사 면제 기준', '직전 5년간 단체실손 보험금 수령이 200만원 이하이고, 10대 중대질환 치료이력이 없으면 무심사. 이를 넘거나 이력이 있으면 심사를 받음'],
+        ['전환 연령', '통상적인 은퇴 연령을 고려해 최소 65세까지 전환 가능 (금융위 발표)'],
+        ['퇴직 예정자', '퇴직 직전에도 신청할 수 있으며, 퇴직 예정임을 증명하는 서류를 보험회사에 제출']
+      ] },
+      { h: '전환되는 상품과 철회', items: [
+        ['전환 상품', '전환 시점에 해당 보험회사가 판매 중인 개인실손. 보장금액 등 세부 가입조건은 전환 직전 단체실손과 동일하고, 같은 상품이 없으면 가장 유사한 조건 적용'],
+        ['철회', '전환 후 보험증권을 받은 날부터 15일 이내 철회 가능'],
+        ['참고(보도)', '신청 건수 대비 전환율은 약 60%로 추정 (조건이 엄격하고 1개월 기한을 놓치는 경우가 있음)']
+      ] },
+      { h: '1개월을 놓치면', items: [
+        ['결과', '1개월 이내에 신청하지 않으면 전환이 불가능함 (금융위 설명, 2018). 퇴직 후 1개월이 지나 거절된 분쟁 사례에서 금감원은 기한 규정상 보험사 처리가 부당하다고 보기 어렵다고 판단 (2021 보도)']
+      ] }
+    ],
+    table: {
+      head: ['구분', '개인실손 중지·재개', '단체 → 개인 전환'],
+      rows: [
+        ['누구에게', '개인실손이 이미 있고 단체실손에도 가입된 사람', '단체실손을 쓰다 퇴직 등으로 보장이 끝나는 사람'],
+        ['핵심 조건', '개인실손 가입 후 1년 이상 유지', '단체실손 5년 이상 가입 + 최근 5년 보험금 200만원 이하 + 10대 중대질환 치료이력 없음'],
+        ['신청 기한', '단체실손 종료 후 1개월 이내', '단체실손 종료 후 1개월 이내'],
+        ['신청처', '개인실손에 가입된 보험회사', '직전 단체보험이 가입된 보험회사'],
+        ['심사', '기한 내 신청하면 무심사', '조건을 모두 채우면 무심사'],
+        ['철회', '중지 확인서 수령 후 15일 이내(중지)', '증권 수령 후 15일 이내']
+      ]
+    },
+    check: [
+      '5세대 실손이 출시(2026.5)된 뒤 단체→개인 전환 상품이 어떻게 적용되는지는 공식 자료에서 확인하지 못했습니다. 보험사 안내로 확인하세요.',
+      '전환 가능 연령은 금융위가 "최소 65세까지"로 발표했고, 실제 상한은 보험사·상품별로 다를 수 있습니다.'
+    ],
+    sources: [
+      ['금융위원회 보도자료 — 실손보험 연계제도(전환 조건·연령)', 'https://www.fsc.go.kr/po010101/73428'],
+      ['NH농협손해보험 — 단체실손·개인실손 간 연계제도 안내', 'https://www.nhfire.co.kr/file/announce/%EB%8B%A8%EC%B2%B4%EC%8B%A4%EC%86%90%EC%9D%98%EB%A3%8C%EB%B3%B4%ED%97%98%EA%B3%BC%20%EA%B0%9C%EC%9D%B8%EC%8B%A4%EC%86%90%EC%9D%98%EB%A3%8C%EB%B3%B4%ED%97%98%EA%B0%84%20%EC%97%B0%EA%B3%84%EC%A0%9C%EB%8F%84%20%EC%95%88%EB%82%B4.pdf'],
+      ['한겨레(다음) — 단체실손 중복가입 시 퇴직 1개월 내 개인실손 전환(금감원 설명, 2021)', 'https://v.daum.net/v/20210215050633581'],
+      ['비즈워치 — 실손 전환제도 도입(2018.3)', 'https://news.bizwatch.co.kr/article/finance/2018/03/07/0030']
+    ]
+  },
+  {
+    id: 3, tab: '③ 11월 할인제도', title: '2026년 11월 — 선택형 할인 특약 / 계약전환 할인',
+    tag: '2026.11 시행 예정 · 금융위 5.5 발표 · 초기(1·2세대) 실손 대상',
+    lead: '보험료 부담이 큰 초기 실손 가입자가 기존 계약에서 일부 보장을 빼고 할인받거나, 5세대로 갈아타며 할인받을 수 있게 하는 제도입니다.',
+    blocks: [
+      { h: '대상과 시행 시기', items: [
+        ['대상', '2013년 3월 이전 가입한 실손 중 약관 변경(재가입) 조건이 없는 1·2세대 계약 (보도 기준 약 1,700만 명)'],
+        ['시행', '금융위: 2026년 11월부터. 보도(대한경제, 11.2)는 11월 중순 이후 시행으로 전함 — 정확한 개시일은 보험사 안내로 확인'],
+        ['5세대 전환(일반)', '1~4세대 가입자는 본인이 가입한 보험회사의 5세대로 심사 없이 전환 가능. 전환 후 보험금을 받지 않았다면 6개월 이내 철회하고 기존 상품으로 복귀 가능 (금융위 5.5 발표)']
+      ] },
+      { h: '철회·정산 (보도)', items: [
+        ['철회 기한', '할인 적용·계약전환 후 3개월 이내에는 조건 없이, 3개월이 지난 뒤 6개월까지는 해당 보험사고가 없는 경우에 철회 가능'],
+        ['정산', '전환을 철회하면 전환 계약과 기존 계약의 보험료 차액을 정산하고, 전환 이후 발생한 사고는 기존 계약에서 보장'],
+        ['유의', '철회하면 향후 전환이 제한될 수 있음']
+      ] },
+      { h: '영업 시 유의 (공식 발표)', items: [
+        ['설명의무', '금융위·금감원은 5세대 판매 시 판매채널의 설명의무 준수 여부를 점검하고, 끼워팔기 등 불건전 영업행위의 관리·감독을 강화할 계획 (2026.5). 보장 축소 부분을 반드시 함께 설명']
+      ] }
+    ],
+    table: {
+      head: ['구분', '선택형 할인 특약', '계약전환 할인 (5세대 전환)'],
+      rows: [
+        ['방식', '기존 1·2세대 계약을 유지하면서 원하는 보장만 제외', '기존 계약을 5세대로 전환'],
+        ['제외·변경 내용', '제외 선택: 근골격계 물리치료(도수치료 등)·체외충격파치료·비급여 주사제·비급여 MRI/MRA, 자기부담률 20% 적용. 일부만 또는 전부 선택 가능', '5세대 보장 체계와 자기부담 조건 적용 (비중증 비급여 보장 축소)'],
+        ['할인', '전체 선택 시 1세대 약 40%대, 2세대 약 30%대 (전체 기준 30~40%)', '5세대 보험료를 3년간 50% 할인'],
+        ['운영 기간', '기한 없이 운영', '2026.11부터 6개월 시행 후 연장 여부 검토'],
+        ['유의점', '제외한 보장은 나중에 치료가 필요해도 보장받지 못함. 복원 가능 여부·조건은 보험사 확인 필요 (보도)', '할인은 3년 후 종료되므로 할인 종료 후 보험료·보장 범위까지 비교 필요 (보도)']
+      ]
+    },
+    check: [
+      '선택형 할인 특약의 세부 약관과 정확한 개시일은 업계가 11월 중 출시를 준비하며 조율 중이라는 보도(10.20) 기준입니다. 보험사 공식 안내로 확인하세요.',
+      '대한경제(11.2) 보도에서 업계 관계자는 금융당국이 1·2세대의 5세대 전환을 유도하는 아웃바운드를 금지했다고 언급했습니다. 공식 문서로 확인하지 못한 내용이므로, 안내 전에 회사 컴플라이언스 기준을 먼저 확인하세요.'
+    ],
+    sources: [
+      ['금융위원회 보도자료 — 선택형 할인 특약·계약전환 할인 제도', 'https://fsc.go.kr/no010101/86831'],
+      ['비즈워치 — 1·2세대 실손 가입자 11월 선택 기로(2026.10.20)', 'https://news.bizwatch.co.kr/article/finance/2026/10/20/0029'],
+      ['이데일리 마켓in — 11월 실손 할인 시행', 'https://marketin.edaily.co.kr/News/ReadE?newsId=03503046645616856'],
+      ['한국보험신문 — 실손 갈아타면 좋아요? 소비자 안내 관건', 'https://www.insnews.co.kr/news/articleView.html?idxno=90928'],
+      ['국민일보 — 11월 실손 반값 할인 추진', 'https://www.kmib.co.kr/article/view.asp?arcid=9000022380&code=61141111&sid1=eco'],
+      ['대한경제 — 선택형 특약·계약전환 할인 시행(2026.11.2)', 'https://www.dnews.co.kr/uhtml/view.jsp?idxno=202611021418528770198'],
+      ['비즈워치 — 5세대 실손 출시, 설명의무 점검(2026.5)', 'https://news.bizwatch.co.kr/article/finance/2026/05/04/0010']
+    ]
+  }
+];
+
+/* ===== 화면 상태와 그리기 ===== */
+const hy = { mode: 'hist', prod: 'silson', rule: 1, diff: true, cols: {}, inited: false };
+
+function hyEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* 데이터 모양 점검 — 행 길이가 열 수와 다르면 콘솔에 알림(화면은 그대로 그림) */
+function hyValidate() {
+  const bad = [];
+  HY_SECTIONS.forEach(function (sec) {
+    sec.rows.forEach(function (r) { if (r.v.length !== HY_GENS.length) bad.push(sec.title + ' / ' + r.l + ' (' + r.v.length + '칸)'); });
+  });
+  HY_RULES.forEach(function (r) {
+    if (r.table) r.table.rows.forEach(function (row) { if (row.length !== r.table.head.length) bad.push('제도 ' + r.id + ' 표 행'); });
+  });
+  if (bad.length && window.console) console.warn('[변천사] 칸 수가 맞지 않는 행:', bad);
+  return bad;
+}
+
+function hyOpen() {
+  if (!hy.inited) {
+    HY_GENS.forEach(function (g) { hy.cols[g.k] = true; });
+    hy.inited = true;
+    hyValidate();
+  }
+  hyRender();
+}
+function hySetMode(m) { hy.mode = m; hyRender(); }
+function hySetRule(n) { hy.mode = 'rule'; hy.rule = n; hyRender(); window.scrollTo(0, 0); }
+function hyToggleCol(k) {
+  const on = HY_GENS.filter(function (g) { return hy.cols[g.k]; });
+  if (hy.cols[k] && on.length <= 1) return; /* 최소 한 열은 남긴다 */
+  hy.cols[k] = !hy.cols[k];
+  hyRender();
+}
+function hyPreset(list) {
+  HY_GENS.forEach(function (g) { hy.cols[g.k] = list === 'all' || list.indexOf(g.k) >= 0; });
+  hyRender();
+}
+function hyToggleDiff() { hy.diff = !hy.diff; hyRender(); }
+
+function hyRender() {
+  const root = document.getElementById('hy_root');
+  if (!root) return;
+  let h = '<div class="hy-bar">'
+    + '<button type="button" class="hy-mode' + (hy.mode === 'hist' ? ' on' : '') + '" onclick="hySetMode(\'hist\')">📜 변천사</button>'
+    + '<button type="button" class="hy-mode' + (hy.mode === 'rule' ? ' on' : '') + '" onclick="hySetMode(\'rule\')">📑 제도</button>'
+    + '</div>';
+  h += hy.mode === 'hist' ? hyHistHtml() : hyRuleHtml();
+  root.innerHTML = h;
+}
+
+function hyCell(v, changed) {
+  if (v === HY_CUT) return '<td class="hy-cutcell"><span class="hy-cut">자료 보완 필요</span></td>';
+  return '<td' + (changed ? ' class="hy-chg"' : '') + '>' + hyEsc(v) + '</td>';
+}
+
+function hyHistHtml() {
+  const vis = [];
+  HY_GENS.forEach(function (g, i) { if (hy.cols[g.k]) vis.push(i); });
+  let h = '<div class="card hy-card">'
+    + '<div class="hy-prods">' + HY_PRODUCTS.map(function (p) {
+      return p.on
+        ? '<button type="button" class="hy-prod on">' + p.n + '</button>'
+        : '<button type="button" class="hy-prod off" disabled title="자료 준비 중">' + p.n + ' <small>준비 중</small></button>';
+    }).join('') + '</div>'
+    + '<h3 class="hy-title">실손의료비 세대별 변천사</h3>'
+    + '<div class="hy-meta">자료 확인일 ' + HY_UPDATED + ' · 출처: 세대별 비교표(센터 보유 자료) + 금융위 5세대 발표(2026.5.5)로 일부 보완</div>'
+    + '</div>';
+
+  /* 연표 */
+  h += '<div class="card hy-card"><h3 class="hy-sub">한눈에 보는 연표</h3><div class="hy-tl">'
+    + HY_TIMELINE.map(function (e) {
+      const link = e.rule ? '<button type="button" class="hy-tl-link" onclick="hySetRule(' + e.rule + ')">제도 보기 →</button>' : '';
+      return '<div class="hy-tl-item' + (e.rule ? ' new' : '') + '"><div class="hy-tl-d">' + hyEsc(e.d) + '</div>'
+        + '<div class="hy-tl-t">' + hyEsc(e.t) + '</div><div class="hy-tl-s">' + hyEsc(e.s) + '</div>' + link + '</div>';
+    }).join('') + '</div></div>';
+
+  /* 비교할 세대 고르기 */
+  h += '<div class="card hy-card"><h3 class="hy-sub">세대별 비교표</h3>'
+    + '<div class="hy-pick"><span class="hy-pick-l">보고 싶은 세대</span>'
+    + HY_GENS.map(function (g) {
+      return '<button type="button" class="hy-chip f' + g.fam + (hy.cols[g.k] ? ' on' : '') + '" onclick="hyToggleCol(\'' + g.k + '\')">' + hyEsc(g.n + ' ' + g.t) + '</button>';
+    }).join('')
+    + '</div><div class="hy-pick">'
+    + '<button type="button" class="hy-mini" onclick="hyPreset(\'all\')">전체</button>'
+    + '<button type="button" class="hy-mini" onclick="hyPreset([\'g3\',\'g4\',\'g5\'])">3·4·5세대</button>'
+    + '<button type="button" class="hy-mini" onclick="hyPreset([\'s0\',\'g5\'])">2세대 표준화 ↔ 5세대</button>'
+    + '<button type="button" class="hy-mini" onclick="hyPreset([\'g4\',\'g5\'])">4세대 ↔ 5세대</button>'
+    + '<label class="hy-diff"><input type="checkbox"' + (hy.diff ? ' checked' : '') + ' onchange="hyToggleDiff()"> 바뀐 칸 노란색 표시</label>'
+    + '</div>';
+
+  const colW = 112 + vis.length * 214;
+  HY_SECTIONS.forEach(function (sec) {
+    h += '<details class="hy-sec" open><summary>' + hyEsc(sec.title) + '</summary><div class="hy-scroll">'
+      + '<table class="hy-table" style="width:' + colW + 'px"><colgroup><col style="width:112px">'
+      + vis.map(function () { return '<col style="width:214px">'; }).join('') + '</colgroup><thead><tr><th class="hy-l">항목</th>'
+      + vis.map(function (i) {
+        const g = HY_GENS[i];
+        return '<th class="hy-gh f' + g.fam + '"><div class="hy-gn">' + hyEsc(g.n) + '</div><div class="hy-gt">' + hyEsc(g.t) + '</div><div class="hy-gp">' + hyEsc(g.p) + '</div></th>';
+      }).join('') + '</tr></thead><tbody>'
+      + sec.rows.map(function (r) {
+        return '<tr><th class="hy-l">' + hyEsc(r.l) + '</th>' + vis.map(function (i, n) {
+          let ch = false;
+          if (hy.diff && n > 0) {
+            const prev = r.v[vis[n - 1]];
+            ch = r.v[i] !== HY_CUT && prev !== HY_CUT && r.v[i] !== prev;
+          }
+          return hyCell(r.v[i], ch);
+        }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div></details>';
+  });
+
+  h += '<div class="hy-foot">'
+    + '<div>※ 5세대 칸 중 캡처에서 글자가 잘린 부분(담보구성·가입금액)은 금융위 발표(2026.5.5)로 보완했습니다.</div>'
+    + '<div><span class="hy-cut">자료 보완 필요</span> 표시는 캡처에서 잘려 옮기지 못한 칸입니다(1세대 일부). 원본 표의 왼쪽 끝을 다시 받으면 채워 넣습니다.</div>'
+    + '<div>연표·표의 숫자는 약관 원문이 아니라 비교표 기준입니다. 고객 안내 전에는 해당 계약의 증권·약관을 함께 확인하세요.</div>'
+    + '</div></div>';
+  return h;
+}
+
+function hyRuleHtml() {
+  const r = HY_RULES.filter(function (x) { return x.id === hy.rule; })[0] || HY_RULES[0];
+  let h = '<div class="card hy-card"><div class="hy-pick">'
+    + HY_RULES.map(function (x) {
+      return '<button type="button" class="hy-rtab' + (x.id === r.id ? ' on' : '') + '" onclick="hySetRule(' + x.id + ')">' + hyEsc(x.tab) + '</button>';
+    }).join('') + '</div>'
+    + '<h3 class="hy-title">' + hyEsc(r.title) + '</h3>'
+    + '<div class="hy-tag">' + hyEsc(r.tag) + '</div>'
+    + '<div class="hy-meta">자료 확인일 ' + HY_UPDATED + '</div>'
+    + '<p class="hy-lead">' + hyEsc(r.lead) + '</p></div>';
+
+  r.blocks.forEach(function (b) {
+    h += '<div class="card hy-card"><h3 class="hy-sub">' + hyEsc(b.h) + '</h3><dl class="hy-dl">'
+      + b.items.map(function (it) { return '<div class="hy-dr"><dt>' + hyEsc(it[0]) + '</dt><dd>' + hyEsc(it[1]) + '</dd></div>'; }).join('')
+      + '</dl></div>';
+  });
+
+  if (r.table) {
+    h += '<div class="card hy-card"><h3 class="hy-sub">한눈에 비교</h3><div class="hy-scroll"><table class="hy-table hy-cmp"><thead><tr>'
+      + r.table.head.map(function (t, i) { return '<th' + (i === 0 ? ' class="hy-l"' : '') + '>' + hyEsc(t) + '</th>'; }).join('')
+      + '</tr></thead><tbody>'
+      + r.table.rows.map(function (row) {
+        return '<tr>' + row.map(function (c, i) { return i === 0 ? '<th class="hy-l">' + hyEsc(c) + '</th>' : '<td>' + hyEsc(c) + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div></div>';
+  }
+
+  h += '<div class="hy-check"><b>⚠️ 확인이 필요한 부분</b><ul>'
+    + r.check.map(function (c) { return '<li>' + hyEsc(c) + '</li>'; }).join('') + '</ul></div>';
+
+  h += '<div class="card hy-card"><h3 class="hy-sub">출처</h3><ul class="hy-src">'
+    + r.sources.map(function (s) { return '<li><a href="' + hyEsc(s[1]) + '" target="_blank" rel="noopener noreferrer">' + hyEsc(s[0]) + '</a></li>'; }).join('')
+    + '</ul></div>';
+  return h;
+}
 </script>
 <script id="product_guide">
 /* ===== 인수·병력 확인 > 상품별 비교가이드 =====
