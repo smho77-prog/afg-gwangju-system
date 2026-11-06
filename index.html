@@ -2222,6 +2222,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="secondary small" data-v="list" id="db_listBtn" onclick="dbSetView('list')">📋 고객 목록</button>
       <button class="secondary small" data-v="upload" onclick="dbSetView('upload')">📥 엑셀 업로드</button>
       <button class="secondary small" data-v="add" onclick="dbSetView('add')">✍️ 수기 등록</button>
+      <button class="secondary small" data-v="daily" id="db_dailyBtn" onclick="dbSetView('daily')" style="display:none;">🗓️ 일자별 배분 확인</button>
     </div>
     <div class="sub" style="margin:10px 0 0;">
       <b>이 탭의 목적</b> — ① 터치 <span id="db_cfgMin">3</span>회 미만 DB를 줄이기(분배 <span id="db_cfgGrace">1</span>일 경과) ② 상담예약·가망고객을 재터치하지 못하고 놓치지 않기(예약일이 지났는데 터치가 없음 / 가망고객 <span id="db_cfgPro">7</span>일 이상 무터치).
@@ -2281,6 +2282,25 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
         <colgroup><col style="width:9%"><col style="width:14%"><col style="width:15%"><col style="width:10%"><col style="width:7%"><col style="width:13%"><col style="width:22%"><col style="width:10%"></colgroup>
         <thead><tr><th>팀장</th><th>고객 / 연락처</th><th>DB유형</th><th>상태</th><th>터치</th><th>마지막 터치</th><th>메모(최근)</th><th></th></tr></thead>
         <tbody id="db_listBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div id="db_viewDaily" style="display:none;">
+    <div class="card">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">
+        <b style="font-size:14px;">🗓️ 일자별 DB 배분 확인</b>
+        <button class="secondary small" onclick="dbDailyShift(-1)">◀</button>
+        <input type="date" id="db_dailyDate" style="width:auto;" onchange="dbRenderDaily()">
+        <button class="secondary small" onclick="dbDailyShift(1)">▶</button>
+        <button class="secondary small" onclick="dbDailyToday()">오늘</button>
+        <span id="db_dailyInfo" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div class="sub" style="margin:0 0 8px;">고른 날짜에 분배된 DB(분배일 기준)를 팀장님별로 모아 봅니다. 터치는 터치횟수 1회 이상, 메모는 메모 칸에 내용이 있는지를 봅니다. (회사 전산 엑셀을 올린 시점의 값 기준)</div>
+      <div style="overflow-x:auto;"><table style="min-width:640px;">
+        <colgroup><col style="width:14%"><col style="width:38%"><col style="width:24%"><col style="width:24%"></colgroup>
+        <thead><tr><th>팀장</th><th>일자별 DB종류와 총수량</th><th>모든 DB 터치 유무</th><th>메모값 유무</th></tr></thead>
+        <tbody id="db_dailyBody"></tbody>
       </table></div>
     </div>
   </div>
@@ -2750,6 +2770,7 @@ function dbRefreshFilters(){
   dbFillSelect('db_fType', tracked.map(r => r.db_type || '').sort(), '전체');
   document.getElementById('db_mgrWrap').style.display = currentUser.role === 'master' ? '' : 'none';
   document.getElementById('db_listBtn').style.display = currentUser.role === 'master' ? '' : 'none';
+  document.getElementById('db_dailyBtn').style.display = currentUser.role === 'master' ? '' : 'none';
   document.getElementById('db_mgrList').innerHTML = Array.from(new Set(mgrs)).map(n => `<option value="${escAttr(n)}">`).join('');
   const sSel = document.getElementById('db_fStatus');
   if (sSel.options.length <= 1) sSel.innerHTML = '<option value="__all__">전체 상태</option>' + DB_STATUSES.map(s => `<option value="${s}">${s}</option>`).join('');
@@ -2774,13 +2795,13 @@ async function dbOpenTab(){
 async function dbReload(){ await dbOpenTab(); }
 
 function dbSetView(v){
-  if (v === 'list' && !(currentUser && currentUser.role === 'master')) v = 'dash';
+  if ((v === 'list' || v === 'daily') && !(currentUser && currentUser.role === 'master')) v = 'dash';
   dbView = v;
   document.querySelectorAll('#db_subtabs button').forEach(b => {
     const on = b.dataset.v === v;
     b.className = (on ? 'act' : 'secondary') + ' small';
   });
-  ['dash','leak','list','upload','add'].forEach(k => {
+  ['dash','leak','list','upload','add','daily'].forEach(k => {
     const el = document.getElementById('db_view' + k.charAt(0).toUpperCase() + k.slice(1));
     if (el) el.style.display = (k === v) ? '' : 'none';
   });
@@ -2808,10 +2829,67 @@ function dbRender(){
   if (dbView === 'dash') dbRenderDash(rows, now);
   if (dbView === 'leak') dbRenderLeak(rows, now);
   if (dbView === 'list') dbRenderList();
+  if (dbView === 'daily') dbRenderDaily();
 }
 function dbCopySql(){
   try { navigator.clipboard.writeText(DB_SQL).then(() => alert('SQL을 복사했습니다.'), () => alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.')); }
   catch(e) { alert('복사에 실패했습니다. 직접 선택해서 복사해주세요.'); }
+}
+
+/* ---------- 일자별 배분 확인 (마스터 전용, 당일 분배된 DB를 팀장별로 간단 점검) ---------- */
+const DB_DAILY_MGRS = ['김라희','박현주','배혜영','안세현','안지예','유명수','윤혜원','임채주','정인옥'];
+function dbDayKey(d){ return `${d.getFullYear()}-${dbPad(d.getMonth()+1)}-${dbPad(d.getDate())}`; }
+function dbDailyDate(){
+  const el = document.getElementById('db_dailyDate');
+  if (el && !el.value) el.value = dbDayKey(new Date());
+  return el ? el.value : dbDayKey(new Date());
+}
+function dbDailyShift(n){
+  const el = document.getElementById('db_dailyDate'); if (!el) return;
+  const p = (dbDailyDate() || '').split('-').map(Number);
+  const d = new Date(p[0], p[1]-1, p[2] + n);
+  el.value = dbDayKey(d); dbRenderDaily();
+}
+function dbDailyToday(){ const el = document.getElementById('db_dailyDate'); if (el) { el.value = dbDayKey(new Date()); dbRenderDaily(); } }
+function dbRenderDaily(){
+  const body = document.getElementById('db_dailyBody'); if (!body) return;
+  const info = document.getElementById('db_dailyInfo');
+  if (!(currentUser && currentUser.role === 'master')) { body.innerHTML = ''; return; }
+  if (!dbLoaded) { body.innerHTML = '<tr><td colspan="4" style="color:var(--muted);">불러오는 중입니다…</td></tr>'; return; }
+  const day = dbDailyDate();
+  const by = new Map();
+  dbRows.forEach(r => {
+    if (!r.distributed_at) return;
+    const d = new Date(r.distributed_at); if (isNaN(d)) return;
+    if (dbDayKey(d) !== day) return;
+    const m = r.manager_name || '(담당자 없음)';
+    if (!by.has(m)) by.set(m, []);
+    by.get(m).push(r);
+  });
+  const names = DB_DAILY_MGRS.slice();
+  Array.from(by.keys()).sort().forEach(m => { if (names.indexOf(m) < 0) names.push(m); });
+  let sum = 0;
+  const cell = (ok, bad, total, label) => {
+    if (!total) return '<span style="color:var(--muted);">-</span>';
+    if (!bad.length) return `<span style="color:#15803D;font-weight:700;">✅ ${label} 있음 (${total}/${total})</span>`;
+    const list = bad.map(r => `${escapeHtml(r.customer_name || '-')} <span style="color:var(--muted);">${escapeHtml(r.customer_code || '')}</span>`).join('<br>');
+    return `<details><summary style="cursor:pointer;color:#B45309;font-weight:700;">⚠ ${label} 없음 ${bad.length}건 <span style="color:var(--muted);font-weight:400;">(${total - bad.length}/${total})</span></summary><div style="font-size:12px;margin-top:4px;line-height:1.6;">${list}</div></details>`;
+  };
+  body.innerHTML = names.map(m => {
+    const rs = by.get(m) || [];
+    sum += rs.length;
+    if (!rs.length) return `<tr><td><b>${escapeHtml(m)}</b></td><td style="color:var(--muted);">분배 없음</td><td><span style="color:var(--muted);">-</span></td><td><span style="color:var(--muted);">-</span></td></tr>`;
+    const types = new Map();
+    rs.forEach(r => { const t = (r.db_type || '(유형 없음)'); types.set(t, (types.get(t) || 0) + 1); });
+    const chips = Array.from(types.entries()).sort((a, b) => b[1] - a[1]).map(([t, n]) => {
+      const dim = DB_EXCLUDE_TYPES.indexOf(t) >= 0;
+      return `<span style="display:inline-block;margin:1px 6px 1px 0;${dim ? 'color:var(--muted);' : ''}">${escapeHtml(t)} <b>${n}</b></span>`;
+    }).join('');
+    const noTouch = rs.filter(r => !(Number(r.touch_count) > 0));
+    const noMemo = rs.filter(r => !String(r.memo || '').trim());
+    return `<tr><td><b>${escapeHtml(m)}</b></td><td>${chips}<div style="font-size:12px;color:var(--muted);margin-top:2px;">총 <b style="color:var(--ink);">${rs.length}</b>건</div></td><td>${cell(0, noTouch, rs.length, '터치')}</td><td>${cell(0, noMemo, rs.length, '메모')}</td></tr>`;
+  }).join('');
+  if (info) info.textContent = `${day} 분배 합계 ${sum.toLocaleString('ko-KR')}건` + (sum ? '' : ' (이 날짜에 분배된 DB가 없어요. 엑셀을 올렸는지 확인해 보세요)');
 }
 
 /* ---------- 현황판 (3회 미만 터치 / 상담예약·가망 재터치 두 가지만) ---------- */
