@@ -772,11 +772,64 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 #panel-history .hy-src a { color: #2563EB; text-decoration: none; }
 #panel-history .hy-src a:hover { text-decoration: underline; }
 
+/* 운전자보험 */
+#panel-history .hy-title small, #panel-history .hy-sub small { font-size: 12.5px; font-weight: 600; color: #64748B; margin-left: 6px; }
+#panel-history .hy-prod.cur { box-shadow: 0 0 0 2px #C7D2FE; }
+#panel-history .hy-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+#panel-history .hy-pill { padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 800; color: #fff; }
+#panel-history .hy-pill.a, #panel-history .hy-ld.a, #panel-history .hy-fl.a { --c: #2563EB; --cb: #EFF6FF; }
+#panel-history .hy-pill.b, #panel-history .hy-ld.b, #panel-history .hy-fl.b { --c: #059669; --cb: #ECFDF5; }
+#panel-history .hy-pill.c, #panel-history .hy-ld.c, #panel-history .hy-fl.c { --c: #D97706; --cb: #FFFBEB; }
+#panel-history .hy-pill.a { background: #2563EB; } #panel-history .hy-pill.b { background: #059669; } #panel-history .hy-pill.c { background: #D97706; }
+#panel-history .hy-chip.da.on { background: #2563EB; } #panel-history .hy-chip.db.on { background: #059669; } #panel-history .hy-chip.dc.on { background: #D97706; }
+#panel-history .hy-ld-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; }
+#panel-history .hy-ld { border: 1px solid var(--line); border-top: 5px solid var(--c); border-radius: 12px; background: #fff; padding: 14px 16px; }
+#panel-history .hy-ld-h { font-size: 16px; font-weight: 800; color: var(--c); }
+#panel-history .hy-ld-sub { font-size: 12.5px; color: #64748B; margin: 2px 0 10px; line-height: 1.5; }
+#panel-history .hy-ld-r { display: grid; grid-template-columns: 62px 1fr; grid-template-areas: "d bar" ". v"; column-gap: 10px; row-gap: 1px; padding: 6px 0; border-top: 1px dashed #E2E8F0; }
+#panel-history .hy-ld-r:first-of-type { border-top: 0; }
+#panel-history .hy-ld-d { grid-area: d; font-size: 12.5px; font-weight: 800; color: #475569; padding-top: 2px; }
+#panel-history .hy-ld-bar { grid-area: bar; height: 14px; background: #F1F5F9; border-radius: 7px; overflow: hidden; align-self: center; }
+#panel-history .hy-ld-bar i { display: block; height: 100%; background: var(--c); border-radius: 7px; }
+#panel-history .hy-ld-v { grid-area: v; font-size: 14.5px; line-height: 1.5; }
+#panel-history .hy-ld-v b { font-weight: 800; color: #0F172A; }
+#panel-history .hy-ld-v em { display: block; font-style: normal; font-size: 12.5px; color: #475569; }
+#panel-history .hy-ld-v em.w { color: #B45309; font-weight: 700; }
+#panel-history .hy-ld-r.warn { background: #FFFBEB; border-radius: 8px; padding-left: 6px; padding-right: 6px; }
+#panel-history .hy-ld-r.warn .hy-ld-bar i { background: #F59E0B; }
+#panel-history .hy-fl { border-left: 5px solid var(--c); background: var(--cb); border-radius: 10px; padding: 12px 16px; margin: 0 0 10px; }
+#panel-history .hy-fl-n { font-size: 15px; font-weight: 800; color: var(--c); margin-bottom: 8px; }
+#panel-history .hy-fl-s { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#panel-history .hy-st { background: #fff; border: 1px solid #E2E8F0; border-radius: 8px; padding: 5px 10px; font-size: 13px; font-weight: 700; color: #1E293B; }
+#panel-history .hy-ar { color: #94A3B8; font-weight: 800; }
+#panel-history .hy-fl-c { margin-top: 8px; font-size: 13px; line-height: 1.6; color: #334155; }
+#panel-history .hy-patch { border-left: 5px solid #059669; background: #F0FDF4; }
+#panel-history .hy-patch-ins { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+#panel-history .hy-patch-ins span { background: #059669; color: #fff; border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 800; }
+#panel-history .hy-patch-flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+#panel-history .hy-patch-box { flex: 1 1 200px; background: #fff; border: 1px solid #A7F3D0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+#panel-history .hy-patch-box b { font-size: 12.5px; color: #047857; }
+#panel-history .hy-patch-box span { font-size: 14.5px; font-weight: 700; color: #0F172A; line-height: 1.6; word-break: keep-all; }
+#panel-history .hy-ar.big { align-self: center; font-size: 20px; }
+#panel-history .hy-note { color: #475569; }
+#panel-history .hy-cmp th.hy-l { white-space: nowrap; }
+#panel-history .hy-dash { color: #CBD5E1; }
+#panel-history .hy-proc { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+#panel-history .hy-pr { border: 1px solid var(--line); border-radius: 12px; background: #F8FAFC; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+#panel-history .hy-pr b { font-size: 18px; color: #4F46E5; }
+#panel-history .hy-pr span { font-size: 13.5px; line-height: 1.6; color: #1E293B; word-break: keep-all; }
+#panel-history .hy-12 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+#panel-history .hy-12i { border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 9px 12px; font-size: 13.5px; font-weight: 700; color: #1E293B; }
+#panel-history .hy-12i b { color: #4F46E5; margin-right: 8px; }
+#panel-history .hy-tip { margin-top: 12px; padding: 12px 16px; border-radius: 12px; background: #ECFDF5; border: 1px solid #A7F3D0; color: #064E3B; font-size: 13.5px; line-height: 1.75; }
+#panel-history .hy-tip b { display: block; margin-bottom: 2px; }
+
 @media (max-width: 640px) {
   #panel-history .hy-card { padding: 14px 14px; }
   #panel-history .hy-dr { grid-template-columns: 1fr; gap: 2px; }
   #panel-history .hy-mode { flex: 1; text-align: center; padding: 10px 8px; }
   #panel-history .hy-tl-item { flex-basis: 160px; }
+  #panel-history .hy-ld-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -12580,10 +12633,119 @@ const HY_TIMELINE = [
 /* 상품 선택 칩 — 실손만 열려 있고 나머지는 자료가 준비되면 연다 */
 const HY_PRODUCTS = [
   { k: 'silson', n: '💊 실손의료비', on: true },
-  { k: 'driver', n: '🚗 운전자보험' },
+  { k: 'driver', n: '🚗 운전자보험', on: true },
   { k: 'cancer', n: '🎗️ 암보험' },
   { k: 'brain', n: '🧠 뇌·심장질환' },
   { k: 'dementia', n: '🧓 치매보험' }
+];
+
+
+/* ===== 운전자보험 변천사 데이터 (센터 보유 「운전자보험변천사.pdf」 1·2쪽 캡처를 그대로 옮김) =====
+   금액은 원본 표기 그대로. 표에 없는 값은 만들지 않는다. 'n' = 만원 단위 숫자(막대 길이용). */
+const HY_DRV_UPDATED = '2026.11.06';
+const HY_DRV_LADDER = [
+  { cls: 'a', name: '교통사고처리지원금', sub: '형사합의금에서 이름이 바뀐 담보 · 한도 확대 흐름', max: 20000, steps: [
+    { d: '2017.04', n: 3000, t: '3천만원' },
+    { d: '2018.01', n: 5000, t: '5천만원' },
+    { d: '2019.04', n: 7000, t: '7천만원' },
+    { d: '2020.04', n: 10000, t: '1억원' },
+    { d: '2021.12', n: 13000, t: '1.3억원' },
+    { d: '2022.04', n: 15000, t: '1.5억원' },
+    { d: '2023.02', n: 20000, t: '2억원', note: '보험회사(공탁금) 직접지급 50% 병행' }
+  ] },
+  { cls: 'b', name: '변호사선임비', sub: '방어비용에서 이름이 바뀐 담보 · 수사단계 포함 범위가 넓어짐', max: 7000, steps: [
+    { d: '2017.04', n: 500, t: '5백만원' },
+    { d: '2018.01', n: 1000, t: '1천만원' },
+    { d: '2019.04', n: 2000, t: '2천만원' },
+    { d: '2021.04', n: 3000, t: '3천만원', note: '약식기소 포함' },
+    { d: '2021.12', n: 5000, t: '5천만원', note: '경찰조사 포함' },
+    { d: '2023.02', n: 7000, t: '7천만원', note: '한시확대 (이후 2023.06부터 다시 5천만원)' },
+    { d: '2023.06', n: 5000, t: '5천만원', note: '2025.01까지 유지' },
+    { d: '2026.01', n: 500, t: '5백만원', note: '한도 축소 확인됨 — KB·메리츠·DB손보는 현물 변호사 지원 특약으로 보완 (아래 안내)' }
+  ] },
+  { cls: 'c', name: '벌금 / 대물벌금', sub: '대물벌금 담보 신설 이후 한도 확대', max: 3000, steps: [
+    { d: '2018.09', n: 0, t: '대물벌금 담보 신설' },
+    { d: '2019.04', n: 2000, t: '2천만원' },
+    { d: '2020.04', n: 3000, t: '3천만원', note: '민식이법 영향 (원본 표기)' }
+  ] }
+];
+
+/* 시점별 상세 — 열: 시점 / 교통사고처리지원금(a) / 변호사선임비(b) / 벌금·대물벌금(c) / 확인 포인트 */
+const HY_DRV_ROWS = [
+  ['2009.10', '형사합의금 → 교통사고처리지원금 변경', '방어비용 → 변호사선임비 변경', '-', '담보명 정비'],
+  ['2009.11', '중상해 교통사고처리지원금 신설', '-', '-', '중상해 보장 신설'],
+  ['2011.06', '선지급제도 도입', '-', '-', '선지급 흐름 시작'],
+  ['2017.04', '3천만원', '5백만원', '-', '원본 표 기재 한도'],
+  ['2018.01', '5천만원', '1천만원', '-', '한도 확대'],
+  ['2018.09', '5천만원', '1천만원', '대물벌금 담보 신설', '대물벌금 신설'],
+  ['2019.04', '7천만원', '2천만원', '2천만원', '교사처·변호사 한도 확대'],
+  ['2019.08', '7천만원', '2천만원', '2천만원', '2019.04 수준 유지'],
+  ['2020.04', '1억원', '2천만원', '3천만원(민식이법)', '민식이법 영향'],
+  ['2021.04', '6주미만 출시', '3천만원(약식기소 포함)', '3천만원', '6주미만·약식기소 포함'],
+  ['2021.08', '1억원', '3천만원(약식기소 포함)', '3천만원', '원본 표 기준'],
+  ['2021.12', '1.3억원', '5천만원(경찰조사 포함)', '3천만원', '경찰조사 포함'],
+  ['2022.04', '1.3억원 → 1.5억원', '5천만원', '3천만원', '교사처 한도 확대'],
+  ['2022.10', '1.5억원', '일반사고 중상해(경찰조사) 보장, 22.10월 이후 소급', '3천만원', '일반사고 중상해 경찰조사 보장'],
+  ['2023.02~2023.03', '2억원, 보험회사(공탁금) 직접지급 50%', '7천만원(한시확대 23.02)', '3천만원', '공탁금 직접지급 50%, 변호사 한시확대'],
+  ['2023.06', '25~30주 1.5억원, 중상해 2억원', '5천만원', '3천만원', '상해 주수·중상해 구분'],
+  ['2023.07', '일반사고 중상해 불기소/불송치 보장확대', '5천만원', '3천만원', '불기소·불송치 확대'],
+  ['2023.09', '비탑승중 사고 보상', '5천만원', '3천만원', '비탑승중 사고 보상'],
+  ['2023.10', '보험회사(공탁금) 직접지급 100%, 보장금액의 50%', '5천만원', '3천만원', '직접지급 100% 구조 표기'],
+  ['2024.04', '보험회사(공탁금) 직접지급 100%, 보장금액의 70%', '5천만원', '3천만원', '직접지급 70% 표기'],
+  ['2024.09', '보험회사 직접지급 50%, 비탑승중 사고 보상', '5천만원', '3천만원', '직접지급·비탑승중 병용'],
+  ['2025.01', '보험회사 직접지급 70%, 직접지급 대상확대', '5천만원', '3천만원', '직접지급 대상 확대'],
+  ['2026.01', '중대범규 1~14급, 일반사고 모든 중상해, 비탑승중 사고 보상', '5백만원', '3천만원', '대상 범위 확대']
+];
+
+/* 담보별 핵심 흐름(원본 2쪽 "핵심 담보 비교") */
+const HY_DRV_FLOW = [
+  { cls: 'a', name: '교통사고처리지원금',
+    steps: ['형사합의금 명칭 정비', '중상해 신설', '6주미만 출시', '1억·1.3억·1.5억·2억 확대', '공탁금 직접지급 확대'],
+    chk: '상해 주수, 중상해, 일반사고 중상해, 불기소·불송치, 비탑승중 사고 포함 여부' },
+  { cls: 'b', name: '변호사선임비',
+    steps: ['방어비용 명칭 정비', '5백만·1천만·2천만', '약식기소 포함', '경찰조사 포함', '한시 7천만 확대 이력', '2023.10~2025.01 5천만', '2026.01 5백만'],
+    chk: '경찰조사 단계, 약식기소, 일반사고 중상해 수사단계 보장 여부. 2026.01부터 한도 5백만원이며, KB·메리츠·DB손보는 현물 변호사 지원 특약 별도' },
+  { cls: 'c', name: '벌금',
+    steps: ['대물벌금 담보 신설', '2천만원', '3천만원(민식이법)'],
+    chk: '대인벌금·대물벌금 구분, 어린이보호구역 사고 한도' }
+];
+
+const HY_DRV_PROC = [
+  '사고 발생 및 현장 출동',
+  '공소권 없는 일반교통사고 또는 공소권 있는 사고로 구분',
+  '사망·중상해·뺑소니·12대 중과실은 형사입건 가능',
+  '경찰 조사 후 불송치, 검찰 송치, 기소유예·불기소, 약식기소·정식기소로 진행',
+  '법원 판결 또는 합의·공탁 과정에서 법률비용·교통사고처리지원금 담보 확인'
+];
+const HY_DRV_LEGAL = [
+  ['민사소송법률비용', '민사소송 전체', '2,000만원', '변호사비용 1,500만원, 인지액·송달료 500만원'],
+  ['손해배상책임 법률비용', '손해배상책임 소송', '3,000만원', '변호사비용 2,000만원, 인지액·송달료 1,000만원']
+];
+const HY_DRV_12 = ['신호위반', '중앙선 침범', '제한속도 20km 초과 과속', '앞지르기·끼어들기 위반', '철길건널목 통과방법 위반', '횡단보도 보행자 보호의무 위반',
+  '무면허 운전', '음주운전', '보도 침범', '승객추락 방지의무 위반', '어린이보호구역 안전운전의무 위반', '화물 추락방지 조치 위반'];
+/* 2026.01 변호사선임비 한도 축소(5백만원)의 보완 특약 — 센터 확인(송명호) 내용. 특약 이름·개시일·세부 조건은 확인 전이라 단정하지 않는다. */
+const HY_DRV_PATCH = {
+  title: '변호사선임비 한도 5백만원 → 보완 특약 (현물 변호사 지원)',
+  insurers: ['KB손해보험', '메리츠화재', 'DB손해보험'],
+  lead: '2026.01부터 변호사선임비 한도가 5백만원으로 줄었습니다. 이 단점을 보완하려고 위 3개 손해보험사는, 한도는 5백만원이지만 보험사에 연락하면 한도 없이 현물(보험사가 변호사를 직접 지원)로 변호사를 지원해주는 특약을 내놓았습니다.',
+  points: [
+    ['기본 담보', '변호사선임비 한도 5백만원 (현금 보상)'],
+    ['보완 특약', '보험사에 연락 → 변호사를 현물로 지원 (한도 없음)'],
+    ['해당 보험사', 'KB손해보험 · 메리츠화재 · DB손해보험']
+  ],
+  chk: [
+    '특약 이름, 판매 시작일, 가입 조건과 지원 범위(수사 단계별·사건 종류별 제한 여부)는 아직 확인 전입니다. 상품설명서·약관으로 확인 후 이 칸을 채웁니다.',
+    '"한도 없음"은 센터에서 확인한 내용입니다. 외부 자료에는 같은 현물 지원 방식을 "사고 1건당 500만원 상당의 서비스"로 소개한 곳도 있어(보험사 이름 없음), 보험사·상품마다 다를 수 있습니다. 고객 안내 전에 해당 상품 약관을 꼭 확인하세요.',
+    '위 3개 외 다른 보험사의 같은 특약 여부는 확인 전입니다.'
+  ]
+};
+
+const HY_DRV_CHECK = [
+  '표의 숫자는 센터가 가진 운전자보험 변천사 PDF(1페이지, 2009.10~2026.01)를 그대로 옮긴 것입니다. 상품·보험사마다 실제 한도와 개시 시점은 다를 수 있어, 고객 안내 전에는 해당 상품의 약관을 확인하세요.',
+  '변호사선임비 2026.01 "5백만원"은 실제 한도 축소로 확인되었습니다(센터 확인). KB·메리츠·DB손보의 현물 변호사 지원 특약 세부는 위 안내의 확인 필요 항목을 따르세요.',
+  '공탁금 직접지급은 표에 50%·70%·100%가 시점별로 다르게 적혀 있습니다(기준이 "보장금액의 N%"인지 지급 방식인지 상품별로 다름). 보험사 공탁금 개정 안내와 상품 약관으로 확인이 필요합니다.',
+  '민식이법(어린이보호구역 사고)과 벌금 한도의 관계는 특정범죄 가중처벌 등에 관한 법률 제5조의13 및 보험사 약관 확인이 필요합니다.',
+  '청구 실무: 교통사고처리지원금·벌금·변호사선임비는 사고입증서류·판결문·공소장·공탁서 등 청구서류 확인이 필요합니다.'
 ];
 
 /* ===== 제도 (3가지) ===== */
@@ -12718,7 +12880,7 @@ const HY_RULES = [
 ];
 
 /* ===== 화면 상태와 그리기 ===== */
-const hy = { mode: 'hist', prod: 'silson', rule: 1, diff: true, cols: {}, inited: false };
+const hy = { mode: 'hist', prod: 'silson', rule: 1, diff: true, cols: {}, inited: false, dcol: 'all' };
 
 function hyEsc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -12775,15 +12937,102 @@ function hyCell(v, changed) {
   return '<td' + (changed ? ' class="hy-chg"' : '') + '>' + hyEsc(v) + '</td>';
 }
 
+function hyProdsHtml() {
+  return '<div class="hy-prods">' + HY_PRODUCTS.map(function (p) {
+    return p.on
+      ? '<button type="button" class="hy-prod on' + (hy.prod === p.k ? ' cur' : '') + '" onclick="hySetProd(\'' + p.k + '\')">' + p.n + '</button>'
+      : '<button type="button" class="hy-prod off" disabled title="자료 준비 중">' + p.n + ' <small>준비 중</small></button>';
+  }).join('') + '</div>';
+}
+function hySetProd(k) { hy.prod = k; hy.mode = 'hist'; hyRender(); }
+function hySetDcol(c) { hy.dcol = c; hyRender(); }
+
+/* ----- 운전자보험 화면 ----- */
+function hyLadderHtml(l) {
+  return '<div class="hy-ld ' + l.cls + '"><div class="hy-ld-h">' + hyEsc(l.name) + '</div><div class="hy-ld-sub">' + hyEsc(l.sub) + '</div>'
+    + l.steps.map(function (s) {
+      const w = s.n > 0 ? Math.max(4, Math.round(s.n / l.max * 100)) : 4;
+      return '<div class="hy-ld-r' + (s.warn ? ' warn' : '') + '"><span class="hy-ld-d">' + hyEsc(s.d) + '</span>'
+        + '<span class="hy-ld-bar"><i style="width:' + w + '%"></i></span>'
+        + '<span class="hy-ld-v"><b>' + hyEsc(s.t) + '</b>' + (s.note ? '<em>' + hyEsc(s.note) + '</em>' : '') + (s.warn ? '<em class="w">⚠ ' + hyEsc(s.warn) + '</em>' : '') + '</span></div>';
+    }).join('') + '</div>';
+}
+
+function hyDriverHtml() {
+  let h = '<div class="card hy-card">' + hyProdsHtml()
+    + '<h3 class="hy-title">운전자보험 담보 변천사 <small>2009.10 ~ 2026.01</small></h3>'
+    + '<div class="hy-meta">자료 확인일 ' + HY_DRV_UPDATED + ' · 출처: 운전자보험변천사.pdf(센터 보유 자료) · 금액은 원본 표기 그대로</div>'
+    + '<div class="hy-pills"><span class="hy-pill a">교통사고처리지원금</span><span class="hy-pill b">변호사선임비</span><span class="hy-pill c">벌금 / 대물벌금</span></div>'
+    + '</div>';
+
+  /* 1) 한도가 어떻게 커졌나 — 막대 */
+  h += '<div class="card hy-card"><h3 class="hy-sub">① 담보별 한도 변화 <small>막대가 길수록 한도가 큽니다</small></h3>'
+    + '<div class="hy-ld-grid">' + HY_DRV_LADDER.map(hyLadderHtml).join('') + '</div></div>';
+
+  /* 1-2) 변호사선임비 한도 축소 보완 특약 */
+  h += '<div class="card hy-card hy-patch"><h3 class="hy-sub">🛟 ' + hyEsc(HY_DRV_PATCH.title) + '</h3>'
+    + '<div class="hy-patch-ins">' + HY_DRV_PATCH.insurers.map(function (n) { return '<span>' + hyEsc(n) + '</span>'; }).join('') + '</div>'
+    + '<p class="hy-lead" style="margin:0 0 12px">' + hyEsc(HY_DRV_PATCH.lead) + '</p>'
+    + '<div class="hy-patch-flow">' + HY_DRV_PATCH.points.map(function (r, i) {
+      return (i ? '<span class="hy-ar big">→</span>' : '') + '<div class="hy-patch-box"><b>' + hyEsc(r[0]) + '</b><span>' + hyEsc(r[1]) + '</span></div>';
+    }).join('') + '</div>'
+    + '<div class="hy-check" style="margin:14px 0 0"><b>⚠ 확인이 필요한 부분</b><ul>' + HY_DRV_PATCH.chk.map(function (t) { return '<li>' + hyEsc(t) + '</li>'; }).join('') + '</ul></div></div>';
+
+  /* 2) 핵심 흐름 */
+  h += '<div class="card hy-card"><h3 class="hy-sub">② 담보별 핵심 흐름</h3>' + HY_DRV_FLOW.map(function (f) {
+    return '<div class="hy-fl ' + f.cls + '"><div class="hy-fl-n">' + hyEsc(f.name) + '</div><div class="hy-fl-s">'
+      + f.steps.map(function (t, i) { return (i ? '<span class="hy-ar">→</span>' : '') + '<span class="hy-st">' + hyEsc(t) + '</span>'; }).join('')
+      + '</div><div class="hy-fl-c"><b>확인 포인트</b> ' + hyEsc(f.chk) + '</div></div>';
+  }).join('') + '</div>';
+
+  /* 3) 시점별 상세 */
+  const colName = { a: '교통사고처리지원금', b: '변호사선임비', c: '벌금 / 대물벌금' };
+  const show = hy.dcol === 'all' ? ['a', 'b', 'c'] : [hy.dcol];
+  const idx = { a: 1, b: 2, c: 3 };
+  h += '<div class="card hy-card"><h3 class="hy-sub">③ 시점별 상세표 <small>바뀐 칸은 노란색</small></h3>'
+    + '<div class="hy-pick"><span class="hy-pick-l">보고 싶은 담보</span>'
+    + [['all', '전체'], ['a', '교통사고처리지원금'], ['b', '변호사선임비'], ['c', '벌금·대물벌금']].map(function (o) {
+      return '<button type="button" class="hy-chip ' + (o[0] === 'all' ? 'f5' : 'd' + o[0]) + (hy.dcol === o[0] ? ' on' : '') + '" onclick="hySetDcol(\'' + o[0] + '\')">' + o[1] + '</button>';
+    }).join('') + '</div>'
+    + '<div class="hy-scroll"><table class="hy-table hy-cmp"><thead><tr><th class="hy-l">시점</th>'
+    + show.map(function (c) { return '<th>' + colName[c] + '</th>'; }).join('') + '<th>확인 포인트</th></tr></thead><tbody>';
+  HY_DRV_ROWS.forEach(function (r, i) {
+    if (hy.dcol !== 'all' && r[idx[hy.dcol]] === '-') return;
+    h += '<tr><th class="hy-l">' + hyEsc(r[0]) + '</th>';
+    show.forEach(function (c) {
+      const v = r[idx[c]];
+      let prev = '-';
+      for (let j = i - 1; j >= 0; j--) { if (HY_DRV_ROWS[j][idx[c]] !== '-') { prev = HY_DRV_ROWS[j][idx[c]]; break; } }
+      const chg = v !== '-' && v !== prev;
+      h += '<td' + (chg ? ' class="hy-chg"' : '') + '>' + (v === '-' ? '<span class="hy-dash">-</span>' : hyEsc(v)) + '</td>';
+    });
+    h += '<td class="hy-note">' + hyEsc(r[4]) + '</td></tr>';
+  });
+  h += '</tbody></table></div></div>';
+
+  /* 4) 사고 처리 흐름 + 법률비용 + 12대 중과실 */
+  h += '<div class="card hy-card"><h3 class="hy-sub">④ 교통사고 처리 절차와 법률비용</h3><div class="hy-proc">'
+    + HY_DRV_PROC.map(function (t, i) { return '<div class="hy-pr"><b>0' + (i + 1) + '</b><span>' + hyEsc(t) + '</span></div>'; }).join('') + '</div>'
+    + '<div class="hy-scroll" style="margin-top:12px"><table class="hy-table hy-cmp"><thead><tr><th class="hy-l">구분</th><th>보장대상</th><th>가입금액</th><th>보상 한도</th></tr></thead><tbody>'
+    + HY_DRV_LEGAL.map(function (r) { return '<tr><th class="hy-l">' + hyEsc(r[0]) + '</th><td>' + hyEsc(r[1]) + '</td><td>' + hyEsc(r[2]) + '</td><td>' + hyEsc(r[3]) + '</td></tr>'; }).join('')
+    + '</tbody></table></div></div>';
+
+  h += '<div class="card hy-card"><h3 class="hy-sub">⑤ 형사처벌과 합의가 문제되는 사고 <small>12대 중과실</small></h3>'
+    + '<div class="hy-12">' + HY_DRV_12.map(function (t, i) { return '<div class="hy-12i"><b>' + (i < 9 ? '0' : '') + (i + 1) + '</b>' + hyEsc(t) + '</div>'; }).join('') + '</div>'
+    + '<div class="hy-tip"><b>상담 포인트</b> 12대 중과실 교통사고는 보험 가입 여부와 관계없이 형사처벌 대상이 될 수 있어 운전자보험 담보 확인이 중요합니다. 교통사고처리지원금은 형사합의·공탁과 연결되고, 변호사선임비는 경찰조사·약식기소 포함 여부가 중요합니다. 가입 상품의 약관상 지급 시점과 한도를 반드시 확인해야 합니다.</div></div>';
+
+  /* 5) 확인 필요 */
+  h += '<div class="hy-check"><b>⚠ 확인이 필요한 부분</b><ul>' + HY_DRV_CHECK.map(function (t) { return '<li>' + hyEsc(t) + '</li>'; }).join('') + '</ul></div>';
+  h += '<div class="hy-foot"><div>참고 법령: <a href="https://www.law.go.kr" target="_blank" rel="noopener">국가법령정보센터</a></div></div>';
+  return h;
+}
+
 function hyHistHtml() {
+  if (hy.prod === 'driver') return hyDriverHtml();
   const vis = [];
   HY_GENS.forEach(function (g, i) { if (hy.cols[g.k]) vis.push(i); });
   let h = '<div class="card hy-card">'
-    + '<div class="hy-prods">' + HY_PRODUCTS.map(function (p) {
-      return p.on
-        ? '<button type="button" class="hy-prod on">' + p.n + '</button>'
-        : '<button type="button" class="hy-prod off" disabled title="자료 준비 중">' + p.n + ' <small>준비 중</small></button>';
-    }).join('') + '</div>'
+    + hyProdsHtml()
     + '<h3 class="hy-title">실손의료비 세대별 변천사</h3>'
     + '<div class="hy-meta">자료 확인일 ' + HY_UPDATED + ' · 출처: 세대별 비교표(센터 보유 자료) + 금융위 5세대 발표(2026.5.5)로 일부 보완</div>'
     + '</div>';
