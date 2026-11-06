@@ -877,6 +877,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
       <button class="tabbtn" data-tab="race" onclick="switchTab('race')">🏁 목표달성 레이스</button>
       <button class="tabbtn" data-tab="dbmgmt" onclick="switchTab('dbmgmt')">🗃️ DB관리</button>
+      <button class="tabbtn" data-tab="claimform" onclick="switchTab('claimform')">📎 보험금청구서류</button>
     </div>
   </div>
   <div class="sg" data-group="tools">
@@ -2181,6 +2182,37 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   </div>
 </div>
 
+<!-- ===== 보험금청구서류 (보험사별 청구서 양식 보관·다운로드) ===== -->
+<div class="panel" id="panel-claimform">
+  <div class="card" style="padding:14px 18px;">
+    <b style="font-size:16px;">📎 보험금청구서류</b>
+    <span class="sub" style="margin:0 0 0 8px;">보험사 카드를 누르면 그 보험사의 청구서 양식이 나와요. 올리기·삭제는 마스터만 할 수 있어요.</span>
+  </div>
+  <div id="cf_setup"></div>
+  <div class="card" id="cf_upcard" style="display:none;padding:14px 18px;">
+    <b>⬆️ 청구서류 올리기</b> <span class="sub" style="margin-left:6px;">(마스터 전용 · 파일 하나당 45MB까지)</span>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:flex-end;">
+      <label style="flex:1 1 190px;margin:0;">보험사<select id="cf_ins" onchange="cfInsChange()"></select></label>
+      <label id="cf_insx_w" style="flex:1 1 170px;margin:0;display:none;">보험사 이름 직접 입력<input id="cf_insx" placeholder="예: 기타 보험사"></label>
+      <label style="flex:2 1 220px;margin:0;">서류 이름<input id="cf_title" placeholder="비워두면 파일 이름으로 저장돼요"></label>
+      <label style="flex:2 1 220px;margin:0;">메모 (선택)<input id="cf_memo" placeholder="예: 팩스 번호, 제출 방법 등"></label>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;">
+      <input type="file" id="cf_file" multiple style="flex:1 1 260px;">
+      <button class="act" id="cf_upbtn" onclick="cfUpload()">올리기</button>
+      <span id="cf_upmsg" class="sub" style="margin:0;"></span>
+    </div>
+  </div>
+  <div class="card" style="padding:14px 18px;">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;">
+      <input id="cf_q" placeholder="🔍 보험사명·서류 이름 검색" oninput="cfSetQ(this.value)" style="flex:1 1 260px;max-width:380px;">
+      <div id="cf_seg" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"></div>
+    </div>
+  </div>
+  <div id="cf_detail"></div>
+  <div id="cf_grid"></div>
+</div>
+
 <!-- ===== DB관리 (누수 관리) ===== -->
 <div class="panel" id="panel-dbmgmt">
   <div class="card" style="padding:14px 18px;">
@@ -2570,6 +2602,7 @@ function switchTab(name) {
   if (name === 'hospmap') loadHospMap();
   if (name === 'cancertl') loadCancerTimeline();
   if (name === 'history') hyOpen();
+  if (name === 'claimform') cfOpen();
   if (name === 'home') hmRender();
   if (name === 'notice') ntcOpenTab();
 }
@@ -12547,6 +12580,281 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   loadWeather(); syncTime(); loop();
   setInterval(loadWeather, 30*60*1000);   // 날씨 30분마다
   setInterval(syncTime, 10*60*1000);      // 시각 10분마다 재보정
+})();
+</script>
+<style id="cf_style">
+#panel-claimform .cf-sh { display: flex; justify-content: space-between; align-items: baseline; margin: 18px 4px 10px; }
+#panel-claimform .cf-sh b { font-size: 14px; color: #0F172A; }
+#panel-claimform .cf-sh span { font-size: 12.5px; color: #64748B; }
+#panel-claimform .cf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+#panel-claimform .cf-card { border: 1px solid var(--line); border-radius: 14px; background: #fff; cursor: pointer; overflow: hidden; text-align: left; padding: 0; transition: box-shadow .12s, border-color .12s; }
+#panel-claimform .cf-card:hover { box-shadow: 0 4px 14px rgba(15,23,42,.10); border-color: #A5B4FC; }
+#panel-claimform .cf-card.sel { border-color: #4F46E5; box-shadow: 0 0 0 2px #C7D2FE; }
+#panel-claimform .cf-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 18px 16px; border-bottom: 1px solid #EEF2F7; }
+#panel-claimform .cf-mono { display: flex; align-items: center; gap: 10px; min-width: 0; }
+#panel-claimform .cf-dot { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 14px; }
+#panel-claimform .cf-nm { font-size: 17px; font-weight: 800; color: #0F172A; word-break: keep-all; }
+#panel-claimform .cf-badge { flex: 0 0 auto; background: #F1F5F9; color: #475569; border-radius: 6px; padding: 3px 9px; font-size: 11.5px; font-weight: 700; }
+#panel-claimform .cf-bot { display: flex; align-items: center; justify-content: space-between; padding: 11px 18px; font-size: 13px; }
+#panel-claimform .cf-bot b { color: #0F172A; }
+#panel-claimform .cf-cnt { font-size: 12px; color: #94A3B8; margin-left: 6px; }
+#panel-claimform .cf-cnt.has { color: #4F46E5; font-weight: 800; }
+#panel-claimform .cf-arrow { color: #94A3B8; font-size: 15px; }
+#panel-claimform .cf-seg { border: 1px solid #CBD5E1; background: #fff; color: #334155; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
+#panel-claimform .cf-seg.on { background: #FDE047; border-color: #FACC15; color: #0F172A; }
+#panel-claimform .cf-segc { font-size: 12.5px; color: #64748B; margin-left: 6px; }
+#panel-claimform .cf-dt { border: 2px solid #4F46E5; border-radius: 14px; background: #fff; padding: 16px 18px; margin: 14px 0 0; }
+#panel-claimform .cf-dth { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; flex-wrap: wrap; }
+#panel-claimform .cf-dth b { font-size: 17px; color: #0F172A; }
+#panel-claimform .cf-it { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; border: 1px solid var(--line); border-radius: 12px; background: #F8FAFC; padding: 10px 14px; margin: 0 0 8px; }
+#panel-claimform .cf-main { flex: 1 1 260px; min-width: 0; }
+#panel-claimform .cf-t { font-size: 14.5px; font-weight: 800; color: #0F172A; word-break: break-all; }
+#panel-claimform .cf-m { font-size: 12.5px; color: #64748B; margin-top: 2px; line-height: 1.6; word-break: break-all; }
+#panel-claimform .cf-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+#panel-claimform .cf-empty { padding: 20px 10px; text-align: center; color: #64748B; font-size: 14px; line-height: 1.8; }
+#panel-claimform .cf-sql { width: 100%; height: 150px; font-family: monospace; font-size: 12px; }
+@media (max-width: 640px) { #panel-claimform .cf-grid { grid-template-columns: 1fr; } }
+</style>
+<script id="claimform_tab">
+/* ===== 보험금청구서류: 보험사별 청구서 양식 보관·다운로드 =====
+   보험사는 코드 안의 고정 목록(손해보험 13 + 생명보험 20)으로 카드를 만들고, 카드를 누르면 그 보험사에 올라온 서류가 나온다.
+   파일은 Supabase Storage(claim-forms 보관함, 비공개)의 f/<아이디>.<확장자>에 두고(한글 파일명 오류를 피하려고 영문 아이디),
+   목록(보험사·이름·메모·원래 파일명)은 같은 보관함의 manifest.json 한 개에 적는다. 올리기·삭제는 마스터만, 다운로드·보기는 누구나.
+   새 DB 테이블 없음(보관함 + 정책 SQL만 필요), Claude API 호출 없음. 보험사 로고는 쓰지 않고 이름 글자 표시만 쓴다. */
+(function () {
+  'use strict';
+  var BUCKET = 'claim-forms', MF = 'manifest.json', MAX_MB = 45, ETC = '기타';
+  var CF_INS = [
+    ['삼성화재', '손해'], ['현대해상', '손해'], ['DB손해보험', '손해'], ['KB손해보험', '손해'], ['메리츠화재', '손해'], ['한화손해보험', '손해'],
+    ['롯데손해보험', '손해'], ['흥국화재', '손해'], ['MG손해보험', '손해'], ['NH손해보험', '손해'], ['AIG손해보험', '손해'], ['하나손해보험', '손해'], ['라이나손해보험', '손해'],
+    ['삼성생명', '생명'], ['한화생명', '생명'], ['교보생명', '생명'], ['농협생명', '생명'], ['메트라이프생명', '생명'], ['KDB생명', '생명'], ['DB생명', '생명'],
+    ['흥국생명', '생명'], ['동양생명', '생명'], ['미래에셋생명', '생명'], ['라이나생명', '생명'], ['푸본현대생명', '생명'], ['신한라이프', '생명'], ['ABL생명', '생명'],
+    ['iM라이프생명', '생명'], ['KB라이프생명', '생명'], ['IBK연금보험', '생명'], ['처브라이프', '생명'], ['하나생명', '생명'], ['카디프생명', '생명']
+  ];
+  var CF_SQL = [
+    "-- 보험금청구서류 보관함 (한 번만 실행)",
+    "insert into storage.buckets (id, name, public) values ('claim-forms', 'claim-forms', false) on conflict (id) do nothing;",
+    "drop policy if exists \"cf_select\" on storage.objects;",
+    "create policy \"cf_select\" on storage.objects for select to anon, authenticated using (bucket_id = 'claim-forms');",
+    "drop policy if exists \"cf_insert\" on storage.objects;",
+    "create policy \"cf_insert\" on storage.objects for insert to anon, authenticated with check (bucket_id = 'claim-forms');",
+    "drop policy if exists \"cf_update\" on storage.objects;",
+    "create policy \"cf_update\" on storage.objects for update to anon, authenticated using (bucket_id = 'claim-forms') with check (bucket_id = 'claim-forms');",
+    "drop policy if exists \"cf_delete\" on storage.objects;",
+    "create policy \"cf_delete\" on storage.objects for delete to anon, authenticated using (bucket_id = 'claim-forms');"
+  ].join('\n');
+  var COLORS = ['#2563EB', '#059669', '#D97706', '#7C3AED', '#DB2777', '#0891B2', '#DC2626', '#4F46E5', '#65A30D', '#475569'];
+  var C = { man: null, status: 'idle', q: '', seg: 'all', sel: '', busy: false, msg: '' };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]; }); }
+  function isMaster() { return typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'master'; }
+  function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function extOf(n) { var m = /\.([A-Za-z0-9]{1,8})$/.exec(n || ''); return m ? m[1].toLowerCase() : 'bin'; }
+  function fmtSize(b) { b = Number(b) || 0; return b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1024)) + 'KB'; }
+  function fmtDate(iso) { try { var d = new Date(iso); return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0'); } catch (e) { return ''; } }
+  function defMan() { return { v: 1, items: [] }; }
+  function conn() { return (typeof sb !== 'undefined' && sb) ? sb : null; }
+  function typeOf(name) { for (var i = 0; i < CF_INS.length; i++) if (CF_INS[i][0] === name) return CF_INS[i][1]; return ''; }
+  function colorOf(name) { var h = 0; for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0; return COLORS[h % COLORS.length]; }
+  function mono(name) { var t = name.replace(/(손해보험|화재|생명보험|생명|보험|라이프)$/, ''); return (t || name).slice(0, 2); }
+
+  function readMan() {
+    var c = conn();
+    if (!c) return Promise.resolve({ status: 'noconn', msg: '아직 서버에 연결되지 않았어요.' });
+    return c.storage.from(BUCKET).download(MF).then(function (r) {
+      if (r.error || !r.data) {
+        var m = String((r.error && r.error.message) || '');
+        return { status: /bucket/i.test(m) ? 'nobucket' : (/not found|object|404|없/i.test(m) ? 'missing' : 'error'), msg: m };
+      }
+      return r.data.text().then(function (t) {
+        var man; try { man = JSON.parse(t); } catch (e) { return { status: 'error', msg: '목록 파일이 올바르지 않아요.' }; }
+        if (!man || !Array.isArray(man.items)) man = defMan();
+        return { status: 'ok', man: man };
+      });
+    }).catch(function (e) { return { status: 'error', msg: String(e && e.message || e) }; });
+  }
+  function mutate(fn) {
+    return readMan().then(function (r) {
+      var m;
+      if (r.status === 'ok') m = r.man;
+      else if (r.status === 'missing') m = defMan();
+      else throw new Error(r.status === 'nobucket' ? '보관함이 아직 없어요. 화면의 SQL을 Supabase에서 먼저 실행해 주세요.' : (r.msg || '목록을 읽지 못했어요.'));
+      fn(m);
+      return conn().storage.from(BUCKET).upload(MF, new Blob([JSON.stringify(m)], { type: 'application/json' }), { upsert: true, contentType: 'application/json', cacheControl: '0' }).then(function (u) {
+        if (u.error) throw u.error;
+        return m;
+      });
+    });
+  }
+  function items() { return (C.man && C.man.items) || []; }
+  function docsOf(name) { return items().filter(function (it) { return (it.insurer || ETC) === name; }); }
+  function find(id) { return items().filter(function (x) { return x.id === id; })[0]; }
+  /* 목록에 없는 이름으로 올라온 서류는 '기타' 카드로 모은다 */
+  function insKey(it) { return typeOf(it.insurer) ? it.insurer : ETC; }
+  function docsForCard(name) { return name === ETC ? items().filter(function (it) { return insKey(it) === ETC; }) : docsOf(name); }
+
+  window.cfOpen = function () {
+    $('cf_upcard').style.display = isMaster() ? '' : 'none';
+    var sel = $('cf_ins');
+    if (sel && !sel.options.length) {
+      sel.innerHTML = '<option value="">보험사를 고르세요</option>'
+        + '<optgroup label="손해보험">' + CF_INS.filter(function (x) { return x[1] === '손해'; }).map(function (x) { return '<option>' + esc(x[0]) + '</option>'; }).join('') + '</optgroup>'
+        + '<optgroup label="생명보험">' + CF_INS.filter(function (x) { return x[1] === '생명'; }).map(function (x) { return '<option>' + esc(x[0]) + '</option>'; }).join('') + '</optgroup>'
+        + '<option value="__etc">기타 (직접 입력)</option>';
+    }
+    C.status = 'loading'; render();
+    readMan().then(function (r) {
+      C.status = r.status; C.msg = r.msg;
+      C.man = r.status === 'ok' ? r.man : (r.status === 'missing' ? defMan() : null);
+      render();
+    });
+  };
+  window.cfSetQ = function (v) { C.q = String(v || '').trim(); renderGrid(); };
+  window.cfSeg = function (v) { C.seg = v; renderSeg(); renderGrid(); };
+  window.cfPick = function (name) {
+    C.sel = (C.sel === name) ? '' : name;
+    renderGrid(); renderDetail();
+    var s = $('cf_ins');
+    if (C.sel && isMaster() && s && typeOf(C.sel)) s.value = C.sel;
+    if (C.sel) { var d = $('cf_detail'); if (d && d.scrollIntoView) d.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+  };
+  window.cfInsChange = function () { var v = $('cf_ins').value; $('cf_insx_w').style.display = v === '__etc' ? '' : 'none'; };
+
+  function renderSetup() {
+    var box = $('cf_setup'); if (!box) return;
+    if (C.status === 'nobucket') {
+      box.innerHTML = '<div class="card" style="padding:14px 18px;border:1px solid #FCD34D;background:#FFFBEB;"><b>⚠ 먼저 한 번만 준비가 필요해요</b>'
+        + '<div class="sub" style="margin:6px 0 8px;">Supabase의 SQL Editor에 아래 글을 붙여넣고 실행해 주세요. 실행하지 않으면 올리기가 되지 않아요. (실행 후 이 화면을 새로고침)</div>'
+        + '<textarea readonly class="cf-sql" id="cf_sqlbox">' + esc(CF_SQL) + '</textarea>'
+        + '<div style="margin-top:6px;"><button class="act small" onclick="cfCopySql()">SQL 복사</button></div></div>';
+    } else if (C.status === 'error' || C.status === 'noconn') {
+      box.innerHTML = '<div class="card" style="padding:12px 18px;border:1px solid #FECACA;background:#FEF2F2;color:#991B1B;">목록을 불러오지 못했어요. ' + esc(C.msg || '') + '</div>';
+    } else box.innerHTML = '';
+  }
+  window.cfCopySql = function () {
+    try { navigator.clipboard.writeText(CF_SQL).then(function () { alert('SQL을 복사했어요. Supabase SQL Editor에 붙여넣어 실행해 주세요.'); }); }
+    catch (e) { var t = $('cf_sqlbox'); if (t) { t.select(); document.execCommand('copy'); } }
+  };
+  function renderSeg() {
+    var el = $('cf_seg'); if (!el) return;
+    var nl = CF_INS.filter(function (x) { return x[1] === '생명'; }).length, nn = CF_INS.length - nl;
+    el.innerHTML = [['all', '전체'], ['생명', '생명보험'], ['손해', '손해보험']].map(function (o) {
+      return '<button type="button" class="cf-seg' + (C.seg === o[0] ? ' on' : '') + '" onclick="cfSeg(\'' + o[0] + '\')">' + o[1] + '</button>';
+    }).join('') + '<span class="cf-segc">생보 ' + nl + '개 · 손보 ' + nn + '개 · 서류 ' + items().length + '건</span>';
+  }
+  function cardHtml(name, type) {
+    var n = docsForCard(name).length;
+    return '<button type="button" class="cf-card' + (C.sel === name ? ' sel' : '') + '" data-n="' + esc(name) + '" onclick="cfPick(this.dataset.n)">'
+      + '<div class="cf-top"><div class="cf-mono"><span class="cf-dot" style="background:' + colorOf(name) + '">' + esc(mono(name)) + '</span><span class="cf-nm">' + esc(name) + '</span></div>'
+      + '<span class="cf-badge">' + (type === '생명' ? '생명보험' : (type === '손해' ? '손해보험' : '기타')) + '</span></div>'
+      + '<div class="cf-bot"><span><b>' + esc(name) + '</b><span class="cf-cnt' + (n ? ' has' : '') + '">· ' + (n ? '청구서류 ' + n + '건' : '서류 없음') + '</span></span><span class="cf-arrow">›</span></div></button>';
+  }
+  function renderGrid() {
+    var el = $('cf_grid'); if (!el) return;
+    if (C.status === 'loading') { el.innerHTML = '<div class="cf-empty">불러오는 중…</div>'; return; }
+    var q = C.q.replace(/\s+/g, '').toLowerCase();
+    function match(name) {
+      if (!q) return true;
+      if (name.replace(/\s+/g, '').toLowerCase().indexOf(q) >= 0) return true;
+      return docsForCard(name).some(function (it) { return ((it.title || '') + (it.memo || '') + (it.orig || '')).replace(/\s+/g, '').toLowerCase().indexOf(q) >= 0; });
+    }
+    var html = '', any = false;
+    [['손해', '손해보험사'], ['생명', '생명보험사']].forEach(function (g) {
+      if (C.seg !== 'all' && C.seg !== g[0]) return;
+      var list = CF_INS.filter(function (x) { return x[1] === g[0] && match(x[0]); });
+      if (!list.length) return;
+      any = true;
+      html += '<div class="cf-sh"><b>' + g[1] + '</b><span>' + list.length + '개 보험사</span></div><div class="cf-grid">'
+        + list.map(function (x) { return cardHtml(x[0], x[1]); }).join('') + '</div>';
+    });
+    if (C.seg === 'all' && docsForCard(ETC).length && match(ETC)) {
+      any = true;
+      html += '<div class="cf-sh"><b>기타</b><span>목록에 없는 보험사</span></div><div class="cf-grid">' + cardHtml(ETC, '') + '</div>';
+    }
+    el.innerHTML = any ? html : '<div class="cf-empty">조건에 맞는 보험사·서류가 없어요.</div>';
+  }
+  function renderDetail() {
+    var el = $('cf_detail'); if (!el) return;
+    if (!C.sel) { el.innerHTML = ''; return; }
+    var docs = docsForCard(C.sel).sort(function (a, b) { return String(b.at || '').localeCompare(String(a.at || '')); });
+    var t = typeOf(C.sel);
+    el.innerHTML = '<div class="cf-dt"><div class="cf-dth"><b>' + esc(C.sel) + ' <span class="cf-badge" style="margin-left:6px;">' + (t === '생명' ? '생명보험' : (t === '손해' ? '손해보험' : '기타')) + '</span></b>'
+      + '<button class="secondary small" onclick="cfPick(\'' + esc(C.sel).replace(/'/g, "\\'") + '\')">✕ 닫기</button></div>'
+      + (docs.length ? docs.map(function (it) {
+        var viewable = /^(pdf|png|jpe?g|gif|webp)$/.test(extOf(it.file));
+        return '<div class="cf-it"><div class="cf-main"><div class="cf-t">' + esc(it.title || it.orig) + (it.insurer && it.insurer !== C.sel ? ' <span class="sub">(' + esc(it.insurer) + ')</span>' : '') + '</div>'
+          + '<div class="cf-m">' + esc(it.orig || '') + ' · ' + fmtSize(it.size) + ' · ' + fmtDate(it.at) + (it.memo ? '<br>📝 ' + esc(it.memo) : '') + '</div></div>'
+          + '<div class="cf-btns">' + (viewable ? '<button class="secondary small" data-id="' + esc(it.id) + '" onclick="cfView(this.dataset.id)">👁 보기</button>' : '')
+          + '<button class="act small" data-id="' + esc(it.id) + '" onclick="cfDownload(this.dataset.id)">⬇ 다운로드</button>'
+          + (isMaster() ? '<button class="secondary small" data-id="' + esc(it.id) + '" onclick="cfDelete(this.dataset.id)" style="color:#B91C1C;">🗑 삭제</button>' : '')
+          + '</div></div>';
+      }).join('') : '<div class="cf-empty">아직 올라온 청구서류가 없어요.' + (isMaster() ? '<br>위의 "청구서류 올리기"에서 이 보험사를 골라 올려 주세요.' : '') + '</div>')
+      + '</div>';
+  }
+  function render() { renderSetup(); renderSeg(); renderGrid(); renderDetail(); }
+
+  window.cfDownload = function (id) {
+    var it = find(id); if (!it) return;
+    conn().storage.from(BUCKET).download(it.file).then(function (r) {
+      if (r.error || !r.data) { alert('파일을 받지 못했어요. ' + ((r.error && r.error.message) || '')); return; }
+      var url = URL.createObjectURL(r.data), a = document.createElement('a');
+      a.href = url; a.download = it.orig || (it.title + '.' + extOf(it.file));
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    }).catch(function (e) { alert('파일을 받지 못했어요. ' + (e && e.message || e)); });
+  };
+  window.cfView = function (id) {
+    var it = find(id); if (!it) return;
+    var w = window.open('', '_blank');
+    conn().storage.from(BUCKET).createSignedUrl(it.file, 300).then(function (r) {
+      if (r.error || !r.data) { if (w) w.close(); alert('미리보기를 열지 못했어요. 다운로드로 받아 주세요.'); return; }
+      if (w) w.location.href = r.data.signedUrl; else window.location.href = r.data.signedUrl;
+    });
+  };
+  window.cfUpload = function () {
+    if (!isMaster() || C.busy) return;
+    var files = $('cf_file').files, v = $('cf_ins').value, title = $('cf_title').value.trim(), memo = $('cf_memo').value.trim();
+    var ins = v === '__etc' ? $('cf_insx').value.trim() : v;
+    var msg = $('cf_upmsg');
+    if (!files || !files.length) { msg.textContent = '올릴 파일을 먼저 골라 주세요.'; return; }
+    if (!ins) { msg.textContent = '보험사를 골라 주세요.'; return; }
+    for (var i = 0; i < files.length; i++) if (files[i].size > MAX_MB * 1048576) { msg.textContent = files[i].name + ' 파일이 ' + MAX_MB + 'MB보다 커요.'; return; }
+    C.busy = true; $('cf_upbtn').disabled = true;
+    var added = [], list = Array.prototype.slice.call(files), c = conn();
+    var chain = Promise.resolve();
+    list.forEach(function (f, idx) {
+      chain = chain.then(function () {
+        msg.textContent = '올리는 중… (' + (idx + 1) + '/' + list.length + ') ' + f.name;
+        var id = newId(), path = 'f/' + id + '.' + extOf(f.name);
+        return c.storage.from(BUCKET).upload(path, f, { contentType: f.type || 'application/octet-stream', upsert: false }).then(function (u) {
+          if (u.error) throw u.error;
+          added.push({ id: id, insurer: ins, title: (list.length === 1 && title) ? title : f.name.replace(/\.[^.]+$/, ''), memo: memo, file: path, orig: f.name, size: f.size, at: new Date().toISOString() });
+        });
+      });
+    });
+    chain.then(function () {
+      return mutate(function (m) { added.forEach(function (a) { m.items.push(a); }); });
+    }).then(function (m) {
+      C.man = m; C.status = 'ok';
+      $('cf_file').value = ''; $('cf_title').value = ''; $('cf_memo').value = '';
+      msg.textContent = '✅ ' + added.length + '개를 ' + ins + '에 올렸어요.';
+      render();
+    }).catch(function (e) {
+      var t = String(e && e.message || e);
+      msg.textContent = /bucket/i.test(t) ? '보관함이 아직 없어요. 화면의 SQL을 먼저 실행해 주세요.' : '올리지 못했어요. ' + t;
+      if (/bucket/i.test(t)) { C.status = 'nobucket'; render(); }
+    }).then(function () { C.busy = false; $('cf_upbtn').disabled = false; });
+  };
+  window.cfDelete = function (id) {
+    if (!isMaster()) return;
+    var it = find(id); if (!it) return;
+    if (!confirm('"' + (it.title || it.orig) + '" 서류를 삭제할까요?\n삭제하면 팀장님들도 더 이상 받을 수 없어요.')) return;
+    mutate(function (m) { m.items = m.items.filter(function (x) { return x.id !== id; }); }).then(function (m) {
+      C.man = m; render();
+      return conn().storage.from(BUCKET).remove([it.file]); /* 목록에서 먼저 빼고, 그다음 파일을 지운다 */
+    }).catch(function (e) { alert('삭제하지 못했어요. ' + (e && e.message || e)); });
+  };
 })();
 </script>
 <script id="history_tab">
