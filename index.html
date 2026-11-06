@@ -2296,10 +2296,16 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
         <button class="secondary small" onclick="dbDailyToday()">오늘</button>
         <span id="db_dailyInfo" style="font-size:12px;color:var(--muted);"></span>
       </div>
-      <div class="sub" style="margin:0 0 8px;">고른 날짜에 분배된 DB(분배일 기준)를 팀장님별로 모아 봅니다. 터치는 터치횟수 1회 이상, 메모는 메모 칸에 내용이 있는지를 봅니다. (회사 전산 엑셀을 올린 시점의 값 기준)</div>
-      <div style="overflow-x:auto;"><table style="min-width:640px;">
-        <colgroup><col style="width:14%"><col style="width:38%"><col style="width:24%"><col style="width:24%"></colgroup>
-        <thead><tr><th>팀장</th><th>일자별 DB종류와 총수량</th><th>모든 DB 터치 유무</th><th>메모값 유무</th></tr></thead>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 6px;">
+        <span style="font-size:13px;font-weight:700;">팀장</span>
+        <select id="db_dailyMgr" style="width:auto;" onchange="dbRenderDaily()"></select>
+        <span style="font-size:13px;font-weight:700;margin-left:6px;">DB종류</span>
+        <span id="db_dailyChips" style="display:inline-flex;flex-wrap:wrap;gap:6px;"></span>
+      </div>
+      <div class="sub" style="margin:0 0 8px;">고른 날짜에 분배된 DB(분배일 기준)를 팀장님·DB종류별로 나눠 봅니다. 팀장은 한 명 또는 전체, DB종류는 여러 개를 골라 볼 수 있어요. 터치는 터치횟수 1회 이상, 메모는 메모 칸에 내용이 있는지를 봅니다. (회사 전산 엑셀을 올린 시점의 값 기준)</div>
+      <div style="overflow-x:auto;"><table style="min-width:680px;">
+        <colgroup><col style="width:14%"><col style="width:18%"><col style="width:10%"><col style="width:29%"><col style="width:29%"></colgroup>
+        <thead><tr><th>팀장</th><th>DB종류</th><th>수량</th><th>터치 유무</th><th>메모값 유무</th></tr></thead>
         <tbody id="db_dailyBody"></tbody>
       </table></div>
     </div>
@@ -2851,12 +2857,22 @@ function dbDailyShift(n){
   el.value = dbDayKey(d); dbRenderDaily();
 }
 function dbDailyToday(){ const el = document.getElementById('db_dailyDate'); if (el) { el.value = dbDayKey(new Date()); dbRenderDaily(); } }
+let dbDailySel = [];   // 고른 DB종류(비어 있으면 전체)
+function dbDailyToggle(t){
+  const i = dbDailySel.indexOf(t);
+  if (i >= 0) dbDailySel.splice(i, 1); else dbDailySel.push(t);
+  dbRenderDaily();
+}
+function dbDailyAllTypes(){ dbDailySel = []; dbRenderDaily(); }
 function dbRenderDaily(){
   const body = document.getElementById('db_dailyBody'); if (!body) return;
   const info = document.getElementById('db_dailyInfo');
+  const chipsEl = document.getElementById('db_dailyChips');
+  const mgrEl = document.getElementById('db_dailyMgr');
   if (!(currentUser && currentUser.role === 'master')) { body.innerHTML = ''; return; }
-  if (!dbLoaded) { body.innerHTML = '<tr><td colspan="4" style="color:var(--muted);">불러오는 중입니다…</td></tr>'; return; }
+  if (!dbLoaded) { body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);">불러오는 중입니다…</td></tr>'; return; }
   const day = dbDailyDate();
+  // 그날 분배된 DB를 팀장별로 모음
   const by = new Map();
   dbRows.forEach(r => {
     if (!r.distributed_at) return;
@@ -2866,30 +2882,55 @@ function dbRenderDaily(){
     if (!by.has(m)) by.set(m, []);
     by.get(m).push(r);
   });
-  const names = DB_DAILY_MGRS.slice();
-  Array.from(by.keys()).sort().forEach(m => { if (names.indexOf(m) < 0) names.push(m); });
-  let sum = 0;
-  const cell = (ok, bad, total, label) => {
-    if (!total) return '<span style="color:var(--muted);">-</span>';
+  const allNames = DB_DAILY_MGRS.slice();
+  Array.from(by.keys()).sort().forEach(m => { if (allNames.indexOf(m) < 0) allNames.push(m); });
+  // 팀장 선택 칸 (고른 값은 유지)
+  let mgr = mgrEl ? mgrEl.value : '';
+  if (mgrEl) {
+    if (mgr && allNames.indexOf(mgr) < 0) mgr = '';
+    mgrEl.innerHTML = '<option value="">전체 팀장</option>' + allNames.map(n => `<option value="${escapeHtml(n)}"${n === mgr ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+  }
+  const names = mgr ? [mgr] : allNames;
+  // 고를 수 있는 DB종류 (그날, 고른 팀장 범위)
+  const avail = new Map();
+  names.forEach(m => (by.get(m) || []).forEach(r => { const t = r.db_type || '(유형 없음)'; avail.set(t, (avail.get(t) || 0) + 1); }));
+  const availTypes = Array.from(avail.entries()).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+  const sel = dbDailySel.filter(t => avail.has(t));
+  const on = 'background:#4F46E5;color:#fff;border-color:#4F46E5;';
+  if (chipsEl) {
+    const btn = (label, active, fn) => `<button type="button" class="secondary small" style="${active ? on : ''}" onclick="${fn}">${label}</button>`;
+    chipsEl.innerHTML = btn('전체', !sel.length, 'dbDailyAllTypes()')
+      + availTypes.map(t => btn(`${escapeHtml(t)} ${avail.get(t)}`, sel.indexOf(t) >= 0, `dbDailyToggle(this.dataset.t)" data-t="${escapeHtml(t)}`)).join('')
+      + (availTypes.length ? '' : '<span style="font-size:12px;color:var(--muted);">이 날짜에 분배된 DB가 없어요</span>');
+  }
+  const useType = t => !sel.length || sel.indexOf(t) >= 0;
+  const cell = (bad, total, label) => {
     if (!bad.length) return `<span style="color:#15803D;font-weight:700;">✅ ${label} 있음 (${total}/${total})</span>`;
     const list = bad.map(r => `${escapeHtml(r.customer_name || '-')} <span style="color:var(--muted);">${escapeHtml(r.customer_code || '')}</span>`).join('<br>');
     return `<details><summary style="cursor:pointer;color:#B45309;font-weight:700;">⚠ ${label} 없음 ${bad.length}건 <span style="color:var(--muted);font-weight:400;">(${total - bad.length}/${total})</span></summary><div style="font-size:12px;margin-top:4px;line-height:1.6;">${list}</div></details>`;
   };
+  const dash = '<span style="color:var(--muted);">-</span>';
+  let sum = 0, sumNoTouch = 0, sumNoMemo = 0;
   body.innerHTML = names.map(m => {
-    const rs = by.get(m) || [];
+    const rs = (by.get(m) || []).filter(r => useType(r.db_type || '(유형 없음)'));
+    if (!rs.length) return `<tr><td><b>${escapeHtml(m)}</b></td><td colspan="4" style="color:var(--muted);">${sel.length ? '고른 DB종류 분배 없음' : '분배 없음'}</td></tr>`;
     sum += rs.length;
-    if (!rs.length) return `<tr><td><b>${escapeHtml(m)}</b></td><td style="color:var(--muted);">분배 없음</td><td><span style="color:var(--muted);">-</span></td><td><span style="color:var(--muted);">-</span></td></tr>`;
     const types = new Map();
-    rs.forEach(r => { const t = (r.db_type || '(유형 없음)'); types.set(t, (types.get(t) || 0) + 1); });
-    const chips = Array.from(types.entries()).sort((a, b) => b[1] - a[1]).map(([t, n]) => {
-      const dim = DB_EXCLUDE_TYPES.indexOf(t) >= 0;
-      return `<span style="display:inline-block;margin:1px 6px 1px 0;${dim ? 'color:var(--muted);' : ''}">${escapeHtml(t)} <b>${n}</b></span>`;
+    rs.forEach(r => { const t = r.db_type || '(유형 없음)'; if (!types.has(t)) types.set(t, []); types.get(t).push(r); });
+    const groups = Array.from(types.entries()).sort((a, b) => b[1].length - a[1].length);
+    return groups.map(([t, g], i) => {
+      const dim = DB_EXCLUDE_TYPES.indexOf(t) >= 0 ? 'color:var(--muted);' : '';
+      const noTouch = g.filter(r => !(Number(r.touch_count) > 0));
+      const noMemo = g.filter(r => !String(r.memo || '').trim());
+      sumNoTouch += noTouch.length; sumNoMemo += noMemo.length;
+      const first = i === 0
+        ? `<td rowspan="${groups.length}" style="vertical-align:top;border-right:1px solid var(--line);"><b>${escapeHtml(m)}</b><div style="font-size:12px;color:var(--muted);margin-top:2px;">총 <b style="color:var(--ink);">${rs.length}</b>건</div></td>`
+        : '';
+      return `<tr>${first}<td style="${dim}">${escapeHtml(t)}</td><td><b>${g.length}</b></td><td>${cell(noTouch, g.length, '터치')}</td><td>${cell(noMemo, g.length, '메모')}</td></tr>`;
     }).join('');
-    const noTouch = rs.filter(r => !(Number(r.touch_count) > 0));
-    const noMemo = rs.filter(r => !String(r.memo || '').trim());
-    return `<tr><td><b>${escapeHtml(m)}</b></td><td>${chips}<div style="font-size:12px;color:var(--muted);margin-top:2px;">총 <b style="color:var(--ink);">${rs.length}</b>건</div></td><td>${cell(0, noTouch, rs.length, '터치')}</td><td>${cell(0, noMemo, rs.length, '메모')}</td></tr>`;
   }).join('');
-  if (info) info.textContent = `${day} 분배 합계 ${sum.toLocaleString('ko-KR')}건` + (sum ? '' : ' (이 날짜에 분배된 DB가 없어요. 엑셀을 올렸는지 확인해 보세요)');
+  if (info) info.textContent = `${day} ${mgr ? mgr + ' 팀장 ' : ''}${sel.length ? '선택 DB ' : '분배 '}합계 ${sum.toLocaleString('ko-KR')}건`
+    + (sum ? ` · 터치 없음 ${sumNoTouch}건 · 메모 없음 ${sumNoMemo}건` : ' (이 날짜에 분배된 DB가 없어요. 엑셀을 올렸는지 확인해 보세요)');
 }
 
 /* ---------- 현황판 (3회 미만 터치 / 상담예약·가망 재터치 두 가지만) ---------- */
