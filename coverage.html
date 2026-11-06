@@ -858,6 +858,17 @@ var CVCore = (function () {
           (evidence[k] = evidence[k] || []).push({ ci: ci, name: r.name, amt: amt, orig: r.amt, f: f, svc: isSvc });
         });
       });
+      (cfg.custom || []).forEach(function (cu) {
+        var kws = String(cu.kw || '').split(/[,，\n]/).map(function (x) { return norm(x); }).filter(Boolean);
+        if (!kws.length) return;
+        c.rows.forEach(function (r) {
+          if (!(r.amt > 0)) return;
+          var nn = norm(r.name);
+          if (!kws.some(function (w) { return nn.indexOf(w) >= 0; })) return;
+          vals[cu.k] = (vals[cu.k] || 0) + r.amt;
+          (evidence[cu.k] = evidence[cu.k] || []).push({ ci: ci, name: r.name, amt: r.amt, orig: r.amt, f: 1, svc: false });
+        });
+      });
       return { id: 's' + ci, company: c.company, product: c.product, premium: c.premium, cycle: c.cycle, renew: c.renew, vals: vals };
     });
     var supports = src.supports ? {} : null;
@@ -875,7 +886,9 @@ var CVCore = (function () {
     }
 
     var totals = {}, status = {}, counts = { ok: 0, part: 0, none: 0, unknown: 0, have: 0 }, pdfTotals = {};
-    ITEMS.forEach(function (it) {
+    var hideMap = cfg.hide || {};
+    var allItems = ITEMS.concat((cfg.custom || []).map(function (cu) { return { k: cu.k, label: cu.label, rec: Number(cu.rec) || 0 }; }));
+    allItems.forEach(function (it) {
       var total = null, pdfTotal = null, mSum = null;
       if (!supports || supports[it.k]) { pdfTotal = 0; contracts.forEach(function (c) { pdfTotal += (c.vals[it.k] || 0); }); }
       if (manualC) manualC.forEach(function (c) { if (c.vals[it.k] != null) mSum = (mSum || 0) + c.vals[it.k]; });
@@ -892,7 +905,7 @@ var CVCore = (function () {
       else st = total >= rc ? 'ok' : 'part';
       // 메리츠 간병인지원일당(간병인 파견 서비스)은 금액 크기와 상관없이 가입으로 인정
       if (svcKeys[it.k] && st === 'part' && !Object.prototype.hasOwnProperty.call(override, it.k)) st = 'ok';
-      status[it.k] = st; counts[st]++;
+      status[it.k] = st; if (!hideMap[it.k]) counts[st]++;
     });
     unmapped.sort(function (a, b) { return b.total - a.total; });
     var premTotal = 0, missingPrem = 0;
@@ -902,7 +915,7 @@ var CVCore = (function () {
       premTotal = src.premiumTotal > 0 ? Math.max(src.premiumTotal, msum) : msum;
       contracts = manualC;
     } else contracts.forEach(function (c) { if (c.premium == null) missingPrem++; else premTotal += c.premium; });
-    return { contracts: contracts, totals: totals, pdfTotals: pdfTotals, status: status, counts: counts, evidence: evidence, unmapped: unmapped, premTotal: premTotal, missingPrem: missingPrem, itemCount: ITEMS.length, ratioUsed: ratioUsed, aggSource: !!src.aggregate, detail: !!manualC, svcKeys: svcKeys, aggregate: !!src.aggregate && !manualC, count: src.aggregate ? (src.count != null ? src.count : null) : contracts.length };
+    return { contracts: contracts, totals: totals, pdfTotals: pdfTotals, status: status, counts: counts, evidence: evidence, unmapped: unmapped, premTotal: premTotal, missingPrem: missingPrem, itemCount: allItems.filter(function (x) { return !hideMap[x.k]; }).length, ratioUsed: ratioUsed, aggSource: !!src.aggregate, detail: !!manualC, svcKeys: svcKeys, aggregate: !!src.aggregate && !manualC, count: src.aggregate ? (src.count != null ? src.count : null) : contracts.length };
   }
 
   /* ---------- 보험 정리 전 → 후 보장 비교 ---------- */
@@ -970,7 +983,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 
   var S = {
     sources: [], active: -1,
-    mask: lsGet('cv_mask', true), adName: lsGet('cv_adname', ''), adTel: lsGet('cv_adtel', ''),
+    mask: lsGet('cv_mask', true), hide: lsGet('cv_hide', {}), labels: lsGet('cv_labels', {}), custom: lsGet('cv_custom', []),
+    adName: lsGet('cv_adname', ''), adTel: lsGet('cv_adtel', ''),
     rec: lsGet('cv_rec', {}), assign: lsGet('cv_assign', {}), logos: lsGet('cv_logos', {}),
     open: {},
     plan: { keep: [], drop: [], repl: [], baseNote: '(종신보험·납입완료건 제외)', endNote: '' },
@@ -1166,13 +1180,43 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     return a[0] + new Array(a.length - 1).join('O') + a[a.length - 1];
   }
   function footerText() { return ['AFG', (S.adName || '').trim(), (S.adTel || '').trim()].filter(Boolean).join(' '); }
-  function cfgFor(src) { return { rec: S.rec, assign: S.assign, override: src.override || {}, manual: src.manual ? src.manual.contracts : null }; }
+  function cfgFor(src) { return { custom: S.custom, hide: S.hide, rec: S.rec, assign: S.assign, override: src.override || {}, manual: src.manual ? src.manual.contracts : null }; }
   function shortName(c) {
     var s = String(c || '').replace(/\(주\)|주식회사|㈜/g, '').replace(/\s+/g, '').replace(/손해보험/, '손보').replace(/생명보험/, '생명');
     var m = s.match(/^(.+?)(화재|생명|손보|라이프|해상|증권|캐피탈)$/);
     if (m) return [m[1], m[2]];
     if (s.length > 4) { var h = Math.ceil(s.length / 2); return [s.slice(0, h), s.slice(h)]; }
     return [s];
+  }
+
+  /* ---------- 항목 편집(숨기기 · 이름 바꾸기 · 직접 추가)을 반영한 표 구성 ---------- */
+  function layoutSections() {
+    var out = [];
+    C.SECTIONS.forEach(function (sec) {
+      var groups = [];
+      sec.groups.forEach(function (g) {
+        var rows = [];
+        g.rows.forEach(function (r) {
+          if (r.sub) { if (S.hide['s:' + r.sub]) return; rows.push(Object.assign({}, r, { sub: S.labels['s:' + r.sub] || r.sub })); return; }
+          if (S.hide[r.k]) return;
+          rows.push(Object.assign({}, r, { label: S.labels[r.k] || r.label }));
+        });
+        S.custom.forEach(function (cu) { if (cu.group === g.name) rows.push({ k: cu.k, label: cu.label || '(이름 없음)', rec: Number(cu.rec) || 0 }); });
+        rows = rows.filter(function (r, i) { return !r.sub || (rows[i + 1] && !rows[i + 1].sub); });
+        if (rows.length) groups.push({ name: g.name, rows: rows });
+      });
+      if (groups.length) out.push({ no: sec.no, title: sec.title, sub: sec.sub, tag: sec.tag, groups: groups });
+    });
+    var known = {}; C.SECTIONS.forEach(function (sec) { sec.groups.forEach(function (g) { known[g.name] = 1; }); });
+    var xg = {}, xo = [];
+    S.custom.forEach(function (cu) {
+      if (known[cu.group]) return;
+      var gn = (cu.group || '').trim() || '추가';
+      if (!xg[gn]) { xg[gn] = { name: gn, rows: [] }; xo.push(xg[gn]); }
+      xg[gn].rows.push({ k: cu.k, label: cu.label || '(이름 없음)', rec: Number(cu.rec) || 0 });
+    });
+    if (xo.length) out.push({ no: 'Ⅳ', title: '추가 항목', sub: '상담자가 직접 넣은 항목', tag: '필요에 따라 추가한 보장', groups: xo });
+    return out;
   }
 
   var LOGO_RULES = [
@@ -1230,7 +1274,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     });
     h += '</tr></thead><tbody>';
 
-    C.SECTIONS.forEach(function (sec) {
+    layoutSections().forEach(function (sec) {
       h += '<tr class="sect"><td colspan="' + (5 + N) + '"><div class="sb"><span><b>' + esc(sec.no + ' ' + sec.title) + '</b><em>' + esc(sec.sub) + '</em></span><span class="tag">' + esc(sec.tag) + '</span></div></td></tr>';
       sec.groups.forEach(function (g) {
         g.rows.forEach(function (r, ri) {
@@ -1620,8 +1664,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 
   function renderExtras(model) {
     var box = $('cv_extra'), src = cur();
-    if (!src) { box.innerHTML = planSection() + recSection(); planUpdate(); return; }
-    var h = (src.aggregate ? manualSection() : '') + planSection() + cmpSection(), k;
+    if (!src) { box.innerHTML = planSection() + editSection() + recSection(); planUpdate(); return; }
+    var h = (src.aggregate ? manualSection() : '') + planSection() + cmpSection() + editSection(), k;
     // 1) 합산 근거
     h += '<details class="cv-det" data-id="ev"' + (S.open.ev ? ' open' : '') + '><summary>📎 항목별 합산 근거 (어떤 담보가 합쳐졌는지)</summary>';
     var any = false;
@@ -1671,6 +1715,31 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     }
     box.innerHTML = h;
     planUpdate(); manualPremLine(); cmpPreview();
+  }
+
+  function editSection() {
+    var h = '<details class="cv-det" data-id="edit"' + (S.open.edit ? ' open' : '') + '><summary>✏️ 리포트 항목 편집 (특약 빼기 · 이름 바꾸기 · 직접 추가)</summary>';
+    h += '<div class="sub" style="margin-top:0;">체크를 끄면 그 항목이 리포트에서 빠져요. 이름을 고치면 리포트에 그대로 나와요. 이 설정은 이 브라우저에 저장돼요.</div>';
+    h += '<div class="cv-scroll">';
+    C.SECTIONS.forEach(function (sec) { sec.groups.forEach(function (g) {
+      g.rows.forEach(function (r) {
+        var key = r.sub ? 's:' + r.sub : r.k, orig = r.sub || r.label;
+        h += '<div class="cv-um"><label style="display:flex;align-items:center;gap:6px;margin:0;flex-shrink:0;"><input type="checkbox" style="width:auto;margin:0;" ' + (S.hide[key] ? '' : 'checked') + ' onchange="CVUI.setHide(\'' + key + '\',this.checked)"><span class="am" style="width:34px;text-align:left;">' + esc(g.name) + '</span></label>' +
+          '<input type="text" style="flex:1;min-width:0;padding:5px 8px;font-size:12px;' + (r.sub ? 'font-weight:700;' : '') + '" data-key="' + key + '" value="' + esc(S.labels[key] || '') + '" placeholder="' + esc(orig) + '" oninput="CVUI.setLabel(this.dataset.key,this.value)"></div>';
+      });
+    }); });
+    h += '</div><div class="cv-actions"><button class="small secondary" onclick="CVUI.resetEdit()">편집 모두 되돌리기</button></div>';
+    h += '<div class="sub" style="margin:14px 0 6px;"><b>＋ 항목 직접 추가</b> — 찾을 단어(쉼표로 여러 개)가 들어간 담보를 PDF에서 찾아 금액을 합산해요. 예) 이름 “치아보철”, 찾을 단어 “치아,임플란트”. 못 찾으면 표에서 총 보장금액 칸을 눌러 직접 입력할 수 있어요.</div>';
+    h += '<datalist id="cv_grp">' + ['암', '뇌', '심장', '치료', '수술', '간병', '사망', '일상', '실손'].map(function (x) { return '<option value="' + x + '">'; }).join('') + '</datalist>';
+    S.custom.forEach(function (cu, i) {
+      h += '<div class="cv-pl-row"><input type="text" class="nm" style="min-width:130px;" placeholder="항목 이름" value="' + esc(cu.label) + '" oninput="CVUI.setCustom(' + i + ',\'label\',this.value)">' +
+        '<input type="text" style="width:120px;" list="cv_grp" placeholder="묶음(예: 암)" value="' + esc(cu.group) + '" oninput="CVUI.setCustom(' + i + ',\'group\',this.value)">' +
+        '<input type="text" style="width:130px;" placeholder="찾을 단어" value="' + esc(cu.kw) + '" oninput="CVUI.setCustom(' + i + ',\'kw\',this.value)">' +
+        '<input type="number" class="pm" min="0" placeholder="권장(만원)" value="' + (cu.rec || '') + '" oninput="CVUI.setCustom(' + i + ',\'rec\',this.value)">' +
+        '<button class="del" title="삭제" onclick="CVUI.delCustom(' + i + ')">✕</button></div>';
+    });
+    h += '<div class="cv-actions"><button class="act" style="padding:8px 14px;font-size:13px;" onclick="CVUI.addCustom()">＋ 항목 추가</button></div></details>';
+    return h;
   }
 
   function recSection() {
@@ -1753,7 +1822,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   /* ---------- 화면 조작 ---------- */
   function editTotal(k) {
     var src = cur(); if (!src) return;
-    var it = C.ITEM_BY_KEY[k];
+    var it = C.ITEM_BY_KEY[k] || S.custom.filter(function (x) { return x.k === k; })[0] || { label: k };
     var m = lastModel || currentModel();
     var curV = src.override && src.override[k] != null ? src.override[k] : m.totals[k];
     var v = window.prompt('“' + it.label + '” 총 보장금액을 입력하세요.\n예) 5000 (만원 단위) · 5천만 · 1억5000만\n0 은 ‘없음’, 비워두면 자동 계산값을 써요.', curV != null ? String(curV) : '');
@@ -1769,6 +1838,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   }
 
   window.CVUI = {
+    setHide: function (key, on) { if (on) delete S.hide[key]; else S.hide[key] = true; lsSet('cv_hide', S.hide); renderAll(); },
+    setLabel: function (key, v) { v = String(v || '').trim(); if (v) S.labels[key] = v; else delete S.labels[key]; lsSet('cv_labels', S.labels); renderReport(); },
+    resetEdit: function () { S.hide = {}; S.labels = {}; lsSet('cv_hide', S.hide); lsSet('cv_labels', S.labels); renderAll(); },
+    addCustom: function () { S.custom.push({ k: 'x' + Date.now().toString(36), label: '', group: '', kw: '', rec: 0 }); lsSet('cv_custom', S.custom); renderAll(); },
+    delCustom: function (i) { S.custom.splice(i, 1); lsSet('cv_custom', S.custom); renderAll(); },
+    setCustom: function (i, f, v) { if (!S.custom[i]) return; S.custom[i][f] = f === 'rec' ? (Number(v) || 0) : v; lsSet('cv_custom', S.custom); lastModel = currentModel(); renderReport(); },
     pick: function (i) { S.active = i; renderAll(); },
     remove: function (i) { S.sources.splice(i, 1); S.active = S.sources.length ? Math.min(S.active, S.sources.length - 1) : -1; if (S.active < 0 && S.sources.length) S.active = 0; renderAll(); },
     setName: function (v) { var s = cur(); if (s) { s.name = v; renderReport(); } },
