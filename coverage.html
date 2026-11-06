@@ -970,7 +970,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 
   var S = {
     sources: [], active: -1,
-    mask: lsGet('cv_mask', true), footer: lsGet('cv_footer', null),
+    mask: lsGet('cv_mask', true), adName: lsGet('cv_adname', ''), adTel: lsGet('cv_adtel', ''),
     rec: lsGet('cv_rec', {}), assign: lsGet('cv_assign', {}), logos: lsGet('cv_logos', {}),
     open: {},
     plan: { keep: [], drop: [], repl: [], baseNote: '(종신보험·납입완료건 제외)', endNote: '' },
@@ -1165,7 +1165,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     if (a.length === 2) return a[0] + 'O';
     return a[0] + new Array(a.length - 1).join('O') + a[a.length - 1];
   }
-  function footerText() { return S.footer !== null ? S.footer : ('AFG 광주센터' + (managerName() ? ' · ' + managerName() : '')); }
+  function footerText() { return ['AFG', (S.adName || '').trim(), (S.adTel || '').trim()].filter(Boolean).join(' '); }
   function cfgFor(src) { return { rec: S.rec, assign: S.assign, override: src.override || {}, manual: src.manual ? src.manual.contracts : null }; }
   function shortName(c) {
     var s = String(c || '').replace(/\(주\)|주식회사|㈜/g, '').replace(/\s+/g, '').replace(/손해보험/, '손보').replace(/생명보험/, '생명');
@@ -1594,7 +1594,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       '<div class="cv-opts">' +
       '<div><label>고객명</label><input type="text" id="cv_name" value="' + esc(src.name) + '" placeholder="예: 박정희" oninput="CVUI.setName(this.value)"></div>' +
       '<div><label>작성기준일</label><input type="date" id="cv_date" value="' + esc(src.dateVal || todayStr()) + '" oninput="CVUI.setDate(this.value)"></div>' +
-      '<div class="grow"><label>하단 표시 문구</label><input type="text" id="cv_footer" value="' + esc(footerText()) + '" placeholder="예: AFG 광주센터 · 송명호" oninput="CVUI.setFooter(this.value)"></div>' +
+      '<div><label>상담사명</label><input type="text" id="cv_adname" value="' + esc(S.adName) + '" placeholder="예: 홍길동" oninput="CVUI.setAd(\'adName\',this.value)"></div>' +
+      '<div><label>연락처</label><input type="text" id="cv_adtel" value="' + esc(S.adTel) + '" placeholder="예: 010-0000-0000" oninput="CVUI.setAd(\'adTel\',this.value)"></div>' +
       '<div><label class="ck"><input type="checkbox" id="cv_mask" ' + (S.mask ? 'checked' : '') + ' onchange="CVUI.setMask(this.checked)">이름 가운데 글자 가리기</label></div>' +
       '</div>' +
       '<div class="cv-actions">' +
@@ -1768,7 +1769,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     remove: function (i) { S.sources.splice(i, 1); S.active = S.sources.length ? Math.min(S.active, S.sources.length - 1) : -1; if (S.active < 0 && S.sources.length) S.active = 0; renderAll(); },
     setName: function (v) { var s = cur(); if (s) { s.name = v; renderReport(); } },
     setDate: function (v) { var s = cur(); if (s) { s.dateVal = v; renderReport(); } },
-    setFooter: function (v) { S.footer = v; lsSet('cv_footer', v); renderReport(); },
+    setAd: function (k, v) { S[k] = v; lsSet(k === 'adName' ? 'cv_adname' : 'cv_adtel', v); renderReport(); },
     setMask: function (on) { S.mask = !!on; lsSet('cv_mask', S.mask); renderReport(); },
     setRec: function (el) {
       var k = el.getAttribute('data-k'), v = parseFloat(el.value);
