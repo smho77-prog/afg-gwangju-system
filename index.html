@@ -2295,22 +2295,20 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     </div>
     <div class="card">
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">
-        <b style="font-size:14px;">🗓️ 일자별 DB 배분 확인 (수기 입력)</b>
+        <b style="font-size:14px;">🗓️ 일자별 DB 배분 입력</b>
         <button class="secondary small" onclick="dbdShift(-1)">◀</button>
         <input type="date" id="dbd_date" style="width:auto;" onchange="dbdLoad()">
         <button class="secondary small" onclick="dbdShift(1)">▶</button>
         <button class="secondary small" onclick="dbdToday()">오늘</button>
       </div>
-      <div class="sub" style="margin:0 0 8px;">어센틱 전산을 보면서 팀장님별로 그날 받은 DB를 직접 입력해 확인합니다. 엑셀을 올리지 않아도 됩니다. 콜시간·시도 횟수는 <b>콜 모니터링의 일일 입력과 같은 자료</b>라서 여기서 저장하면 그쪽에도 그대로 나타납니다.</div>
-      <div id="dbd_chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
-      <div id="dbd_editor"></div>
+      <div class="sub" style="margin:0 0 8px;">어센틱 전산을 보면서 <b>팀장님별로 그날 받은 DB 수량</b>만 칸에 입력하세요. 받지 않은 칸은 비워 두면 됩니다. 엔터를 누르면 아래 칸으로 내려가고, 맨 아래 <b>저장</b> 한 번이면 끝납니다. 콜시간·시도는 선택 입력이며 콜 모니터링 일일 입력과 같은 자료입니다.</div>
+      <div id="dbd_grid" style="overflow-x:auto;"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;"><button class="act" onclick="dbdSave()">저장</button><span id="dbd_msg" style="font-size:12.5px;"></span></div>
     </div>
     <div class="card">
-      <div style="font-weight:700;margin-bottom:6px;">이 날짜 전체 현황 <span id="dbd_info" style="font-weight:400;font-size:12px;color:var(--muted);"></span></div>
-      <div style="overflow-x:auto;"><table style="min-width:760px;">
-        <thead><tr><th style="width:11%">팀장</th><th style="width:17%">DB종류</th><th style="width:8%">수량</th><th style="width:12%">터치 유무</th><th style="width:12%">메모값 유무</th><th style="width:10%">터치횟수</th><th style="width:15%">콜시간</th><th style="width:10%">시도(통)</th></tr></thead>
-        <tbody id="dbd_summary"></tbody>
-      </table></div>
+      <div style="font-weight:700;margin-bottom:4px;">⚖️ 배분 균형 확인 <span id="dbd_info" style="font-weight:400;font-size:12px;color:var(--muted);"></span></div>
+      <div class="sub" style="margin:0 0 8px;">이번 달 1일부터 선택한 날짜까지, 받은 DB 비중을 <b>활동량(콜시간)</b>과 <b>실적(계약 보험료)</b> 비중과 견줍니다. 숫자는 참고용이며, 비교에서 빼고 싶은 팀장님은 체크를 해제하세요(이 PC에 기억).</div>
+      <div id="dbd_balance" style="overflow-x:auto;"></div>
     </div>
   </div>
 
@@ -2846,10 +2844,12 @@ function dbCopySql(){
 }
 
 /* ---------- 일자별 배분 확인 (마스터 전용, 어센틱 전산을 보며 수기 입력) ----------
-   · 테이블 db_daily_checks(날짜·팀장·DB종류별 수량/터치/메모/터치횟수) — 아래 DBD_SQL을 처음 한 번 실행
-   · 콜시간·시도 횟수는 콜 모니터링 일일 입력과 같은 daily_activity(call_seconds, call_attempts)에 저장해 자동 연동 */
+   · 날짜 × 팀장 표에 DB종류별 수량만 입력 → db_daily_checks(날짜·팀장·DB종류별 qty). 아래 DBD_SQL을 처음 한 번 실행
+   · 터치 유무·메모값 유무·터치횟수는 더 이상 입력하지 않음(예전 입력값은 DB에 그대로 남아 있고 화면에서만 숨김)
+   · 콜시간·시도 횟수(선택)는 콜 모니터링 일일 입력과 같은 daily_activity(call_seconds, call_attempts)에 저장해 자동 연동
+   · 아래 "배분 균형 확인"은 이번 달 누적 DB 비중 vs 활동(콜시간)·실적(계약 보험료) 비중 */
 const DB_DAILY_MGRS = ['김라희','박현주','배혜영','안세현','안지예','유명수','윤혜원','임채주','정인옥'];
-const DBD_TYPES = ['상품광고3','상품광고2','상품광고1','퍼미션','TV광고','카카오','카카오페이','신규','기타'];
+const DBD_TYPES = ['상품광고3','상품광고2','상품광고1','퍼미션','TV광고','카카오','기타'];
 const DBD_SQL = `create table if not exists db_daily_checks (
   id bigint generated always as identity primary key,
   activity_date date not null,
@@ -2865,10 +2865,14 @@ const DBD_SQL = `create table if not exists db_daily_checks (
 alter table daily_activity add column if not exists call_seconds integer;
 alter table daily_activity add column if not exists call_attempts integer;
 grant select, insert, update, delete on db_daily_checks to anon, authenticated;`;
-let dbdRows = [];      // 이 날짜의 db_daily_checks
-let dbdAct = [];       // 이 날짜의 daily_activity (콜시간·시도)
-let dbdMgr = DB_DAILY_MGRS[0];
-let dbdEdit = [];      // 편집 중인 줄
+let dbdRows = [];       // 이 날짜의 db_daily_checks
+let dbdAct = [];        // 이 날짜의 daily_activity (콜시간·시도)
+let dbdMonthRows = [];  // 이번 달 1일 ~ 선택일 db_daily_checks
+let dbdMonthAct = [];   // 이번 달 1일 ~ 선택일 daily_activity
+let dbdMonthCon = [];   // 이번 달 1일 ~ 선택일 계약(팀장·보험료)
+let dbdNames = [];      // 표에 보이는 팀장 순서
+let dbdCols = [];       // 표에 보이는 DB종류 순서
+let dbdCallDirty = {};  // 콜시간·시도를 고친 팀장(인덱스)
 function dbDayKey(d){ return `${d.getFullYear()}-${dbPad(d.getMonth()+1)}-${dbPad(d.getDate())}`; }
 function dbdDate(){
   const el = document.getElementById('dbd_date');
@@ -2886,140 +2890,196 @@ function dbdCopySql(btn){
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(DBD_SQL).then(done, () => alert('복사에 실패했어요. 직접 선택해서 복사해주세요.'));
   else alert('복사에 실패했어요. 직접 선택해서 복사해주세요.');
 }
-function dbdTypeList(extra){
-  const set = new Set(DBD_TYPES);
-  (dbRows || []).forEach(r => { if (r.db_type) set.add(r.db_type); });
-  (extra || []).forEach(t => { if (t) set.add(t); });
-  return Array.from(set);
-}
-function dbdMgrList(){
-  const names = DB_DAILY_MGRS.slice();
-  dbdRows.forEach(r => { if (names.indexOf(r.manager_name) < 0) names.push(r.manager_name); });
-  return names;
+async function dbdFetchPaged(table, cols, apply, orderCol){
+  let all = [], from = 0;
+  for (;;) {
+    let q = apply(sb.from(table).select(cols));
+    if (orderCol) q = q.order(orderCol);
+    const r = await q.range(from, from + 999);
+    if (r.error) return { error: r.error, data: all };
+    const d = r.data || [];
+    all = all.concat(d);
+    if (d.length < 1000) break;
+    from += 1000;
+  }
+  return { data: all };
 }
 async function dbdLoad(){
   if (!(currentUser && currentUser.role === 'master')) return;
   const day = dbdDate();
+  const first = day.slice(0, 8) + '01';
   const box = document.getElementById('dbd_sqlBox');
-  let r1 = await sb.from('db_daily_checks').select('*').eq('activity_date', day).order('id');
+  const r1 = await dbdFetchPaged('db_daily_checks', '*', q => q.gte('activity_date', first).lte('activity_date', day), 'id');
   if (r1.error) {
-    dbdRows = [];
+    dbdMonthRows = [];
     document.getElementById('dbd_sqlText').textContent = DBD_SQL;
     box.style.display = '';
-  } else { dbdRows = r1.data || []; box.style.display = 'none'; }
-  const r2 = await sb.from('daily_activity').select('*').eq('activity_date', day);
-  dbdAct = r2.error ? [] : (r2.data || []);
-  dbdPick(dbdMgr);
-  dbdRenderSummary();
+  } else { dbdMonthRows = r1.data; box.style.display = 'none'; }
+  const r2 = await dbdFetchPaged('daily_activity', '*', q => q.gte('activity_date', first).lte('activity_date', day), null);
+  dbdMonthAct = r2.error ? [] : r2.data;
+  const r3 = await dbdFetchPaged('contracts', 'manager_name,premium,contract_date', q => q.gte('contract_date', first).lte('contract_date', day), 'id');
+  dbdMonthCon = r3.error ? [] : r3.data;
+  dbdRows = dbdMonthRows.filter(r => String(r.activity_date).slice(0, 10) === day);
+  dbdAct = dbdMonthAct.filter(a => String(a.activity_date).slice(0, 10) === day);
+  const names = DB_DAILY_MGRS.slice();
+  dbdMonthRows.concat(dbdMonthAct).forEach(r => { if (r.manager_name && names.indexOf(r.manager_name) < 0) names.push(r.manager_name); });
+  dbdNames = names;
+  const cols = DBD_TYPES.slice();
+  dbdMonthRows.forEach(r => { if (r.db_type && cols.indexOf(r.db_type) < 0) cols.push(r.db_type); });
+  dbdCols = cols;
+  dbdCallDirty = {};
+  dbdRenderGrid();
+  dbdRenderBalance();
 }
-function dbdPick(m){
-  dbdMgr = m;
-  const rows = dbdRows.filter(r => r.manager_name === m);
-  dbdEdit = rows.map(r => ({ db_type: r.db_type, qty: r.qty, touch_ok: r.touch_ok, memo_ok: r.memo_ok, touch_count: r.touch_count }));
-  dbdRenderEditor();
-}
-function dbdTri(v){ return v === true ? 'y' : (v === false ? 'n' : ''); }
-function dbdRenderEditor(){
-  const el = document.getElementById('dbd_editor'); if (!el) return;
-  const names = dbdMgrList();
-  const done = new Set(dbdRows.map(r => r.manager_name).concat(dbdAct.filter(a => a.call_seconds != null || a.call_attempts != null).map(a => a.manager_name)));
-  document.getElementById('dbd_chips').innerHTML = names.map(n => {
-    const on = n === dbdMgr;
-    return `<button type="button" class="secondary small" style="${on ? 'background:#4F46E5;color:#fff;border-color:#4F46E5;' : ''}" data-n="${escapeHtml(n)}" onclick="dbdPick(this.dataset.n)">${escapeHtml(n)}${done.has(n) ? ' ✔' : ''}</button>`;
+function dbdRenderGrid(){
+  const el = document.getElementById('dbd_grid'); if (!el) return;
+  const num = (id, v, w, extra) => `<input type="number" id="${id}" min="0" step="1" inputmode="numeric" value="${v}" style="width:${w}px;text-align:center;padding:6px 4px;" ${extra || ''}>`;
+  const head = `<tr><th style="min-width:80px;">팀장</th>${dbdCols.map(t => `<th style="text-align:center;white-space:nowrap;${DB_EXCLUDE_TYPES.indexOf(t) >= 0 ? 'color:var(--muted);' : ''}">${escapeHtml(t)}</th>`).join('')}<th style="text-align:center;">합계</th><th style="text-align:center;white-space:nowrap;">콜시간 <span style="font-weight:400;font-size:11px;">시:분(선택)</span></th><th style="text-align:center;white-space:nowrap;">시도 <span style="font-weight:400;font-size:11px;">통(선택)</span></th></tr>`;
+  const body = dbdNames.map((n, i) => {
+    const mine = dbdRows.filter(r => r.manager_name === n);
+    const cells = dbdCols.map((t, j) => {
+      const r = mine.find(x => x.db_type === t);
+      return `<td style="text-align:center;padding:4px;">${num(`dbd_c_${i}_${j}`, r ? r.qty : '', 62, `data-col="${j}" data-row="${i}" onfocus="this.select()" oninput="dbdCalc(${i})" onkeydown="dbdKey(event,${i},${j})"`)}</td>`;
+    }).join('');
+    const a = dbdAct.find(x => x.manager_name === n) || {};
+    const sec = a.call_seconds == null ? null : Number(a.call_seconds);
+    const hh = sec === null ? '' : Math.floor(sec / 3600), mm = sec === null ? '' : Math.floor((sec % 3600) / 60);
+    const tot = mine.filter(r => DB_EXCLUDE_TYPES.indexOf(r.db_type) < 0).reduce((s, r) => s + (Number(r.qty) || 0), 0);
+    return `<tr><td style="font-weight:700;white-space:nowrap;">${escapeHtml(n)}</td>${cells}
+      <td style="text-align:center;font-weight:700;" id="dbd_tot_${i}">${tot}</td>
+      <td style="text-align:center;white-space:nowrap;padding:4px;">${num(`dbd_h_${i}`, hh, 46, `oninput="dbdCallDirty[${i}]=true"`)} : ${num(`dbd_m_${i}`, mm, 46, `oninput="dbdCallDirty[${i}]=true"`)}</td>
+      <td style="text-align:center;padding:4px;">${num(`dbd_a_${i}`, a.call_attempts == null ? '' : a.call_attempts, 62, `oninput="dbdCallDirty[${i}]=true"`)}</td></tr>`;
   }).join('');
-  const types = dbdTypeList(dbdEdit.map(x => x.db_type));
-  const sel = (i, k, v, opts) => `<select style="width:auto;" onchange="dbdSet(${i},'${k}',this.value)">${opts.map(o => `<option value="${o[0]}"${o[0] === v ? ' selected' : ''}>${o[1]}</option>`).join('')}</select>`;
-  const tri = [['', '선택'], ['y', '✅ 있음'], ['n', '⚠ 없음']];
-  const rows = dbdEdit.map((x, i) => `<tr>
-    <td>${sel(i, 'db_type', x.db_type || '', [['', 'DB종류 선택']].concat(types.map(t => [escapeHtml(t), escapeHtml(t)])))}</td>
-    <td><input type="number" min="0" step="1" inputmode="numeric" value="${x.qty === null || x.qty === undefined ? '' : x.qty}" style="width:70px;text-align:center;" onchange="dbdSet(${i},'qty',this.value)"></td>
-    <td>${sel(i, 'touch_ok', dbdTri(x.touch_ok), tri)}</td>
-    <td>${sel(i, 'memo_ok', dbdTri(x.memo_ok), tri)}</td>
-    <td><input type="number" min="0" step="1" inputmode="numeric" value="${x.touch_count === null || x.touch_count === undefined ? '' : x.touch_count}" style="width:70px;text-align:center;" onchange="dbdSet(${i},'touch_count',this.value)"></td>
-    <td><button type="button" class="secondary small" onclick="dbdDel(${i})">✕</button></td></tr>`).join('');
-  const act = dbdAct.find(a => a.manager_name === dbdMgr) || {};
-  const sec = act.call_seconds == null ? null : Number(act.call_seconds);
-  const dp = sec === null ? { h: '', m: '', s: '' } : { h: Math.floor(sec / 3600), m: Math.floor((sec % 3600) / 60), s: sec % 60 };
-  const num = (id, v, w) => `<input type="number" id="${id}" min="0" step="1" inputmode="numeric" value="${v}" style="width:${w}px;text-align:center;">`;
-  el.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">${escapeHtml(dbdMgr)} 팀장 — ${escapeHtml(dbdDate())}</div>
-    <div style="overflow-x:auto;"><table style="min-width:640px;">
-      <thead><tr><th>DB종류</th><th>수량</th><th>터치 유무</th><th>메모값 유무</th><th>터치횟수</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="6" style="color:var(--muted);">아직 입력한 DB가 없어요. 아래 “+ DB종류 추가”를 눌러 주세요.</td></tr>'}</tbody></table></div>
-    <div style="margin:8px 0;"><button type="button" class="secondary small" onclick="dbdAdd()">+ DB종류 추가</button></div>
-    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:10px 0;padding:8px 10px;background:var(--ui-slate-50);border-radius:8px;">
-      <span style="font-weight:700;font-size:13px;">📞 콜량</span>
-      <span style="white-space:nowrap;">콜시간 ${num('dbd_h', dp.h, 66)} : ${num('dbd_m', dp.m, 66)} : ${num('dbd_s', dp.s, 66)} <span style="font-size:11px;color:var(--muted);">시:분:초</span></span>
-      <span style="white-space:nowrap;">시도 횟수 ${num('dbd_att', act.call_attempts == null ? '' : act.call_attempts, 72)} <span style="font-size:11px;color:var(--muted);">통</span></span>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button class="act" onclick="dbdSave()">저장</button><span id="dbd_msg" style="font-size:12.5px;"></span></div>`;
+  const colTot = dbdCols.map((t, j) => `<td style="text-align:center;font-weight:700;" id="dbd_ct_${j}">0</td>`).join('');
+  el.innerHTML = `<table style="min-width:${300 + dbdCols.length * 72}px;"><thead>${head}</thead><tbody>${body}
+    <tr style="background:var(--ui-slate-50);"><td style="font-weight:700;">합계</td>${colTot}<td style="text-align:center;font-weight:700;" id="dbd_gt">0</td><td></td><td></td></tr></tbody></table>
+    <div class="sub" style="margin:6px 0 0;">합계 칸에서 신규·카카오페이는 빼고 셉니다(DB관리 집계와 같은 기준).</div>`;
+  dbdCalc(-1);
 }
-function dbdSet(i, k, v){
-  const x = dbdEdit[i]; if (!x) return;
-  if (k === 'db_type') x.db_type = v;
-  else if (k === 'touch_ok' || k === 'memo_ok') x[k] = v === 'y' ? true : (v === 'n' ? false : null);
-  else x[k] = v === '' ? null : Number(v);
+function dbdKey(e, i, j){
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const nx = document.getElementById(`dbd_c_${i + 1}_${j}`) || document.getElementById(`dbd_c_0_${(j + 1) % dbdCols.length}`);
+  if (nx) { nx.focus(); nx.select(); }
 }
-function dbdAdd(){ dbdEdit.push({ db_type: '', qty: null, touch_ok: null, memo_ok: null, touch_count: null }); dbdRenderEditor(); }
-function dbdDel(i){ dbdEdit.splice(i, 1); dbdRenderEditor(); }
+function dbdCellVal(i, j){
+  const e = document.getElementById(`dbd_c_${i}_${j}`);
+  if (!e) return null;
+  const v = e.value.trim();
+  return v === '' ? null : Number(v);
+}
+function dbdCalc(){
+  let gt = 0;
+  dbdNames.forEach((n, i) => {
+    let t = 0;
+    dbdCols.forEach((c, j) => { const v = dbdCellVal(i, j); if (v != null && !isNaN(v) && DB_EXCLUDE_TYPES.indexOf(c) < 0) t += v; });
+    const el = document.getElementById(`dbd_tot_${i}`); if (el) el.textContent = t;
+    gt += t;
+  });
+  dbdCols.forEach((c, j) => {
+    let t = 0;
+    dbdNames.forEach((n, i) => { const v = dbdCellVal(i, j); if (v != null && !isNaN(v)) t += v; });
+    const el = document.getElementById(`dbd_ct_${j}`); if (el) el.textContent = t;
+  });
+  const g = document.getElementById('dbd_gt'); if (g) g.textContent = gt;
+}
 async function dbdSave(){
   const msg = document.getElementById('dbd_msg');
   const say = (c, t) => { msg.style.color = c; msg.textContent = t; };
-  const day = dbdDate(), m = dbdMgr;
-  const seen = new Set(), items = [];
-  for (const x of dbdEdit) {
-    if (!x.db_type) { if (x.qty == null && x.touch_ok == null && x.memo_ok == null && x.touch_count == null) continue; say('var(--red)', 'DB종류를 고르지 않은 줄이 있어요.'); return; }
-    if (seen.has(x.db_type)) { say('var(--red)', `“${x.db_type}”가 두 줄이에요. 한 줄로 합쳐 주세요.`); return; }
-    seen.add(x.db_type);
-    [x.qty, x.touch_count].forEach(v => { if (v != null && (isNaN(v) || v < 0 || Math.floor(v) !== v)) seen.add('__bad__'); });
-    if (x.qty == null) { say('var(--red)', `“${x.db_type}”의 수량을 입력해 주세요.`); return; }
-    items.push({ activity_date: day, manager_name: m, db_type: x.db_type, qty: x.qty, touch_ok: x.touch_ok, memo_ok: x.memo_ok, touch_count: x.touch_count, updated_at: new Date().toISOString() });
+  const day = dbdDate();
+  const items = [], delIds = [], acts = [];
+  const nowIso = new Date().toISOString();
+  for (let i = 0; i < dbdNames.length; i++) {
+    const n = dbdNames[i];
+    for (let j = 0; j < dbdCols.length; j++) {
+      const t = dbdCols[j], v = dbdCellVal(i, j);
+      const old = dbdRows.find(r => r.manager_name === n && r.db_type === t);
+      if (v === null) { if (old) delIds.push(old.id); continue; }
+      if (isNaN(v) || v < 0 || Math.floor(v) !== v) { say('var(--red)', `${n} 팀장 “${t}” 칸은 0 이상의 정수로 입력해 주세요.`); return; }
+      if (old && Number(old.qty) === v) continue;
+      items.push({ activity_date: day, manager_name: n, db_type: t, qty: v, updated_at: nowIso });
+    }
+    if (dbdCallDirty[i]) {
+      const g = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
+      const h = g(`dbd_h_${i}`), m = g(`dbd_m_${i}`), a = g(`dbd_a_${i}`);
+      const noT = h === '' && m === '', noA = a === '';
+      if (noT && noA) continue;
+      const H = h === '' ? 0 : Number(h), M = m === '' ? 0 : Number(m), A = a === '' ? 0 : Number(a);
+      if ([H, M, A].some(x => isNaN(x) || x < 0 || Math.floor(x) !== x) || M > 59) { say('var(--red)', `${n} 팀장 콜시간·시도는 0 이상의 정수로, 분은 59 이하로 입력해 주세요.`); return; }
+      acts.push({ activity_date: day, manager_name: n, call_seconds: noT ? null : H * 3600 + M * 60, call_attempts: noA ? null : A, updated_at: nowIso });
+    }
   }
-  if (seen.has('__bad__')) { say('var(--red)', '수량과 터치횟수는 0 이상의 정수로 입력해 주세요.'); return; }
-  const g = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
-  const h = g('dbd_h'), mi = g('dbd_m'), se = g('dbd_s'), at = g('dbd_att');
-  const noTime = h === '' && mi === '' && se === '', noAtt = at === '';
-  const toN = v => v === '' ? 0 : Number(v);
-  const H = toN(h), M = toN(mi), S = toN(se), A = toN(at);
-  if ([H, M, S, A].some(v => isNaN(v) || v < 0 || Math.floor(v) !== v) || M > 59 || S > 59) { say('var(--red)', '콜시간·시도 횟수는 0 이상의 정수로, 분과 초는 59 이하로 입력해 주세요.'); return; }
   say('var(--muted)', '저장 중…');
   if (items.length) {
     const r = await sb.from('db_daily_checks').upsert(items, { onConflict: 'activity_date,manager_name,db_type' });
     if (r.error) { say('var(--red)', '저장 실패: ' + r.error.message + ' — 화면 위의 SQL을 먼저 실행했는지 확인해 주세요.'); document.getElementById('dbd_sqlText').textContent = DBD_SQL; document.getElementById('dbd_sqlBox').style.display = ''; return; }
   }
-  // 지운 줄 정리 (새로 저장한 뒤에 지워서, 실패해도 입력이 사라지지 않게)
-  const keep = new Set(items.map(i => i.db_type));
-  const delIds = dbdRows.filter(r => r.manager_name === m && !keep.has(r.db_type)).map(r => r.id);
-  if (delIds.length) { const r = await sb.from('db_daily_checks').delete().in('id', delIds); if (r.error) { say('var(--red)', '지운 줄 정리 실패: ' + r.error.message); return; } }
-  // 콜량: 콜 모니터링 일일 입력과 같은 테이블. 둘 다 비었으면 건드리지 않는다.
-  if (!(noTime && noAtt)) {
-    const r = await sb.from('daily_activity').upsert([{ activity_date: day, manager_name: m, call_seconds: noTime ? null : H * 3600 + M * 60 + S, call_attempts: noAtt ? null : A, updated_at: new Date().toISOString() }], { onConflict: 'activity_date,manager_name' });
+  // 비운 칸 정리 (새로 저장한 뒤에 지워서, 실패해도 입력이 사라지지 않게)
+  if (delIds.length) { const r = await sb.from('db_daily_checks').delete().in('id', delIds); if (r.error) { say('var(--red)', '비운 칸 정리 실패: ' + r.error.message); return; } }
+  if (acts.length) {
+    const r = await sb.from('daily_activity').upsert(acts, { onConflict: 'activity_date,manager_name' });
     if (r.error) { say('var(--red)', '콜량 저장 실패: ' + r.error.message + ' — ' + MON_ALTER_SQL); return; }
     try { if (typeof monLoaded !== 'undefined' && monLoaded) { monDaily = await monFetchAll('daily_activity'); if (typeof monRefreshCall === 'function') monRefreshCall(); } } catch (e) {}
   }
   await dbdLoad();
   const m2 = document.getElementById('dbd_msg');
-  if (m2) { m2.style.color = 'var(--green)'; m2.textContent = '✓ 저장했어요'; }
+  if (m2) { m2.style.color = 'var(--green)'; m2.textContent = `✓ 저장했어요 (${items.length}칸 저장${delIds.length ? ' · ' + delIds.length + '칸 비움' : ''})`; }
 }
-function dbdRenderSummary(){
-  const body = document.getElementById('dbd_summary'); if (!body) return;
-  const yn = v => v === true ? '<span style="color:#15803D;font-weight:700;">✅ 있음</span>' : (v === false ? '<span style="color:#B45309;font-weight:700;">⚠ 없음</span>' : '<span style="color:var(--muted);">-</span>');
-  let sum = 0, noT = 0, noM = 0;
-  const dur = a => { if (!a || a.call_seconds == null) return '<span style="color:var(--muted);">-</span>'; const t = Number(a.call_seconds); return `${dbPad(Math.floor(t / 3600))}:${dbPad(Math.floor(t % 3600 / 60))}:${dbPad(t % 60)}`; };
-  const att = a => (a && a.call_attempts != null) ? a.call_attempts : '<span style="color:var(--muted);">-</span>';
-  body.innerHTML = dbdMgrList().map(n => {
-    const rs = dbdRows.filter(r => r.manager_name === n);
-    const a = dbdAct.find(x => x.manager_name === n);
-    const lead = `<td rowspan="${Math.max(rs.length, 1)}" style="vertical-align:top;border-right:1px solid var(--line);"><a href="#" onclick="dbdPick('${escapeHtml(n)}');window.scrollTo(0,0);return false;" style="font-weight:700;color:inherit;">${escapeHtml(n)}</a></td>`;
-    const tail = `<td rowspan="${Math.max(rs.length, 1)}" style="vertical-align:top;">${dur(a)}</td><td rowspan="${Math.max(rs.length, 1)}" style="vertical-align:top;">${att(a)}</td>`;
-    if (!rs.length) return `<tr>${lead}<td colspan="5" style="color:var(--muted);">입력 없음</td>${tail}</tr>`;
-    return rs.map((r, i) => {
-      sum += r.qty || 0; if (r.touch_ok === false) noT++; if (r.memo_ok === false) noM++;
-      const dim = DB_EXCLUDE_TYPES.indexOf(r.db_type) >= 0 ? 'color:var(--muted);' : '';
-      return `<tr>${i === 0 ? lead : ''}<td style="${dim}">${escapeHtml(r.db_type)}</td><td><b>${r.qty}</b></td><td>${yn(r.touch_ok)}</td><td>${yn(r.memo_ok)}</td><td>${r.touch_count == null ? '<span style="color:var(--muted);">-</span>' : r.touch_count + '회'}</td>${i === 0 ? tail : ''}</tr>`;
-    }).join('');
+/* 배분 균형: 비교에서 뺀 팀장은 이 PC(localStorage)에 기억 */
+function dbdExcluded(){ try { return JSON.parse(localStorage.getItem('afg_dbd_ex') || '[]'); } catch (e) { return []; } }
+function dbdToggleEx(i, on){
+  const n = dbdNames[i]; if (!n) return;
+  let ex = dbdExcluded().filter(x => x !== n);
+  if (!on) ex.push(n);
+  try { localStorage.setItem('afg_dbd_ex', JSON.stringify(ex)); } catch (e) {}
+  dbdRenderBalance();
+}
+function dbdRenderBalance(){
+  const el = document.getElementById('dbd_balance'); if (!el) return;
+  const ex = dbdExcluded();
+  const day = dbdDate();
+  const stat = dbdNames.map(n => {
+    const db = dbdMonthRows.filter(r => r.manager_name === n && DB_EXCLUDE_TYPES.indexOf(r.db_type) < 0).reduce((s, r) => s + (Number(r.qty) || 0), 0);
+    const today = dbdRows.filter(r => r.manager_name === n && DB_EXCLUDE_TYPES.indexOf(r.db_type) < 0).reduce((s, r) => s + (Number(r.qty) || 0), 0);
+    const acts = dbdMonthAct.filter(a => a.manager_name === n);
+    const sec = acts.reduce((s, a) => s + (Number(a.call_seconds) || 0), 0);
+    const cons = dbdMonthCon.filter(c => c.manager_name === n);
+    const prem = cons.reduce((s, c) => s + (Number(c.premium) || 0), 0);
+    return { n, db, today, sec, cnt: cons.length, prem, inc: ex.indexOf(n) < 0 };
+  });
+  const inc = stat.filter(s => s.inc);
+  const T = k => inc.reduce((s, x) => s + x[k], 0);
+  const tDb = T('db'), tSec = T('sec'), tPrem = T('prem');
+  const pc = (v, t) => t > 0 ? v / t * 100 : null;
+  const fmt = v => v === null ? '-' : v.toFixed(1) + '%';
+  const fmtT = s => s > 0 ? `${Math.floor(s / 3600)}시간 ${Math.floor(s % 3600 / 60)}분` : '-';
+  const rows = stat.map((s, i) => {
+    let dbS = null, acS = null, pfS = null, base = null, verdict = '<span style="color:var(--muted);">-</span>', adj = '';
+    if (s.inc) {
+      dbS = pc(s.db, tDb); acS = pc(s.sec, tSec); pfS = pc(s.prem, tPrem);
+      const refs = [acS, pfS].filter(v => v !== null);
+      if (refs.length) base = refs.reduce((a, b) => a + b, 0) / refs.length;
+      if (tDb > 0 && base !== null && base > 0) {
+        const need = Math.round(base / 100 * tDb - s.db);   // 활동·실적 비중에 맞는 DB 수량과의 차이
+        const ratio = (dbS || 0) / base;
+        if (ratio < 0.85) { verdict = '<span style="color:#B45309;font-weight:700;">➕ DB 더 배분</span>'; adj = `+${Math.max(need, 1)}건`; }
+        else if (ratio > 1.15) { verdict = '<span style="color:#1D4ED8;font-weight:700;">➖ 수량 조절</span>'; adj = `${Math.min(need, -1)}건`; }
+        else verdict = '<span style="color:#15803D;font-weight:700;">✅ 적정</span>';
+      } else if (tDb > 0 && s.db > 0) verdict = '<span style="color:var(--muted);font-size:12px;">활동·실적 입력 없음</span>';
+    }
+    const dim = s.inc ? '' : 'opacity:.45;';
+    return `<tr style="${dim}"><td style="text-align:center;"><input type="checkbox" ${s.inc ? 'checked' : ''} onchange="dbdToggleEx(${i}, this.checked)" style="width:auto;"></td>
+      <td style="font-weight:700;white-space:nowrap;">${escapeHtml(s.n)}</td>
+      <td style="text-align:right;"><b>${s.db}</b>건<div style="font-size:11px;color:var(--muted);">오늘 ${s.today}</div></td>
+      <td style="text-align:right;">${fmt(dbS)}</td>
+      <td style="text-align:right;">${fmt(acS)}<div style="font-size:11px;color:var(--muted);">${fmtT(s.sec)}</div></td>
+      <td style="text-align:right;">${fmt(pfS)}<div style="font-size:11px;color:var(--muted);">${s.cnt}건 · ${s.prem.toLocaleString('ko-KR')}원</div></td>
+      <td style="white-space:nowrap;">${verdict}</td><td style="text-align:right;font-weight:700;white-space:nowrap;">${adj}</td></tr>`;
   }).join('');
+  el.innerHTML = `<table style="min-width:700px;"><thead><tr><th style="width:6%;text-align:center;">비교</th><th>팀장</th><th style="text-align:right;">받은 DB(이번 달)</th><th style="text-align:right;">DB 비중</th><th style="text-align:right;">활동 비중<div style="font-weight:400;font-size:11px;">콜시간</div></th><th style="text-align:right;">실적 비중<div style="font-weight:400;font-size:11px;">계약 보험료</div></th><th>판단</th><th style="text-align:right;">조정 권장</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="sub" style="margin:8px 0 0;">판단 기준: DB 비중이 (활동 비중·실적 비중의 평균)의 85% 미만이면 “더 배분”, 115% 초과면 “수량 조절”입니다. 조정 권장 수량은 그 평균 비중에 맞췄을 때의 차이입니다. 콜시간이나 계약이 아직 입력되지 않은 달 초에는 숫자가 흔들리니 참고만 하세요.</div>`;
   const info = document.getElementById('dbd_info');
-  if (info) info.textContent = `· 수량 합계 ${sum}건 · 터치 없음 ${noT}줄 · 메모 없음 ${noM}줄`;
+  if (info) info.textContent = `· ${day.slice(0, 7)} 1일~${day.slice(8)}일 누적 · 비교 대상 DB ${tDb}건`;
 }
 
 /* ---------- 현황판 (3회 미만 터치 / 상담예약·가망 재터치 두 가지만) ---------- */
