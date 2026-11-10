@@ -56,6 +56,7 @@
 | 기사 스크랩 | 전체 | `news_scraps` |
 | 나는 이렇게 반론했어요 | 전체 | `objection_rebuttals` |
 | 전국 종합병원 지도 / 암치료비 타임라인 | 전체 | — |
+| 🖍️ PDF 편집 (상담 도구 맨 아래, 💌 안부카드 밑) | 전체 | 새 테이블 없음 — 파일은 서버에 올리지 않고 브라우저 안에서만 처리 (`pdf-editor.html`) |
 | 💌 안부카드 (상담 도구 맨 아래, 암·병원 자료 밑) | 만들기 전체 / 사진 올리기는 **마스터** | 새 테이블 없음 — Storage 보관함 `greeting-photos` (사진 + `manifest.json`), 화면은 `greeting-card.html` |
 | DB관리 (누수 관리) | 본인 담당 / 마스터 전체 | `db_customers` |
 | 콜 모니터링 | **마스터 전용** | `mon_customers`(이 탭 전용 DB, DB관리와 별개), `db_snapshots`, `daily_activity`, `daily_prospects`, `call_checks` |
@@ -106,6 +107,12 @@
 - 서버 연결과 로그인 정보는 부모 화면의 `window.afgApi`(`sb()`, `user()`)를 쓴다(같은 사이트라 가능). 단독으로 열면 샘플 그림만 나온다.
 - 사진은 Storage **보관함 `greeting-photos`(비공개)**에 `p/<아이디>.jpg`(긴 변 2000px)와 `t/<아이디>.jpg`(미리보기 420px)로 두고, 분류·사진 목록은 `manifest.json`에 적는다(한글 파일명 오류를 피하려고 파일명은 영문 아이디). 분류는 크리스마스/새해/연말/생일/기념일이 기본이고 마스터가 더 추가할 수 있다. **사진 올리기·삭제·분류 추가는 마스터만**, 올린 사진이 없는 분류는 샘플 그림(코드로 그린 그림)을 보여준다. 보관함·정책 SQL은 화면에 안내가 뜬다(`GP_SQL`).
 - 새 DB 테이블 없음, Claude API 호출 없음.
+
+### PDF 편집 (`pdf-editor.html`, 사이드바 🧰 상담 도구 맨 아래 🖍️ PDF 편집, `panel-pdfedit`)
+- PDF를 열어 형광펜(네모/자유)·펜·박스·원·선·화살표·글자·메모(포스트잇)를 넣고, 편집한 그대로 **PDF 또는 사진(PNG/JPG, 전체 쪽은 ZIP)** 으로 저장하는 도구. `greeting-card.html`처럼 **별도 파일**을 iframe으로 끼워 넣고, 탭을 처음 열 때 한 번만 불러온다(`pdfeditSync`, `switchTab`에서 호출).
+- pdf.js(화면)와 pdf-lib(저장)를 파일 안에 통째로 넣었다(약 2.3MB, 인터넷 없이 동작). 파일은 브라우저 안에서만 처리하고 서버·Supabase에 올리지 않는다. 새 DB 테이블·SQL 없음, Claude API 호출 없음. 한글이 PDF 안에 글꼴로 들어 있지 않은 문서만 보조 글꼴 정보(cMap)를 인터넷(unpkg)에서 받는다.
+- 표시는 쪽 좌표 기준(쪽을 돌려놓은 PDF도 맞게 저장). 글자·메모는 저장할 때 이미지로 들어가서 저장된 PDF에서는 글자를 복사할 수 없다. 암호가 걸린 PDF는 열거나 저장할 수 없다. 사진 저장은 "편집된 PDF를 만든 뒤 그림으로 바꾸는" 방식이라 PDF 저장 결과와 똑같다.
+- 단독으로 `/pdf-editor.html` 주소로도 열 수 있다. 색상표·글자 굵기·되돌리기(Ctrl+Z)·단축키(V H M P B O L A T N E)가 있다.
 
 ### 목표달성 레이스 (`race-board.html`)
 - 사무실 중앙 모니터용 현황판. `call-eval.html`처럼 **별도 파일**이고, 통합전산 탭(`panel-race`)은 이 파일을 iframe으로 끼워 넣는다. 탭을 볼 때만 불러오고 다른 탭으로 나가면 비운다(`raceSync`, `switchTab`에서 호출). "📺 전체화면으로 보기" 버튼(`raceFullscreen`, 로그인한 채로 현황판만 화면 가득, Esc로 복귀)이 중앙 모니터의 기본 사용법이다. "🖥️ 새 창으로 열기"(`raceOpenWindow`)나 `/race-board.html` 주소로 단독 실행도 된다(로그인 불필요). 통합전산은 로그인 상태를 저장하지 않으므로, 모니터 PC에서 페이지를 새로고침하거나 PC를 다시 켜면 다시 로그인해야 한다.
