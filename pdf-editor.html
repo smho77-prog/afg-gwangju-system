@@ -47,7 +47,8 @@ input[type=range]{width:90px}
 .page{position:relative;margin:0 auto 14px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.28)}
 .page canvas{display:block}
 .page svg.ov{position:absolute;left:0;top:0;overflow:hidden}
-.page textarea.ed{position:absolute;border:1px dashed var(--accent);outline:none;resize:none;overflow:hidden;margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;line-height:1.35;white-space:pre-wrap;word-break:break-all}
+.page svg.ovui{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:6}
+.page textarea.ed{position:absolute;z-index:5;border:0;outline:none;resize:none;overflow:hidden;margin:0;box-sizing:border-box;font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;line-height:1.35;white-space:pre-wrap;word-break:normal;overflow-wrap:break-word}
 #empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--muted);text-align:center;padding:20px}
 #empty .big{font-size:20px;color:var(--text);font-weight:700}
 #empty.drag{background:rgba(47,109,246,.08);outline:3px dashed var(--accent);outline-offset:-12px}
@@ -194,7 +195,7 @@ const BGS = [['#fff3a3','노랑'],['#c9f7c9','연두'],['#ffd6e7','분홍'],['#f
 const PAD = 5;
 const TOOLS = ['select','highlight','marker','pen','box','ellipse','line','arrow','text','note','eraser'];
 const HINTS = {
-  select:'클릭해서 선택 → 끌어서 이동, 점을 끌어 크기 조절, Delete로 삭제 · 글자는 더블클릭으로 수정',
+  select:'글자·메모는 클릭하면 바로 수정 · 점선 테두리를 끌면 이동 · 점을 끌면 크기 조절 · Esc로 수정 마치기, Delete로 삭제',
   highlight:'끌어서 네모 형광펜 칠하기', marker:'끌어서 자유롭게 형광펜 칠하기 (Shift: 일직선)',
   pen:'끌어서 자유롭게 그리기', box:'끌어서 박스 그리기', ellipse:'끌어서 원 그리기',
   line:'끌어서 선 그리기 (Shift: 각도 고정)', arrow:'끌어서 화살표 그리기 (Shift: 각도 고정)',
@@ -289,7 +290,7 @@ function bbox(a){
     case 'highlight':case 'box':case 'ellipse': return {x:a.x,y:a.y,w:a.w,h:a.h};
     case 'line':case 'arrow': { const x=Math.min(a.x1,a.x2),y=Math.min(a.y1,a.y2); return {x,y,w:Math.abs(a.x2-a.x1),h:Math.abs(a.y2-a.y1)}; }
     case 'pen':case 'marker': { let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9; a.pts.forEach(p=>{x1=Math.min(x1,p[0]);y1=Math.min(y1,p[1]);x2=Math.max(x2,p[0]);y2=Math.max(y2,p[1]);}); return {x:x1,y:y1,w:x2-x1,h:y2-y1}; }
-    case 'text':case 'note': return {x:a.x,y:a.y,w:a.w,h:layoutText(a).h};
+    case 'text':case 'note': return {x:a.x,y:a.y,w:a.w,h:(S.editing===a.id&&S.editH)?S.editH:layoutText(a).h};
   }
   return {x:0,y:0,w:0,h:0};
 }
@@ -350,7 +351,7 @@ function annSvg(a,z){
 }
 function handlesFor(a){
   const z=S.zoom, r=5.5/z, out=[];
-  const H=(id,x,y,cur)=>out.push(`<circle data-h="${id}" cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#2f6df6" stroke-width="${1.6/z}" style="cursor:${cur}"/>`);
+  const H=(id,x,y,cur)=>out.push(`<circle data-h="${id}" cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#2f6df6" stroke-width="${1.6/z}" pointer-events="all" style="cursor:${cur}"/>`);
   if(a.type==='line'||a.type==='arrow'){ H('p1',a.x1,a.y1,'move'); H('p2',a.x2,a.y2,'move'); return out.join(''); }
   if(a.type==='highlight'||a.type==='box'||a.type==='ellipse'){
     const b=bbox(a);
@@ -358,7 +359,12 @@ function handlesFor(a){
     H('n',b.x+b.w/2,b.y,'ns-resize');H('s',b.x+b.w/2,b.y+b.h,'ns-resize');H('w',b.x,b.y+b.h/2,'ew-resize');H('e',b.x+b.w,b.y+b.h/2,'ew-resize');
     return out.join('');
   }
-  if(a.type==='text'||a.type==='note'){ const b=bbox(a); H('e',b.x+b.w,b.y+b.h/2,'ew-resize'); H('w',b.x,b.y+b.h/2,'ew-resize'); }
+  if(a.type==='text'||a.type==='note'){
+    const b=bbox(a), m=3/z, sw=10/z, x1=b.x-m, y1=b.y-m, x2=b.x+b.w+m, y2=b.y+b.h+m;
+    const L=(ax,ay,bx,by)=>out.push(`<line data-mv="1" x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="transparent" stroke-width="${sw}" pointer-events="stroke" style="cursor:move"/>`);
+    L(x1,y1,x2,y1); L(x1,y2,x2,y2); L(x1,y1,x1,y2); L(x2,y1,x2,y2);
+    H('e',b.x+b.w,b.y+b.h/2,'ew-resize'); H('w',b.x,b.y+b.h/2,'ew-resize');
+  }
   return out.join('');
 }
 function drawOverlay(pi){
@@ -368,13 +374,13 @@ function drawOverlay(pi){
   S.anns.forEach(a=>{ if(a.page===pi && a.id!==S.editing) h+=annSvg(a,z); });
   let ui='';
   const s=S.sel?byId(S.sel):null;
-  if(s && s.page===pi && s.id!==S.editing){
+  if(s && s.page===pi){
     const b=bbox(s), m=3/z;
     ui+=`<rect x="${b.x-m}" y="${b.y-m}" width="${b.w+2*m}" height="${b.h+2*m}" fill="none" stroke="#2f6df6" stroke-width="${1.2/z}" stroke-dasharray="${5/z} ${3/z}" pointer-events="none"/>`;
     ui+=handlesFor(s);
   }
   pg.svg.querySelector('.anns').innerHTML=h;
-  pg.svg.querySelector('.ui').innerHTML=ui;
+  pg.ui.querySelector('.ui').innerHTML=ui;
 }
 function redrawAll(){ S.pages.forEach((_,i)=>drawOverlay(i)); }
 
@@ -427,10 +433,13 @@ function buildPages(){
     const canvas=document.createElement('canvas');
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('class','ov'); svg.setAttribute('viewBox',`0 0 ${pg.W} ${pg.H}`);
-    svg.innerHTML='<g class="anns"></g><g class="ui"></g>';
-    div.appendChild(canvas); div.appendChild(svg); host.appendChild(div);
-    Object.assign(pg,{div,canvas,svg,rendered:0,task:null});
-    attachPointer(svg,i);
+    svg.innerHTML='<g class="anns"></g>';
+    const ui=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    ui.setAttribute('class','ovui'); ui.setAttribute('viewBox',`0 0 ${pg.W} ${pg.H}`);
+    ui.innerHTML='<g class="ui"></g>';
+    div.appendChild(canvas); div.appendChild(svg); div.appendChild(ui); host.appendChild(div);
+    Object.assign(pg,{div,canvas,svg,ui,rendered:0,task:null});
+    attachPointer(svg,i); attachPointer(ui,i);
   });
 }
 function layoutPages(){
@@ -438,6 +447,7 @@ function layoutPages(){
   S.pages.forEach(pg=>{
     pg.div.style.width=(pg.W*z)+'px'; pg.div.style.height=(pg.H*z)+'px';
     pg.svg.setAttribute('width',pg.W*z); pg.svg.setAttribute('height',pg.H*z);
+    pg.ui.setAttribute('width',pg.W*z); pg.ui.setAttribute('height',pg.H*z);
     pg.canvas.style.width=(pg.W*z)+'px'; pg.canvas.style.height=(pg.H*z)+'px';
     pg.rendered=0;
   });
@@ -544,18 +554,25 @@ function attachPointer(svg,pi){
 }
 function setSel(id){ S.sel=id; redrawAll(); syncPanel(); updateBtns(); }
 function onDown(e,svg,pi){
-  if(e.button!==0||S.editing) return;
+  if(e.button!==0) return;
+  if(S.editing&&S.finishEdit) S.finishEdit();   // 글자 수정 중이면 먼저 마치고(선택은 유지) 이어서 처리
+  if(S.editing) return;
   const p=ptOf(e,svg), t=S.tool;
   const hEl=e.target.closest&&e.target.closest('[data-h]');
+  const mvEl=e.target.closest&&e.target.closest('[data-mv]');
   const gEl=e.target.closest&&e.target.closest('g[data-id]');
   const gid=gEl?+gEl.dataset.id:null;
+  if(S.sel&&(hEl||mvEl)){   // 선택된 것의 점(크기 조절)·테두리(이동)는 어떤 도구에서도 동작
+    const a=byId(S.sel); if(!a) return;
+    const orig=JSON.parse(JSON.stringify(a));
+    D=hEl?{kind:'resize',pi:a.page,a,orig,h:hEl.dataset.h,before:snap()}
+         :{kind:'move',pi:a.page,a,orig,start:p,before:snap(),moved:true};
+    svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
+  }
   if(t==='select'){
-    if(hEl&&S.sel){
-      const a=byId(S.sel); if(!a) return;
-      D={kind:'resize',pi,a,orig:JSON.parse(JSON.stringify(a)),h:hEl.dataset.h,before:snap()};
-    } else if(gEl){
+    if(gEl){
       if(S.sel!==gid){ S.sel=gid; syncPanel(); updateBtns(); }
-      const a=byId(gid); D={kind:'move',pi,a,orig:JSON.parse(JSON.stringify(a)),start:p,before:snap(),moved:false};
+      const a=byId(gid); D={kind:'move',pi,a,orig:JSON.parse(JSON.stringify(a)),start:p,before:snap(),moved:false,textClick:(a.type==='text'||a.type==='note')};
       redrawAll();
     } else { if(S.sel){ S.sel=null; redrawAll(); syncPanel(); updateBtns(); } return; }
     svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
@@ -638,7 +655,9 @@ function onUp(e,svg,pi){
   const a=d.a;
   if(d.kind==='erase'){ commitChange(d.before); redrawAll(); updateBtns(); return; }
   if(d.kind==='move'||d.kind==='resize'){
-    commitChange(d.before); drawOverlay(d.pi); updateBtns(); return;
+    commitChange(d.before); drawOverlay(d.pi); updateBtns();
+    if(d.kind==='move'&&d.textClick&&!d.moved&&byId(a.id)) openEditor(a,snap());   // 글자·메모는 클릭만 해도 바로 수정
+    return;
   }
   if(d.kind==='draw'){
     let ok=true;
@@ -664,25 +683,26 @@ function onUp(e,svg,pi){
 function openEditor(a,before,isNew){
   if(S.editing) return;
   const pg=S.pages[a.page]; const z=S.zoom;
-  S.editing=a.id; S.sel=null; drawOverlay(a.page); syncPanel(); updateBtns();
+  S.editing=a.id; S.sel=a.id; S.editH=0; drawOverlay(a.page); syncPanel(); updateBtns();
   const ta=document.createElement('textarea'); ta.className='ed';
   const b=bbox(a);
-  Object.assign(ta.style,{left:(a.x*z)+'px',top:(a.y*z)+'px',width:(a.w*z)+'px',fontSize:(a.size*z)+'px',fontWeight:a.bold?'700':'400',padding:(PAD*z)+'px',color:a.color,
-    background:a.type==='note'?a.bg:'rgba(255,255,255,.75)',height:(b.h*z)+'px'});
+  Object.assign(ta.style,{left:(a.x*z)+'px',top:(a.y*z)+'px',width:(a.w*z)+'px',fontSize:(a.size*z)+'px',padding:(PAD*z)+'px',color:a.color,fontWeight:a.bold?'700':'400',
+    background:a.type==='note'?a.bg:'transparent',height:(b.h*z)+'px'});
   pg.div.appendChild(ta); ta.value=a.text||'';
-  const grow=()=>{ ta.style.height='auto'; ta.style.height=Math.max(ta.scrollHeight,a.size*1.35*z+PAD*2*z)+'px'; };
-  grow(); ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
+  const grow=()=>{ ta.style.height='auto'; const h=Math.max(ta.scrollHeight,a.size*1.35*z+PAD*2*z); ta.style.height=h+'px'; S.editH=h/z; };
+  grow(); drawOverlay(a.page); ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
   let done=false;
   const finish=()=>{
     if(done) return; done=true;
     a.text=ta.value.replace(/\s+$/,'');
-    ta.remove(); S.editing=null;
+    ta.remove(); S.editing=null; S.editH=0; S.finishEdit=null;
     if(!a.text.trim()){ removeAnn(a.id); }
     else { S.sel=a.id; }
     commitChange(before);
     redrawAll(); syncPanel(); updateBtns();
   };
-  ta.addEventListener('input',grow);
+  S.finishEdit=finish;
+  ta.addEventListener('input',()=>{ a.text=ta.value; grow(); drawOverlay(a.page); });
   ta.addEventListener('blur',finish);
   ta.addEventListener('keydown',e=>{
     e.stopPropagation();
