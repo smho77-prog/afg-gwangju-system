@@ -890,6 +890,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="tabbtn" data-tab="coverage" onclick="switchTab('coverage')">📑 보장분석</button>
       <button class="tabbtn" data-tab="cancertl" data-members="cancertl,hospmap" onclick="switchTab('cancertl')">🏥 암·병원 자료</button>
       <button class="tabbtn" data-tab="greet" onclick="switchTab('greet')">💌 안부카드</button>
+      <button class="tabbtn" data-tab="pdfedit" onclick="switchTab('pdfedit')">🖍️ PDF 편집</button>
     </div>
   </div>
   <div class="sg" data-group="edu">
@@ -2182,6 +2183,17 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   </div>
 </div>
 
+<!-- ===== PDF 편집 (pdf-editor.html 을 화면 안에 끼워 넣음) ===== -->
+<div class="panel" id="panel-pdfedit">
+  <div class="card" style="padding:10px 16px;margin-bottom:10px;">
+    <b>🖍️ PDF 편집</b>
+    <span class="sub" style="margin:0 0 0 8px;">PDF를 열어 형광펜·박스·선·화살표·글자·메모를 넣고, 편집한 그대로 PDF나 사진(PNG/JPG)으로 저장해요. 파일은 내 컴퓨터 안에서만 처리되고 서버에 올라가지 않아요.</span>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <iframe id="pdfeditFrame" title="PDF 편집" style="width:100%;height:calc(100vh - 150px);min-height:720px;border:none;display:block;background:#E6E9EF;"></iframe>
+  </div>
+</div>
+
 <!-- ===== 보험금청구서류 (보험사별 청구서 양식 보관·다운로드) ===== -->
 <div class="panel" id="panel-claimform">
   <div class="card" style="padding:14px 18px;">
@@ -2495,6 +2507,10 @@ function greetSync(name){
   var f = document.getElementById('greetFrame');
   if (f && name === 'greet' && f.dataset.on !== '1') { f.src = 'greeting-card.html'; f.dataset.on = '1'; }
 }
+function pdfeditSync(name){
+  var f = document.getElementById('pdfeditFrame');
+  if (f && name === 'pdfedit' && f.dataset.on !== '1') { f.src = 'pdf-editor.html'; f.dataset.on = '1'; }
+}
 function raceOpenWindow(){ window.open('race-board.html', 'afg_race_board', 'noopener'); }
 /* 로그인한 상태 그대로 현황판만 화면 가득 보여준다(왼쪽 메뉴·위쪽 바 숨김). Esc로 돌아온다. 안 되는 브라우저는 새 창으로 대신 연다 */
 function raceFullscreen(){
@@ -2612,6 +2628,7 @@ function switchTab(name) {
   raceSync(name);
   boardSync(name);
   greetSync(name);
+  pdfeditSync(name);
   if (name === 'underwriting') {
     const gv = document.getElementById('uwmode-guide');
     if (gv && gv.style.display !== 'none') switchUwMode('disease'); /* 사이드의 '인수·병력 확인'을 누르면 가이드 말고 기본 화면 */
