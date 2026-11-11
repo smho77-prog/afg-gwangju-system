@@ -903,7 +903,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div class="sg" data-group="info">
     <button class="sg-head" onclick="toggleSideGroup('info')"><span>ℹ️ 정보</span><span class="arr">▼</span></button>
     <div class="sg-items">
-      <button class="tabbtn" data-tab="insurer" data-members="insurer,callcenter" onclick="switchTab('insurer')">📞 연락처</button>
+      <button class="tabbtn" data-tab="insurer" onclick="switchTab('insurer')">📞 보험사 비상연락망</button>
       <button class="tabbtn" data-tab="duties" id="tabBtnDuties" onclick="switchTab('duties')">🗂️ 총무업무분장표</button>
       <button class="tabbtn" data-tab="issues" data-members="issues,newsscrap" onclick="switchTab('issues')">📌 이슈·기사</button>
     </div>
@@ -1080,7 +1080,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 <!-- ===== 보험사연락처 ===== -->
 <div class="panel" id="panel-insurer">
   <div class="card">
-    <div class="sub">보험사별 담당자 연락처 — 수정하면 팀장님들 모두 최신 내용을 보게 됩니다.</div>
+    <div class="sub"><b>📞 보험사 비상연락망</b> — 보험사별 담당자 연락처 · 수정하면 팀장님들 모두 최신 내용을 보게 됩니다. (고객센터·완전판매 인콜 번호는 <b>📎 보험금청구서류</b> 탭의 보험사 카드에 있어요.)</div>
     <div class="row">
       <div><label>보험사명</label><input type="text" id="i_name" placeholder="예: 흥국화재"></div>
       <div><label>담당업무</label><input type="text" id="i_role" placeholder="예: 청약/보전/보상"></div>
@@ -2198,7 +2198,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 <div class="panel" id="panel-claimform">
   <div class="card" style="padding:14px 18px;">
     <b style="font-size:16px;">📎 보험금청구서류</b>
-    <span class="sub" style="margin:0 0 0 8px;">보험사 카드를 누르면 그 보험사의 청구서 양식이 나와요. 올리기·삭제는 마스터만 할 수 있어요.</span>
+    <span class="sub" style="margin:0 0 0 8px;">보험사 카드에서 고객센터·완전판매 인콜 번호, 결제 방법, PC접속(설계사)을 바로 볼 수 있고, 카드를 누르면 청구서 양식이 나와요. 올리기·삭제·정보 입력은 마스터만 할 수 있어요.</span>
   </div>
   <div id="cf_setup"></div>
   <div class="card" id="cf_upcard" style="display:none;padding:14px 18px;">
@@ -2213,6 +2213,10 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <input type="file" id="cf_file" multiple style="flex:1 1 260px;">
       <button class="act" id="cf_upbtn" onclick="cfUpload()">올리기</button>
       <span id="cf_upmsg" class="sub" style="margin:0;"></span>
+    </div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+      <button class="secondary small" onclick="cfImportCC()">☎️ 예전 콜센터 탭 번호를 카드로 가져오기</button>
+      <span class="sub" style="margin:0;">이미 입력한 칸은 그대로 두고, 빈 칸에만 채워요. (처음 한 번만 하면 돼요)</span>
     </div>
   </div>
   <div class="card" style="padding:14px 18px;">
@@ -2602,7 +2606,6 @@ const TAB_GROUPS = [
   [['underwriting', '🔍 인수기준 검색'], ['kcd', '🩺 질병분류코드 검색'], ['surgery', '🏥 수술등급 검색']],
   [['cancertl', '💸 암치료비 타임라인'], ['hospmap', '🗺️ 전국 종합병원 지도']],
   [['rebuttal', '💬 나는 이렇게 반론했어요'], ['practice', '🎯 반론대처 연습']],
-  [['insurer', '📞 보험사연락처'], ['callcenter', '☎️ 콜센터']],
   [['issues', '📌 이슈/마감일정'], ['newsscrap', '📰 기사 스크랩']]
 ];
 function renderSubTabs(name) {
@@ -12914,6 +12917,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 #panel-claimform .cf-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 #panel-claimform .cf-empty { padding: 20px 10px; text-align: center; color: #64748B; font-size: 14px; line-height: 1.8; }
 #panel-claimform .cf-sql { width: 100%; height: 150px; font-family: monospace; font-size: 12px; }
+#panel-claimform .cf-info { padding: 10px 18px 0; display: grid; gap: 4px; font-size: 13px; }
+#panel-claimform .cf-info div { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+#panel-claimform .cf-info span { color: #64748B; font-size: 12px; flex: 0 0 auto; }
+#panel-claimform .cf-info b { color: #0F766E; font-weight: 800; text-align: right; word-break: keep-all; }
+#panel-claimform .cf-info b.none { color: #CBD5E1; font-weight: 600; }
+#panel-claimform .cf-iwrap { display: flex; gap: 8px; padding: 10px 14px 4px; }
+#panel-claimform .cf-ibtn { flex: 1 1 0; min-width: 0; white-space: nowrap; border: 0; border-radius: 8px; background: #CCFBF1; color: #0F766E; font-size: 12.5px; font-weight: 800; padding: 8px 6px; cursor: pointer; }
+#panel-claimform .cf-ibtn:hover { background: #99F6E4; }
+#panel-claimform .cf-ibtn.off { background: #F1F5F9; color: #94A3B8; }
+#panel-claimform .cf-iedit { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 10px; margin: 0 0 12px; padding: 10px 12px; background: #F0FDFA; border: 1px solid #99F6E4; border-radius: 10px; }
+#panel-claimform .cf-iedit label { margin: 0; font-size: 12px; color: #334155; }
+#panel-claimform .cf-iedit input { width: 100%; font-size: 13px; padding: 6px 9px; border: 1px solid #CBD5E1; border-radius: 8px; margin-top: 3px; }
+#panel-claimform .cf-iedit .cf-irow { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 640px) { #panel-claimform .cf-grid { grid-template-columns: 1fr; } }
 </style>
 <script id="claimform_tab">
@@ -12997,6 +13013,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
   }
   function items() { return (C.man && C.man.items) || []; }
   function guideOf(name) { var u = C.man && C.man.links && C.man.links[name]; return (typeof u === 'string' && /^https?:\/\//i.test(u)) ? u : ''; }
+  /* 보험사별 연락·접속 정보: manifest.json의 info = { 보험사: { cs 고객센터, incall 완전판매 인콜, pay 결제 방법, pc PC접속(설계사) } } */
+  function infoOf(name) { var i = C.man && C.man.info && C.man.info[name]; return (i && typeof i === 'object') ? i : {}; }
+  function isUrl(v) { return /^https?:\/\/[^\s]+$/i.test(String(v || '')); }
+  function normUrl(v) { v = String(v || '').trim(); return /^www\./i.test(v) ? 'https://' + v : v; }
   function docsOf(name) { return items().filter(function (it) { return (it.insurer || ETC) === name; }); }
   function find(id) { return items().filter(function (x) { return x.id === id; })[0]; }
   /* 목록에 없는 이름으로 올라온 서류는 '기타' 카드로 모은다 */
@@ -13059,12 +13079,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     if (!f) return monoHtml(name);
     return '<div class="cf-logobox"><img class="cf-logo" src="logos/' + f + '.png" alt="' + esc(name) + '" loading="lazy" data-fb="' + esc(monoHtml(name)) + '" onerror="this.parentNode.innerHTML=this.dataset.fb"></div>';
   }
+  function infoHtml(name) {
+    var i = infoOf(name);
+    function row(label, v) { return '<div><span>' + label + '</span><b' + (v ? '' : ' class="none"') + '>' + (v ? esc(v) : '미등록') + '</b></div>'; }
+    function btn(label, key) { return '<button type="button" class="cf-ibtn' + (i[key] ? '' : ' off') + '" data-n="' + esc(name) + '" data-k="' + key + '" onclick="event.stopPropagation();cfInfoGo(this.dataset.n,this.dataset.k)">' + label + (isUrl(i[key]) ? ' ↗' : '') + '</button>'; }
+    return '<div class="cf-info">' + row('☎ 고객센터', i.cs) + row('☎ 완전판매 인콜', i.incall) + '</div>'
+      + '<div class="cf-iwrap">' + btn('💳 결제 방법', 'pay') + btn('💻 PC접속(설계사)', 'pc') + '</div>';
+  }
   function cardHtml(name, type) {
     var n = docsForCard(name).length;
     var gl = guideOf(name);
     return '<div role="button" tabindex="0" class="cf-card' + (C.sel === name ? ' sel' : '') + '" data-n="' + esc(name) + '" onclick="cfPick(this.dataset.n)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();cfPick(this.dataset.n);}">'
       + '<div class="cf-top">' + logoHtml(name)
       + '<span class="cf-badge">' + (type === '생명' ? '생명보험' : (type === '손해' ? '손해보험' : '기타')) + '</span></div>'
+      + infoHtml(name)
       + '<div class="cf-bot"><span><b>' + esc(name) + '</b><span class="cf-cnt' + (n ? ' has' : '') + '">· ' + (n ? '청구서류 ' + n + '건' : '서류 없음') + '</span></span><span class="cf-arrow">›</span></div>'
       + '<div class="cf-gwrap"><button type="button" class="cf-gbtn' + (gl ? '' : ' off') + '" data-n="' + esc(name) + '" onclick="event.stopPropagation();cfGuide(this.dataset.n)">청구서류 안내 ↗</button>'
       + '<button type="button" class="cf-gbtn dl" data-n="' + esc(name) + '" onclick="event.stopPropagation();cfOpenDocs(this.dataset.n)">청구서류 다운로드 ⬇</button></div>'
@@ -13104,6 +13132,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       + '<span class="cf-gmsg" id="cf_gmsg"></span></div>';
     return h;
   }
+  function infoBlock(name) {
+    if (!isMaster() || name === ETC) return '';
+    var i = infoOf(name);
+    function f(id, label, key, ph) { return '<label>' + label + '<input type="text" id="cf_i_' + id + '" placeholder="' + ph + '" value="' + esc(i[key] || '') + '"></label>'; }
+    return '<div class="cf-iedit">'
+      + f('cs', '☎ 고객센터 번호', 'cs', '예: 1566-7711')
+      + f('incall', '☎ 완전판매 인콜 번호', 'incall', '예: 1577-7711')
+      + f('pay', '💳 결제 방법 (주소 또는 글)', 'pay', 'https://… 또는 안내 글')
+      + f('pc', '💻 PC접속(설계사) 주소', 'pc', 'https://…')
+      + '<div class="cf-irow"><button type="button" class="act small" data-n="' + esc(name) + '" onclick="cfInfoSave(this.dataset.n)">정보 저장</button>'
+      + '<span class="cf-gmsg" id="cf_imsg">비워서 저장하면 그 칸은 지워져요. 주소는 https:// 로 시작하게 넣어 주세요.</span></div></div>';
+  }
   function renderDetail() {
     var el = $('cf_detail'); if (!el) return;
     if (!C.sel) { el.innerHTML = ''; return; }
@@ -13111,7 +13151,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     var t = typeOf(C.sel);
     el.innerHTML = '<div class="cf-dt"><div class="cf-dth"><b>' + esc(C.sel) + ' <span class="cf-badge" style="margin-left:6px;">' + (t === '생명' ? '생명보험' : (t === '손해' ? '손해보험' : '기타')) + '</span></b>'
       + '<button class="secondary small" onclick="cfPick(\'' + esc(C.sel).replace(/'/g, "\\'") + '\')">✕ 닫기</button></div>'
-      + guideBlock(C.sel)
+      + guideBlock(C.sel) + infoBlock(C.sel)
       + (docs.length ? docs.map(function (it) {
         var viewable = /^(pdf|png|jpe?g|gif|webp)$/.test(extOf(it.file));
         return '<div class="cf-it"><div class="cf-main"><div class="cf-t">' + esc(it.title || it.orig) + (it.insurer && it.insurer !== C.sel ? ' <span class="sub">(' + esc(it.insurer) + ')</span>' : '') + '</div>'
@@ -13144,6 +13184,65 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       if (v) m.links[name] = v; else delete m.links[name];
     }).then(function (m) { C.man = m; C.status = 'ok'; render(); var g = $('cf_gmsg'); if (g) g.textContent = v ? '저장했어요.' : '지웠어요.'; })
       .catch(function (e) { var g = $('cf_gmsg'); if (g) g.textContent = '저장하지 못했어요. ' + (e && e.message || e); });
+  };
+  window.cfInfoGo = function (name, key) {
+    var v = infoOf(name)[key];
+    if (!v) {
+      if (isMaster()) { if (C.sel !== name) cfPick(name); alert('아직 ' + name + ' ' + (key === 'pay' ? '결제 방법' : 'PC접속(설계사) 주소') + '이 없어요.\n열린 화면의 입력칸에 넣고 [정보 저장]을 눌러 주세요.'); }
+      else alert(name + ' ' + (key === 'pay' ? '결제 방법' : 'PC접속(설계사) 주소') + '은 아직 등록되지 않았어요.');
+      return;
+    }
+    if (isUrl(v)) window.open(v, '_blank', 'noopener'); else alert(name + ' ' + (key === 'pay' ? '결제 방법' : 'PC접속') + '\n\n' + v);
+  };
+  window.cfInfoSave = function (name) {
+    if (!isMaster()) return;
+    function val(id) { var e = $('cf_i_' + id); return e ? e.value.trim() : ''; }
+    var o = { cs: val('cs'), incall: val('incall'), pay: normUrl(val('pay')), pc: normUrl(val('pc')) }, msg = $('cf_imsg');
+    if (o.pc && !isUrl(o.pc)) { if (msg) msg.textContent = 'PC접속 주소는 https:// 로 시작해야 해요.'; return; }
+    if (/^https?:/i.test(o.pay) && !isUrl(o.pay)) { if (msg) msg.textContent = '결제 방법 주소에 띄어쓰기가 있어요. 확인해 주세요.'; return; }
+    if (msg) msg.textContent = '저장 중…';
+    mutate(function (m) {
+      if (!m.info || typeof m.info !== 'object') m.info = {};
+      if (o.cs || o.incall || o.pay || o.pc) m.info[name] = o; else delete m.info[name];
+    }).then(function (m) { C.man = m; C.status = 'ok'; render(); var g = $('cf_imsg'); if (g) g.textContent = '저장했어요.'; })
+      .catch(function (e) { var g = $('cf_imsg'); if (g) g.textContent = '저장하지 못했어요. ' + (e && e.message || e); });
+  };
+  /* 예전 콜센터 탭(call_centers 테이블)의 번호를 카드로 한 번 옮긴다. 이미 입력된 칸은 건드리지 않는다. */
+  function ccNorm(s) { return String(s || '').replace(/\s+/g, '').replace(/손해보험/g, '손보').replace(/화재해상보험|화재보험/g, '화재').replace(/생명보험/g, '생명').replace(/^(nh)?농협/i, 'nh').toLowerCase(); }
+  window.cfImportCC = function () {
+    if (!isMaster()) return;
+    var c = conn(), msg = $('cf_upmsg');
+    if (!c) { alert('아직 서버에 연결되지 않았어요.'); return; }
+    if (msg) msg.textContent = '콜센터 탭 번호를 읽는 중…';
+    c.from('call_centers').select('*').then(function (r) {
+      if (r.error) throw r.error;
+      var rows = r.data || [], plan = {}, used = {}, n = 0;
+      CF_INS.forEach(function (x) {
+        var a = ccNorm(x[0]);
+        var hit = rows.filter(function (row) { var b = ccNorm(row.insurer_name); return b && (a === b || (b.length >= 3 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0))); });
+        if (!hit.length) return;
+        var cs = [], inc = [];
+        hit.forEach(function (row) {
+          used[row.id] = 1;
+          var ph = String(row.phone || '').trim(); if (!ph) return;
+          var cat = String(row.category || '') + ' ' + String(row.memo || '');
+          var t = ph + (row.memo ? ' (' + String(row.memo).trim() + ')' : '');
+          if (/완전판매|인콜/.test(cat)) { if (inc.indexOf(t) < 0) inc.push(t); } else { if (cs.indexOf(t) < 0) cs.push(t); }
+        });
+        var cur = infoOf(x[0]), add = {};
+        if (!cur.cs && cs.length) add.cs = cs.join(' / ');
+        if (!cur.incall && inc.length) add.incall = inc.join(' / ');
+        if (add.cs || add.incall) { plan[x[0]] = add; n++; }
+      });
+      var miss = rows.filter(function (row) { return !used[row.id]; }).map(function (row) { return row.insurer_name; });
+      miss = miss.filter(function (v, i) { return miss.indexOf(v) === i; });
+      if (!n) { if (msg) msg.textContent = '새로 채울 번호가 없어요.' + (miss.length ? ' (카드에 없는 보험사: ' + miss.join(', ') + ')' : ''); return; }
+      if (!confirm(n + '개 보험사 카드의 빈 칸에 고객센터·완전판매 번호를 채울까요?\n' + (miss.length ? '\n카드가 없어 옮기지 못하는 곳: ' + miss.join(', ') : ''))) { if (msg) msg.textContent = ''; return; }
+      return mutate(function (m) {
+        if (!m.info || typeof m.info !== 'object') m.info = {};
+        Object.keys(plan).forEach(function (k) { var cur = m.info[k] || {}; m.info[k] = { cs: cur.cs || plan[k].cs || '', incall: cur.incall || plan[k].incall || '', pay: cur.pay || '', pc: cur.pc || '' }; });
+      }).then(function (m) { C.man = m; C.status = 'ok'; render(); if (msg) msg.textContent = '✅ ' + n + '개 보험사에 번호를 채웠어요.' + (miss.length ? ' (카드 없음: ' + miss.join(', ') + ')' : ''); });
+    }).catch(function (e) { if (msg) msg.textContent = '가져오지 못했어요. ' + (e && e.message || e); });
   };
   window.cfDownload = function (id) {
     var it = find(id); if (!it) return;
