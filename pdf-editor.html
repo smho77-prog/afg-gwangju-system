@@ -102,10 +102,11 @@ input[type=range]{width:90px}
     <button class="btn tool" data-tool="arrow" title="화살표 (A)"><span class="ic">➜</span>화살표</button>
     <button class="btn tool" data-tool="text" title="글자 (T)"><span class="ic">T</span>글자</button>
     <button class="btn tool" data-tool="note" title="메모 칸 (N)"><span class="ic">🗒</span>메모</button>
+    <button class="btn tool" data-tool="callout" title="설명선 - 박스 + 화살표 (C)"><span class="ic">💬</span>설명선</button>
     <button class="btn tool" data-tool="eraser" title="지우개 (E)"><span class="ic">🧽</span>지우개</button>
     <span class="sep"></span>
     <div class="grp" id="gColor"><span>색</span><span id="swatches" class="swbox"></span><input type="color" id="cColor" title="원하는 색 직접 고르기" value="#1e5eff"></div>
-    <div class="grp" id="gBg"><span>메모색</span><span id="bgSwatches" class="swbox"></span></div>
+    <div class="grp" id="gBg"><span>바탕색</span><span id="bgSwatches" class="swbox"></span></div>
     <div class="grp" id="gWidth"><span>굵기</span><input type="range" id="rWidth" min="1" max="12" step="1"><span class="val" id="vWidth"></span></div>
     <div class="grp" id="gOpacity"><span>투명도</span><input type="range" id="rOpacity" min="10" max="100" step="5"><span class="val" id="vOpacity"></span></div>
     <div class="grp" id="gSize"><span>글자크기</span><input type="range" id="rSize" min="8" max="60" step="1"><span class="val" id="vSize"></span></div>
@@ -121,7 +122,7 @@ input[type=range]{width:90px}
       <div id="empty">
         <div class="big">PDF 파일을 여기로 끌어다 놓거나</div>
         <button class="btn primary" id="btnOpen2" style="font-size:15px;padding:10px 18px">📂 PDF 열기</button>
-        <div style="font-size:13px;line-height:1.7">형광펜 · 박스 · 선 · 화살표 · 글자 · 메모를 넣고<br>편집한 내용 그대로 새 PDF로 저장할 수 있어요.<br><span style="font-size:12px">파일은 내 컴퓨터 안에서만 처리되고 어디에도 업로드되지 않습니다.</span></div>
+        <div style="font-size:13px;line-height:1.7">형광펜 · 박스 · 선 · 화살표 · 글자 · 메모 · 설명선을 넣고<br>편집한 내용 그대로 새 PDF로 저장할 수 있어요.<br><span style="font-size:12px">파일은 내 컴퓨터 안에서만 처리되고 어디에도 업로드되지 않습니다.</span></div>
       </div>
     </div>
   </div>
@@ -193,13 +194,14 @@ const COLORS = [['#ffe94d','노랑'],['#7CFC8A','연두'],['#ff9ecb','분홍'],[
   ['#1e5eff','파랑'],['#1f3a6e','남색'],['#8b5cf6','보라'],['#16a34a','초록'],['#0d9488','청록'],['#8a5a2b','갈색'],['#6b7280','회색'],['#111111','검정'],['#ffffff','흰색']];
 const BGS = [['#fff3a3','노랑'],['#c9f7c9','연두'],['#ffd6e7','분홍'],['#ffe0b8','주황'],['#cfe8ff','하늘'],['#e4d8ff','연보라'],['#e5e7eb','회색'],['#ffffff','흰색']];
 const PAD = 5;
-const TOOLS = ['select','highlight','marker','pen','box','ellipse','line','arrow','text','note','eraser'];
+const TOOLS = ['select','highlight','marker','pen','box','ellipse','line','arrow','text','note','callout','eraser'];
 const HINTS = {
   select:'글자·메모는 클릭하면 바로 수정 · 점선 테두리를 끌면 이동 · 점을 끌면 크기 조절 · Esc로 수정 마치기, Delete로 삭제',
   highlight:'끌어서 네모 형광펜 칠하기', marker:'끌어서 자유롭게 형광펜 칠하기 (Shift: 일직선)',
   pen:'끌어서 자유롭게 그리기', box:'끌어서 박스 그리기', ellipse:'끌어서 원 그리기',
   line:'끌어서 선 그리기 (Shift: 각도 고정)', arrow:'끌어서 화살표 그리기 (Shift: 각도 고정)',
-  text:'클릭(또는 끌기)해서 글자 넣기', note:'클릭(또는 끌기)해서 메모 칸 넣기', eraser:'지울 표시를 클릭 (끌면 연속 삭제)'
+  text:'클릭(또는 끌기)해서 글자 넣기', note:'클릭(또는 끌기)해서 메모 칸 넣기',
+  callout:'끌어서 설명 박스를 만들고 글을 쓰세요 · 화살표 끝의 하얀 점을 끌면 가리키는 곳을 바꿀 수 있어요', eraser:'지울 표시를 클릭 (끌면 연속 삭제)'
 };
 const DEF = {
   highlight:{color:'#ffe94d',opacity:.45},
@@ -210,9 +212,10 @@ const DEF = {
   line:{color:'#e11d48',width:2,opacity:1},
   arrow:{color:'#e11d48',width:3,opacity:1},
   text:{color:'#111111',size:16,bold:false},
-  note:{color:'#111111',size:14,bold:false,bg:'#fff3a3'}
+  note:{color:'#111111',size:14,bold:false,bg:'#fff3a3'},
+  callout:{color:'#e11d48',width:2,size:15,bold:false,bg:'#ffffff'}
 };
-const WIDTH_RANGE = {marker:[4,40],pen:[1,12],box:[1,12],ellipse:[1,12],line:[1,12],arrow:[1,12]};
+const WIDTH_RANGE = {marker:[4,40],pen:[1,12],box:[1,12],ellipse:[1,12],line:[1,12],arrow:[1,12],callout:[1,8]};
 const S = {
   pdf:null, bytes:null, name:'', pages:[], zoom:1, tool:'select',
   anns:[], sel:null, undo:[], redo:[], dirty:false, editing:null, nextId:1, clip:null,
@@ -279,6 +282,7 @@ function restore(json){
 function doUndo(){ if(S.editing) return; if(!S.undo.length) return; S.redo.push(snap()); restore(S.undo.pop()); }
 function doRedo(){ if(S.editing) return; if(!S.redo.length) return; S.undo.push(snap()); restore(S.redo.pop()); }
 const byId = id => S.anns.find(a=>a.id===id);
+const isTextual = a => !!a && (a.type==='text'||a.type==='note'||a.type==='callout');
 function newAnn(type,pi){
   const d=S.P[type]||{};
   const a=Object.assign({id:S.nextId++,type,page:pi},JSON.parse(JSON.stringify(d)));
@@ -290,13 +294,36 @@ function bbox(a){
     case 'highlight':case 'box':case 'ellipse': return {x:a.x,y:a.y,w:a.w,h:a.h};
     case 'line':case 'arrow': { const x=Math.min(a.x1,a.x2),y=Math.min(a.y1,a.y2); return {x,y,w:Math.abs(a.x2-a.x1),h:Math.abs(a.y2-a.y1)}; }
     case 'pen':case 'marker': { let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9; a.pts.forEach(p=>{x1=Math.min(x1,p[0]);y1=Math.min(y1,p[1]);x2=Math.max(x2,p[0]);y2=Math.max(y2,p[1]);}); return {x:x1,y:y1,w:x2-x1,h:y2-y1}; }
-    case 'text':case 'note': return {x:a.x,y:a.y,w:a.w,h:(S.editing===a.id&&S.editH)?S.editH:layoutText(a).h};
+    case 'text':case 'note':case 'callout': return {x:a.x,y:a.y,w:a.w,h:(S.editing===a.id&&S.editH)?S.editH:layoutText(a).h};
   }
   return {x:0,y:0,w:0,h:0};
+}
+/* ---- 설명선: 박스 높이·화살표 위치 계산 (화면·저장 공용) ---- */
+function boxH(a){ return (S.editing===a.id&&S.editH)?S.editH:layoutText(a).h; }
+function calloutDefaultTip(a){
+  const pg=S.pages[a.page]; if(!pg) return;
+  const h=boxH(a);
+  let tx=a.x-26, ty=a.y+h+46;
+  if(tx<6) tx=a.x+Math.min(a.w*0.3,30);
+  if(ty>pg.H-6) ty=a.y-46;
+  a.tx=clamp(tx,6,Math.max(6,pg.W-6)); a.ty=clamp(ty,6,Math.max(6,pg.H-6));
+}
+function calloutGeom(a){
+  const h=boxH(a);
+  if(typeof a.tx!=='number'||typeof a.ty!=='number') return {h,line:null,g:null};
+  const cx=a.x+a.w/2, cy=a.y+h/2, dx=a.tx-cx, dy=a.ty-cy;
+  const kx=Math.abs(dx)>1e-6?(a.w/2)/Math.abs(dx):Infinity, ky=Math.abs(dy)>1e-6?(h/2)/Math.abs(dy):Infinity;
+  const t=Math.min(kx,ky);
+  if(!(t<1)) return {h,line:null,g:null};          // 가리키는 곳이 박스 안이면 화살표 없음
+  const sx=cx+dx*t, sy=cy+dy*t;
+  if(Math.hypot(a.tx-sx,a.ty-sy)<4) return {h,line:null,g:null};
+  const line={x1:sx,y1:sy,x2:a.tx,y2:a.ty,width:a.width};
+  return {h,line,g:arrowGeom(line)};
 }
 function moveAnn(a,o,dx,dy){
   if('x' in a){ a.x=o.x+dx; a.y=o.y+dy; }
   if('x1' in a){ a.x1=o.x1+dx; a.y1=o.y1+dy; a.x2=o.x2+dx; a.y2=o.y2+dy; }
+  if('tx' in a){ a.tx=o.tx+dx; a.ty=o.ty+dy; }
   if(a.pts) a.pts=o.pts.map(p=>[p[0]+dx,p[1]+dy]);
 }
 function arrowGeom(a){
@@ -339,6 +366,18 @@ function annSvg(a,z){
       return `<g data-id="${a.id}"><polyline points="${pts}" fill="none" stroke="${a.color}" stroke-width="${a.width}" stroke-opacity="${op}" stroke-linecap="${a.type==='marker'?'butt':'round'}" stroke-linejoin="round" pointer-events="none"${blend}/>`+
              `<polyline points="${pts}" fill="none" stroke="transparent" stroke-width="${hw}" stroke-linecap="round" stroke-linejoin="round" pointer-events="stroke"/></g>`;
     }
+    case 'callout': {
+      const L=layoutText(a), C=calloutGeom(a);
+      let o='';
+      if(C.line){
+        o+=`<line x1="${C.line.x1}" y1="${C.line.y1}" x2="${C.g.lineEnd[0]}" y2="${C.g.lineEnd[1]}" stroke="${a.color}" stroke-width="${a.width}" stroke-linecap="round" pointer-events="none"/>`+
+           `<polygon points="${C.g.head.map(p=>p.join(',')).join(' ')}" fill="${a.color}" pointer-events="none"/>`+
+           `<line x1="${C.line.x1}" y1="${C.line.y1}" x2="${a.tx}" y2="${a.ty}" stroke="transparent" stroke-width="${hw}" pointer-events="stroke"/>`;
+      }
+      o+=`<rect x="${a.x}" y="${a.y}" width="${a.w}" height="${L.h}" fill="${a.bg}" stroke="${a.color}" stroke-width="${a.width}" stroke-linejoin="miter" pointer-events="all"/>`;
+      o+=L.lines.map((ln,i)=>`<text x="${a.x+PAD}" y="${baseY(a,i,L.lh)}" font-size="${a.size}" font-weight="${a.bold?700:400}" font-family='${FONT}' fill="${a.color}" style="white-space:pre" pointer-events="none">${esc(ln)}</text>`).join('');
+      return `<g data-id="${a.id}">${o}</g>`;
+    }
     case 'text':case 'note': {
       const L=layoutText(a);
       const bg=a.type==='note'?`<rect x="${a.x}" y="${a.y}" width="${a.w}" height="${L.h}" fill="${a.bg}" stroke="rgba(0,0,0,.28)" stroke-width="1" rx="2" pointer-events="all"/>`
@@ -348,6 +387,12 @@ function annSvg(a,z){
     }
   }
   return '';
+}
+/* 글을 쓰는 동안에는 박스·글자는 입력칸이 대신 보여주므로 화살표만 그린다 */
+function calloutLeaderSvg(a,z){
+  const C=calloutGeom(a); if(!C.line) return '';
+  return `<g data-id="${a.id}"><line x1="${C.line.x1}" y1="${C.line.y1}" x2="${C.g.lineEnd[0]}" y2="${C.g.lineEnd[1]}" stroke="${a.color}" stroke-width="${a.width}" stroke-linecap="round" pointer-events="none"/>`+
+         `<polygon points="${C.g.head.map(p=>p.join(',')).join(' ')}" fill="${a.color}" pointer-events="none"/></g>`;
 }
 function handlesFor(a){
   const z=S.zoom, r=5.5/z, out=[];
@@ -359,11 +404,12 @@ function handlesFor(a){
     H('n',b.x+b.w/2,b.y,'ns-resize');H('s',b.x+b.w/2,b.y+b.h,'ns-resize');H('w',b.x,b.y+b.h/2,'ew-resize');H('e',b.x+b.w,b.y+b.h/2,'ew-resize');
     return out.join('');
   }
-  if(a.type==='text'||a.type==='note'){
+  if(isTextual(a)){
     const b=bbox(a), m=3/z, sw=10/z, x1=b.x-m, y1=b.y-m, x2=b.x+b.w+m, y2=b.y+b.h+m;
     const L=(ax,ay,bx,by)=>out.push(`<line data-mv="1" x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="transparent" stroke-width="${sw}" pointer-events="stroke" style="cursor:move"/>`);
     L(x1,y1,x2,y1); L(x1,y2,x2,y2); L(x1,y1,x1,y2); L(x2,y1,x2,y2);
     H('e',b.x+b.w,b.y+b.h/2,'ew-resize'); H('w',b.x,b.y+b.h/2,'ew-resize');
+    if(a.type==='callout'&&typeof a.tx==='number') H('tip',a.tx,a.ty,'move');
   }
   return out.join('');
 }
@@ -371,7 +417,11 @@ function drawOverlay(pi){
   const pg=S.pages[pi]; if(!pg||!pg.svg) return;
   const z=S.zoom;
   let h='';
-  S.anns.forEach(a=>{ if(a.page===pi && a.id!==S.editing) h+=annSvg(a,z); });
+  S.anns.forEach(a=>{
+    if(a.page!==pi) return;
+    if(a.id!==S.editing) h+=annSvg(a,z);
+    else if(a.type==='callout') h+=calloutLeaderSvg(a,z);
+  });
   let ui='';
   const s=S.sel?byId(S.sel):null;
   if(s && s.page===pi){
@@ -549,7 +599,7 @@ function attachPointer(svg,pi){
   svg.addEventListener('dblclick',e=>{
     if(S.tool!=='select') return;
     const el=document.elementFromPoint(e.clientX,e.clientY); const g=el&&el.closest&&el.closest('g[data-id]'); if(!g) return;
-    const a=byId(+g.dataset.id); if(a&&(a.type==='text'||a.type==='note')) openEditor(a,snap());
+    const a=byId(+g.dataset.id); if(isTextual(a)) openEditor(a,snap());
   });
 }
 function setSel(id){ S.sel=id; redrawAll(); syncPanel(); updateBtns(); }
@@ -572,7 +622,7 @@ function onDown(e,svg,pi){
   if(t==='select'){
     if(gEl){
       if(S.sel!==gid){ S.sel=gid; syncPanel(); updateBtns(); }
-      const a=byId(gid); D={kind:'move',pi,a,orig:JSON.parse(JSON.stringify(a)),start:p,before:snap(),moved:false,textClick:(a.type==='text'||a.type==='note')};
+      const a=byId(gid); D={kind:'move',pi,a,orig:JSON.parse(JSON.stringify(a)),start:p,before:snap(),moved:false,textClick:isTextual(a)};
       redrawAll();
     } else { if(S.sel){ S.sel=null; redrawAll(); syncPanel(); updateBtns(); } return; }
     svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
@@ -582,14 +632,14 @@ function onDown(e,svg,pi){
     if(gid!=null){ removeAnn(gid); redrawAll(); }
     svg.setPointerCapture(e.pointerId); e.preventDefault(); return;
   }
-  if((t==='text'||t==='note') && gEl){
+  if((t==='text'||t==='note'||t==='callout') && gEl){
     const a=byId(gid);
-    if(a&&(a.type==='text'||a.type==='note')){ e.preventDefault(); openEditor(a,snap()); return; }
+    if(isTextual(a)){ e.preventDefault(); openEditor(a,snap()); return; }
   }
   // 새로 그리기
   const before=snap();
   const a=newAnn(t,pi);
-  if(t==='highlight'||t==='box'||t==='ellipse'||t==='text'||t==='note'){ a.x=p.x; a.y=p.y; a.w=0; a.h=0; if(t==='text'||t==='note'){ a.text=''; } }
+  if(t==='highlight'||t==='box'||t==='ellipse'||t==='text'||t==='note'||t==='callout'){ a.x=p.x; a.y=p.y; a.w=0; a.h=0; if(t==='text'||t==='note'||t==='callout'){ a.text=''; } }
   else if(t==='line'||t==='arrow'){ a.x1=a.x2=p.x; a.y1=a.y2=p.y; }
   else if(t==='pen'||t==='marker'){ a.pts=[[p.x,p.y]]; }
   S.anns.push(a); S.sel=null;
@@ -613,7 +663,8 @@ function onMove(e,svg,pi){
     const o=D.orig, h=D.h;
     if(h==='p1'){ a.x1=p.x;a.y1=p.y; if(e.shiftKey) snapLine(a,'p1'); }
     else if(h==='p2'){ a.x2=p.x;a.y2=p.y; if(e.shiftKey) snapLine(a,'p2'); }
-    else if(a.type==='text'||a.type==='note'){
+    else if(h==='tip'){ a.tx=p.x; a.ty=p.y; }
+    else if(isTextual(a)){
       if(h==='e'){ a.w=Math.max(40,p.x-o.x); }
       else if(h==='w'){ const r=o.x+o.w; a.x=Math.min(p.x,r-40); a.w=r-a.x; }
     } else {
@@ -626,9 +677,10 @@ function onMove(e,svg,pi){
   if(D.kind==='draw'){
     const s=D.start;
     switch(a.type){
-      case 'highlight':case 'box':case 'ellipse':case 'text':case 'note':
+      case 'highlight':case 'box':case 'ellipse':case 'text':case 'note':case 'callout':
         a.x=Math.min(s.x,p.x); a.y=Math.min(s.y,p.y); a.w=Math.abs(p.x-s.x); a.h=Math.abs(p.y-s.y);
-        if(a.type==='text'||a.type==='note'){ a.text=' '; }
+        if(a.type==='text'||a.type==='note'||a.type==='callout'){ a.text=' '; }
+        if(a.type==='callout') calloutDefaultTip(a);
         break;
       case 'line':case 'arrow': a.x2=p.x; a.y2=p.y; if(e.shiftKey) snapLine(a,'p2'); break;
       case 'pen': { const l=a.pts[a.pts.length-1]; if(Math.hypot(p.x-l[0],p.y-l[1])>0.6) a.pts.push([p.x,p.y]); break; }
@@ -665,8 +717,9 @@ function onUp(e,svg,pi){
     if(a.type==='highlight'||a.type==='box'||a.type==='ellipse') ok=a.w*z>4&&a.h*z>4;
     else if(a.type==='line'||a.type==='arrow') ok=Math.hypot(a.x2-a.x1,a.y2-a.y1)*z>5;
     else if(a.type==='pen'||a.type==='marker'){ ok=a.pts.length>1||false; if(a.pts.length===1){ a.pts.push([a.pts[0][0]+0.01,a.pts[0][1]]); ok=true; } }
-    else if(a.type==='text'||a.type==='note'){
-      a.w = a.w*z>30 ? a.w : (a.type==='note'?190:230); a.h=0; a.text='';
+    else if(isTextual(a)){
+      a.w = a.w*z>30 ? a.w : (a.type==='note'?190:a.type==='callout'?220:230); a.h=0; a.text='';
+      if(a.type==='callout') calloutDefaultTip(a);
       S.anns=S.anns.filter(x=>x.id!==a.id);
       S.anns.push(a);
       redrawAll();
@@ -687,7 +740,8 @@ function openEditor(a,before,isNew){
   const ta=document.createElement('textarea'); ta.className='ed';
   const b=bbox(a);
   Object.assign(ta.style,{left:(a.x*z)+'px',top:(a.y*z)+'px',width:(a.w*z)+'px',fontSize:(a.size*z)+'px',padding:(PAD*z)+'px',color:a.color,fontWeight:a.bold?'700':'400',
-    background:a.type==='note'?a.bg:'transparent',height:(b.h*z)+'px'});
+    background:(a.type==='note'||a.type==='callout')?a.bg:'transparent',height:(b.h*z)+'px'});
+  if(a.type==='callout') ta.style.boxShadow=`inset 0 0 0 ${a.width*z}px ${a.color}`;
   pg.div.appendChild(ta); ta.value=a.text||'';
   const grow=()=>{ ta.style.height='auto'; const h=Math.max(ta.scrollHeight,a.size*1.35*z+PAD*2*z); ta.style.height=h+'px'; S.editH=h/z; };
   grow(); drawOverlay(a.page); ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
@@ -697,7 +751,7 @@ function openEditor(a,before,isNew){
     a.text=ta.value.replace(/\s+$/,'');
     ta.remove(); S.editing=null; S.editH=0; S.finishEdit=null;
     if(!a.text.trim()){ removeAnn(a.id); }
-    else { S.sel=a.id; }
+    else { S.sel=a.id; if(a.type==='callout'&&!calloutGeom(a).line) calloutDefaultTip(a); }
     commitChange(before);
     redrawAll(); syncPanel(); updateBtns();
   };
@@ -725,12 +779,12 @@ function syncPanel(){
   const t=curType(), src=curSource();
   const has=k=>src&&(k in src);
   const showColor=!!DEF[t]; $('gColor').classList.toggle('hide',!showColor);
-  $('gBg').classList.toggle('hide',t!=='note');
+  $('gBg').classList.toggle('hide',!(t==='note'||t==='callout'));
   $('gWidth').classList.toggle('hide',!WIDTH_RANGE[t]);
   $('gOpacity').classList.toggle('hide',!(t==='highlight'||t==='marker'||t==='pen'||t==='box'||t==='ellipse'||t==='line'||t==='arrow'));
-  $('gSize').classList.toggle('hide',!(t==='text'||t==='note'));
+  $('gSize').classList.toggle('hide',!(t==='text'||t==='note'||t==='callout'));
   $('gFill').classList.toggle('hide',!(t==='box'||t==='ellipse'));
-  $('gBold').classList.toggle('hide',!(t==='text'||t==='note'));
+  $('gBold').classList.toggle('hide',!(t==='text'||t==='note'||t==='callout'));
   if(!src) return;
   document.querySelectorAll('#swatches .sw').forEach(b=>b.classList.toggle('on',b.dataset.c.toLowerCase()===String(src.color||'').toLowerCase()));
   document.querySelectorAll('#bgSwatches .sw').forEach(b=>b.classList.toggle('on',b.dataset.c.toLowerCase()===String(src.bg||'').toLowerCase()));
@@ -739,7 +793,7 @@ function syncPanel(){
   if(has('opacity')){ $('rOpacity').value=Math.round(src.opacity*100); $('vOpacity').textContent=Math.round(src.opacity*100)+'%'; }
   if(has('size')){ $('rSize').value=src.size; $('vSize').textContent=src.size; }
   if(has('fill')) $('cFill').checked=!!src.fill;
-  if(t==='text'||t==='note') $('cBold').checked=!!src.bold;
+  if(t==='text'||t==='note'||t==='callout') $('cBold').checked=!!src.bold;
   $('hint').textContent=S.sel?'':HINTS[S.tool]||'';
   if(S.sel) $('hint').textContent='선택됨 · 속성을 바꾸면 바로 적용돼요';
 }
@@ -835,6 +889,21 @@ async function buildPdf(){
       }
       case 'pen': path(page,a.page,a.pts,{stroke:a.color,width:a.width,opacity:op}); break;
       case 'marker': path(page,a.page,a.pts,{stroke:a.color,width:a.width,opacity:op,blend:true,cap:'butt'}); break;
+      case 'callout': {
+        const L=layoutText(a), C=calloutGeom(a);
+        if(C.line){
+          path(page,a.page,[[C.line.x1,C.line.y1],C.g.lineEnd],{stroke:a.color,width:a.width,opacity:1});
+          path(page,a.page,C.g.head,{fill:a.color,opacity:1,close:true});
+        }
+        path(page,a.page,[[a.x,a.y],[a.x+a.w,a.y],[a.x+a.w,a.y+L.h],[a.x,a.y+L.h]],{fill:a.bg,stroke:a.color,width:a.width,opacity:1,close:true});
+        if(!(a.text||'').trim()) break;
+        const t=textToPng(a);
+        const img=await doc.embedPng(await canvasPng(t.canvas));
+        const vp=S.pages[a.page].vp;
+        const q=vp.convertToPdfPoint(a.x,a.y+t.h);
+        page.drawImage(img,{x:q[0],y:q[1],width:a.w,height:t.h,rotate:PL.degrees(vp.rotation||0)});
+        break;
+      }
       case 'text':case 'note': {
         if(!(a.text||'').trim()) break;
         const t=textToPng(a);
@@ -990,7 +1059,7 @@ function onKey(e){
     const st=e.shiftKey?10:1; const dx=e.key==='ArrowLeft'?-st:e.key==='ArrowRight'?st:0, dy=e.key==='ArrowUp'?-st:e.key==='ArrowDown'?st:0;
     const before=snap(); moveAnn(a,JSON.parse(JSON.stringify(a)),dx,dy); commitChange(before); drawOverlay(a.page); return;
   }
-  const map={v:'select',h:'highlight',m:'marker',p:'pen',b:'box',o:'ellipse',l:'line',a:'arrow',t:'text',n:'note',e:'eraser'};
+  const map={v:'select',h:'highlight',m:'marker',p:'pen',b:'box',o:'ellipse',l:'line',a:'arrow',t:'text',n:'note',c:'callout',e:'eraser'};
   if(map[k]) setTool(map[k]);
 }
 window.__pdfEditor={S,buildPdf,makeImages,makeZip,openFile,loadBytes,setZoom,renderPage};
