@@ -877,7 +877,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
       <button class="tabbtn" data-tab="race" onclick="switchTab('race')">🏁 목표달성 레이스</button>
       <button class="tabbtn" data-tab="dbmgmt" onclick="switchTab('dbmgmt')">🗃️ DB관리</button>
-      <button class="tabbtn" data-tab="claimform" onclick="switchTab('claimform')">📎 보험금청구서류</button>
+      <button class="tabbtn" data-tab="claimform" onclick="switchTab('claimform')">📎 보험사메뉴얼</button>
     </div>
   </div>
   <div class="sg" data-group="tools">
@@ -1080,7 +1080,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 <!-- ===== 보험사연락처 ===== -->
 <div class="panel" id="panel-insurer">
   <div class="card">
-    <div class="sub"><b>📞 보험사 비상연락망</b> — 보험사별 담당자 연락처 · 수정하면 팀장님들 모두 최신 내용을 보게 됩니다. (고객센터·완전판매 인콜 번호는 <b>📎 보험금청구서류</b> 탭의 보험사 카드에 있어요.)</div>
+    <div class="sub"><b>📞 보험사 비상연락망</b> — 보험사별 담당자 연락처 · 수정하면 팀장님들 모두 최신 내용을 보게 됩니다. (고객센터·완전판매 인콜 번호는 <b>📎 보험사메뉴얼</b> 탭의 보험사 카드에 있어요.)</div>
     <div class="row">
       <div><label>보험사명</label><input type="text" id="i_name" placeholder="예: 흥국화재"></div>
       <div><label>담당업무</label><input type="text" id="i_role" placeholder="예: 청약/보전/보상"></div>
@@ -2194,10 +2194,10 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   </div>
 </div>
 
-<!-- ===== 보험금청구서류 (보험사별 청구서 양식 보관·다운로드) ===== -->
+<!-- ===== 보험사메뉴얼 (예전 이름 보험금청구서류: 보험사별 연락처·결제 방법·청구서 양식) ===== -->
 <div class="panel" id="panel-claimform">
   <div class="card" style="padding:14px 18px;">
-    <b style="font-size:16px;">📎 보험금청구서류</b>
+    <b style="font-size:16px;">📎 보험사메뉴얼</b>
     <span class="sub" style="margin:0 0 0 8px;">보험사 카드에서 고객센터·완전판매 인콜 번호, 결제 방법, PC접속(설계사)을 바로 볼 수 있고, 카드를 누르면 청구서 양식이 나와요. 올리기·삭제·정보 입력은 마스터만 할 수 있어요.</span>
   </div>
   <div id="cf_setup"></div>
@@ -12930,10 +12930,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
 #panel-claimform .cf-iedit label { margin: 0; font-size: 12px; color: #334155; }
 #panel-claimform .cf-iedit input { width: 100%; font-size: 13px; padding: 6px 9px; border: 1px solid #CBD5E1; border-radius: 8px; margin-top: 3px; }
 #panel-claimform .cf-iedit .cf-irow { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#panel-claimform .cf-iedit .cf-wide { grid-column: 1 / -1; }
+#panel-claimform .cf-iedit textarea { width: 100%; font-size: 13px; line-height: 1.55; padding: 8px 10px; border: 1px solid #CBD5E1; border-radius: 8px; margin-top: 3px; min-height: 120px; resize: vertical; font-family: inherit; }
+.cf-modal { position: fixed; inset: 0; z-index: 9999; background: rgba(15,23,42,.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.cf-mbox { background: #fff; width: min(560px, 100%); max-height: 86vh; border-radius: 14px; box-shadow: 0 20px 50px rgba(15,23,42,.3); display: flex; flex-direction: column; overflow: hidden; }
+.cf-mh { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 22px; border-bottom: 1px solid #E5E7EB; font-size: 17px; font-weight: 800; color: #0F172A; }
+.cf-mx { border: 0; background: none; font-size: 24px; line-height: 1; color: #94A3B8; cursor: pointer; padding: 0 4px; }
+.cf-mb { padding: 20px 22px; overflow-y: auto; font-size: 14px; line-height: 1.85; color: #1E293B; white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; }
+.cf-mf { padding: 12px 22px 16px; border-top: 1px solid #E5E7EB; display: flex; justify-content: flex-end; }
 @media (max-width: 640px) { #panel-claimform .cf-grid { grid-template-columns: 1fr; } }
 </style>
 <script id="claimform_tab">
-/* ===== 보험금청구서류: 보험사별 청구서 양식 보관·다운로드 =====
+/* ===== 보험사메뉴얼(예전 이름 보험금청구서류): 보험사별 연락처·결제 방법·청구서 양식 보관·다운로드 =====
    보험사는 코드 안의 고정 목록(손해보험 13 + 생명보험 20)으로 카드를 만들고, 카드를 누르면 그 보험사에 올라온 서류가 나온다.
    파일은 Supabase Storage(claim-forms 보관함, 비공개)의 f/<아이디>.<확장자>에 두고(한글 파일명 오류를 피하려고 영문 아이디),
    목록(보험사·이름·메모·원래 파일명)은 같은 보관함의 manifest.json 한 개에 적는다. 올리기·삭제는 마스터만, 다운로드·보기는 누구나.
@@ -12949,7 +12957,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     ['iM라이프생명', '생명'], ['KB라이프생명', '생명'], ['IBK연금보험', '생명'], ['처브라이프', '생명'], ['하나생명', '생명'], ['카디프생명', '생명']
   ];
   var CF_SQL = [
-    "-- 보험금청구서류 보관함 (한 번만 실행)",
+    "-- 보험사메뉴얼(청구서 양식) 보관함 (한 번만 실행)",
     "insert into storage.buckets (id, name, public) values ('claim-forms', 'claim-forms', false) on conflict (id) do nothing;",
     "drop policy if exists \"cf_select\" on storage.objects;",
     "create policy \"cf_select\" on storage.objects for select to anon, authenticated using (bucket_id = 'claim-forms');",
@@ -13136,11 +13144,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
     if (!isMaster() || name === ETC) return '';
     var i = infoOf(name);
     function f(id, label, key, ph) { return '<label>' + label + '<input type="text" id="cf_i_' + id + '" placeholder="' + ph + '" value="' + esc(i[key] || '') + '"></label>'; }
+    function ta(id, label, key, ph) { return '<label class="cf-wide">' + label + '<textarea id="cf_i_' + id + '" placeholder="' + ph + '">' + esc(i[key] || '') + '</textarea></label>'; }
     return '<div class="cf-iedit">'
       + f('cs', '☎ 고객센터 번호', 'cs', '예: 1566-7711')
       + f('incall', '☎ 완전판매 인콜 번호', 'incall', '예: 1577-7711')
-      + f('pay', '💳 결제 방법 (주소 또는 글)', 'pay', 'https://… 또는 안내 글')
       + f('pc', '💻 PC접속(설계사) 주소', 'pc', 'https://…')
+      + ta('pay', '💳 결제 방법 (여러 줄로 적으면 팝업창에 줄바꿈 그대로 보여요)', 'pay', '[초회분] 은행 모두 가능 / 카드 계약자 명의 카드 가능\n[계속분] 은행 모든 은행 / 이체일 5, 10, 15, 20, 25')
       + '<div class="cf-irow"><button type="button" class="act small" data-n="' + esc(name) + '" onclick="cfInfoSave(this.dataset.n)">정보 저장</button>'
       + '<span class="cf-gmsg" id="cf_imsg">비워서 저장하면 그 칸은 지워져요. 주소는 https:// 로 시작하게 넣어 주세요.</span></div></div>';
   }
@@ -13192,14 +13201,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CVCore;
       else alert(name + ' ' + (key === 'pay' ? '결제 방법' : 'PC접속(설계사) 주소') + '은 아직 등록되지 않았어요.');
       return;
     }
-    if (isUrl(v)) window.open(v, '_blank', 'noopener'); else alert(name + ' ' + (key === 'pay' ? '결제 방법' : 'PC접속') + '\n\n' + v);
+    if (isUrl(v)) window.open(v, '_blank', 'noopener'); else cfModal(name + ' · ' + (key === 'pay' ? '결제 방법' : 'PC접속(설계사)'), v);
+  };
+  /* 결제 방법처럼 여러 줄 글은 팝업창으로 보여준다(바깥을 누르거나 Esc, 닫기로 닫힘) */
+  window.cfModalClose = function () { var m = $('cf_modal'); if (m) m.remove(); document.removeEventListener('keydown', modalKey); };
+  function modalKey(e) { if (e.key === 'Escape') window.cfModalClose(); }
+  window.cfModal = function (title, text) {
+    window.cfModalClose();
+    var m = document.createElement('div');
+    m.id = 'cf_modal'; m.className = 'cf-modal';
+    m.innerHTML = '<div class="cf-mbox" role="dialog" aria-modal="true"><div class="cf-mh"><span>' + esc(title) + '</span><button type="button" class="cf-mx" aria-label="닫기" onclick="cfModalClose()">×</button></div>'
+      + '<div class="cf-mb">' + esc(text) + '</div><div class="cf-mf"><button type="button" class="secondary" style="padding:9px 22px;border-radius:8px;" onclick="cfModalClose()">닫기</button></div></div>';
+    m.addEventListener('click', function (e) { if (e.target === m) window.cfModalClose(); });
+    document.body.appendChild(m);
+    document.addEventListener('keydown', modalKey);
   };
   window.cfInfoSave = function (name) {
     if (!isMaster()) return;
     function val(id) { var e = $('cf_i_' + id); return e ? e.value.trim() : ''; }
-    var o = { cs: val('cs'), incall: val('incall'), pay: normUrl(val('pay')), pc: normUrl(val('pc')) }, msg = $('cf_imsg');
+    var pay = val('pay'), o = { cs: val('cs'), incall: val('incall'), pay: (pay.indexOf('\n') < 0 ? normUrl(pay) : pay), pc: normUrl(val('pc')) }, msg = $('cf_imsg');
     if (o.pc && !isUrl(o.pc)) { if (msg) msg.textContent = 'PC접속 주소는 https:// 로 시작해야 해요.'; return; }
-    if (/^https?:/i.test(o.pay) && !isUrl(o.pay)) { if (msg) msg.textContent = '결제 방법 주소에 띄어쓰기가 있어요. 확인해 주세요.'; return; }
     if (msg) msg.textContent = '저장 중…';
     mutate(function (m) {
       if (!m.info || typeof m.info !== 'object') m.info = {};
