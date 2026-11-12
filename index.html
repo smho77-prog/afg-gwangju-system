@@ -1599,6 +1599,31 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <div style="font-weight:700;font-size:14px;margin-bottom:6px;">💊 간편형 상품 고지기간 체크 (3.1~3.10.10 티어, 계속 추가 예정)</div>
       <div id="uw_tier_results" style="font-size:12.5px;color:var(--muted);">질환명과 경과월을 입력하고 검색하면 여기도 같이 표시됩니다.</div>
     </div>
+
+  <div class="card" id="uxi_card" style="display:none;">
+    <div style="font-weight:700;font-size:14px;margin-bottom:6px;">📥 예외질환 자료 업데이트 <span style="font-weight:400;font-size:12px;color:var(--muted);">(마스터 전용)</span></div>
+    <div class="sub">변경된 보험사 엑셀만 올려도 돼요. 같은 보험사·같은 진단명은 새 내용으로 <b>바뀌고</b>, 새 진단명은 <b>추가</b>되고, 파일에 없는 기존 진단명은 <b>그대로</b> 남아요. (통째 교체는 아래 옵션을 직접 켠 경우에만)</div>
+    <div class="row">
+      <div style="flex:1;"><label>보험사 (목록에서 고르거나 새로 입력)</label><input type="text" id="uxi_company" list="uxi_companies" placeholder="예: 메리츠화재" oninput="uxiClearPreview()"><datalist id="uxi_companies"></datalist></div>
+      <div style="flex:2;"><label>엑셀 파일 (.xlsx)</label><input type="file" id="uxi_file" accept=".xlsx,.xls,.csv" onchange="uxiPick(event)"></div>
+    </div>
+    <div id="uxi_sheetrow" class="row" style="display:none;">
+      <div><label>시트</label><select id="uxi_sheet" onchange="uxiParse(true)"></select></div>
+      <div><label>머리글 줄 번호 (자동 인식, 틀리면 수정)</label><input type="number" id="uxi_hrow" min="1" onchange="uxiParse(false)"></div>
+    </div>
+    <div id="uxi_cols"></div>
+    <div id="uxi_msg" style="font-size:12.5px;margin:8px 0;color:var(--muted);"></div>
+    <label style="display:none;align-items:center;gap:6px;font-size:12.5px;margin:6px 0;" id="uxi_replace_row"><input type="checkbox" id="uxi_replace" style="width:auto;" onchange="uxiClearPreview(true)"> 이 보험사 자료를 파일 내용으로 <b>통째로 교체</b> (파일에 없는 기존 진단명은 삭제됨)</label>
+    <div id="uxi_btns" style="display:none;gap:8px;flex-wrap:wrap;margin:8px 0;">
+      <button class="act" onclick="uxiPreview()">미리보기</button>
+      <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="uxiBackup()">📄 이 보험사 현재 자료 백업(엑셀)</button>
+      <button class="secondary" style="padding:9px 16px;border-radius:8px;" onclick="uxiReset()">취소</button>
+    </div>
+    <div id="uxi_preview"></div>
+    <details style="margin-top:10px;font-size:12px;color:var(--muted);"><summary style="cursor:pointer;">저장이 안 될 때 (권한 SQL, 처음 한 번만 Supabase에서 실행)</summary>
+      <pre id="uxi_sql" style="white-space:pre-wrap;background:#f5f5f5;border-radius:8px;padding:8px;margin-top:6px;user-select:all;"></pre>
+    </details>
+  </div>
   </div>
 
   <!-- 2) 담보별 업계누적 확인 -->
@@ -2632,6 +2657,7 @@ function switchTab(name) {
   boardSync(name);
   greetSync(name);
   pdfeditSync(name);
+  if (name === 'underwriting' && window.uxiSync) window.uxiSync();
   if (name === 'underwriting') {
     const gv = document.getElementById('uwmode-guide');
     if (gv && gv.style.display !== 'none') switchUwMode('disease'); /* 사이드의 '인수·병력 확인'을 누르면 가이드 말고 기본 화면 */
@@ -9414,6 +9440,7 @@ function switchUwMode(mode){
   if (mode === 'foreign') updateForeignVisaOptions();
   if (mode === 'notice') ntOpen();
   if (mode === 'guide' && window.pgOpen) window.pgOpen();
+  if (mode === 'disease' && window.uxiSync) window.uxiSync();
   uwSyncSide(mode === 'guide');
 }
 /* 상품별 비교가이드는 사이드 메뉴에 따로 있다(화면은 인수기준 검색 패널의 guide 모드를 그대로 씀) */
@@ -13901,6 +13928,332 @@ function hyRuleHtml() {
   return h;
 }
 </script>
+<script id="uw_exc_import">
+/* 예외질환 자료 업데이트 (마스터 전용, 접두어 uxi) — underwriting_exceptions(company, disease, category, conditions[{label,value}]) */
+(function () {
+  'use strict';
+  var SQL = [
+    "grant select, insert, update, delete on underwriting_exceptions to anon, authenticated;",
+    "do $$ begin",
+    "  if exists (select 1 from pg_class where relname = 'underwriting_exceptions' and relrowsecurity)",
+    "     and not exists (select 1 from pg_policies where tablename = 'underwriting_exceptions' and policyname = 'uxi_all') then",
+    "    create policy uxi_all on underwriting_exceptions for all to anon, authenticated using (true) with check (true);",
+    "  end if;",
+    "end $$;"
+  ].join('\n');
+  var S = { grid: null, wb: null, cols: [], parsed: null, plan: null, file: '' };
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function isMaster() { return typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'master'; }
+  function conn() { try { return typeof sb !== 'undefined' ? sb : null; } catch (e) { return null; } }
+  function clean(v) { return String(v == null ? '' : v).replace(/[\s ]+/g, ' ').trim(); }
+  function nz(v) { return clean(v).replace(/\s+/g, '').toLowerCase(); }
+  function msg(t, bad) { var m = $('uxi_msg'); if (m) { m.style.color = bad ? 'var(--red)' : 'var(--muted)'; m.innerHTML = t; } }
+
+  /* ---------- 순수 계산: 격자(2차원 배열) → 열 정보 + 진단명별 조건 ---------- */
+  function findHeaderRow(grid) {
+    for (var r = 0; r < Math.min(grid.length, 60); r++) {
+      var row = grid[r] || [];
+      for (var c = 0; c < row.length; c++) { if (/진단명|동의어|질환명|병명|상병/.test(nz(row[c]))) return r; }
+    }
+    return -1;
+  }
+  function detectCols(grid, h) {
+    var row = grid[h] || [], disC = -1, c;
+    for (c = 0; c < row.length; c++) { if (/진단명/.test(nz(row[c]))) { disC = c; break; } }
+    if (disC < 0) for (c = 0; c < row.length; c++) { if (/동의어|질환명|병명|상병/.test(nz(row[c]))) { disC = c; break; } }
+    if (disC < 0) return null;
+    var hdrText = clean(row[disC]), k = 1;
+    while (k < 4 && h + k < grid.length) {
+      var rr = grid[h + k] || [], dv = clean(rr[disC]);
+      var any = rr.some(function (x) { return clean(x) !== ''; });
+      if (any && (dv === '' || dv === hdrText)) k++; else break;
+    }
+    var width = 0; for (var r = h; r < Math.min(grid.length, h + k + 30); r++) width = Math.max(width, (grid[r] || []).length);
+    var cols = [];
+    for (c = 0; c < width; c++) {
+      var parts = [];
+      for (var i = 0; i < k; i++) { var p = clean((grid[h + i] || [])[c]); if (p && parts[parts.length - 1] !== p) parts.push(p); }
+      cols.push({ idx: c, parts: parts, sub: parts.length ? parts[parts.length - 1] : '', group: parts.length > 1 ? parts[0] : '' });
+    }
+    var used = {};
+    cols.forEach(function (col) {
+      var lab = col.sub;
+      if (lab && used[lab]) {
+        var g = col.group.split(/[\s(（\[]/)[0];
+        lab = (g && g !== col.sub) ? g + ' ' + col.sub : col.sub + ' (' + (col.idx + 1) + '열)';
+      }
+      col.label = lab; if (lab) used[lab] = 1;
+    });
+    var dataStart = h + k;
+    cols.forEach(function (col) {
+      var vals = [];
+      for (var r2 = dataStart; r2 < Math.min(grid.length, dataStart + 40); r2++) { var v = clean((grid[r2] || [])[col.idx]); if (v) vals.push(v); }
+      col.sample = vals.slice(0, 3);
+      var numeric = vals.length >= 3 && vals.filter(function (v) { return /^\d+(\.\d+)?$/.test(v); }).length >= vals.length * 0.8;
+      if (!col.label && !vals.length) col.role = 'skip';
+      else if (col.idx === disC) col.role = 'disease';
+      else if (/^구\s*분$|분류|카테고리/.test(col.sub.replace(/\s/g, '').length ? col.sub : '') && !numeric) col.role = 'category';
+      else if (numeric && /^(구\s*분|번호|no\.?|순번|연번)$/i.test(col.sub)) col.role = 'skip';
+      else if (!col.label) col.role = 'skip';
+      else col.role = 'cond';
+      if (!col.label) col.label = '(' + (col.idx + 1) + '열)';
+    });
+    return { h: h, k: k, dataStart: dataStart, disC: disC, cols: cols };
+  }
+  function extract(grid, info, roles) {
+    var disC = -1, catC = -1, conds = [];
+    info.cols.forEach(function (col) {
+      var role = roles[col.idx] || col.role;
+      if (role === 'disease') disC = col.idx; else if (role === 'category') catC = col.idx; else if (role === 'cond') conds.push(col);
+    });
+    var items = [], byKey = {}, dup = 0, noCond = 0;
+    for (var r = info.dataStart; r < grid.length; r++) {
+      var row = grid[r] || [];
+      var name = clean(row[disC]);
+      if (!name) continue;
+      var list = [];
+      conds.forEach(function (col) { var v = clean(row[col.idx]); if (v) list.push({ label: col.label, value: v }); });
+      if (!list.length) { noCond++; continue; }
+      var it = { disease: name, category: catC >= 0 ? (clean(row[catC]) || null) : null, conditions: list, hasCat: catC >= 0 };
+      var key = nz(name);
+      if (byKey[key] !== undefined) { items[byKey[key]] = it; dup++; } else { byKey[key] = items.length; items.push(it); }
+    }
+    return { items: items, dup: dup, noCond: noCond };
+  }
+  function condSig(list) {
+    var m = {};
+    (Array.isArray(list) ? list : []).forEach(function (c) { if (c && clean(c.value)) m[clean(c.label)] = clean(c.value); });
+    return m;
+  }
+  function diffConds(oldList, newList) {
+    var a = condSig(oldList), b = condSig(newList), out = [], k;
+    for (k in b) { if (!(k in a)) out.push('＋ ' + k + ': ' + b[k]); else if (a[k] !== b[k]) out.push(k + ': ' + a[k] + ' → ' + b[k]); }
+    for (k in a) { if (!(k in b)) out.push('－ ' + k + ': ' + a[k] + ' (파일에 없음)'); }
+    return out;
+  }
+  function makePlan(existing, items, replaceAll) {
+    var byKey = {};
+    existing.forEach(function (r) { var k = nz(r.disease); (byKey[k] = byKey[k] || []).push(r); });
+    var plan = { add: [], chg: [], same: [], del: [], multi: 0 }, seen = {};
+    items.forEach(function (it) {
+      var k = nz(it.disease), hit = byKey[k];
+      seen[k] = 1;
+      if (!hit) { plan.add.push(it); return; }
+      if (hit.length > 1) plan.multi++;
+      var cur = hit[0], d = diffConds(cur.conditions, it.conditions);
+      var catChanged = it.hasCat && (clean(cur.category) !== clean(it.category));
+      if (!d.length && !catChanged) plan.same.push({ cur: cur, it: it });
+      else plan.chg.push({ cur: cur, it: it, diff: d, catChanged: catChanged });
+    });
+    if (replaceAll) existing.forEach(function (r) { if (!seen[nz(r.disease)]) plan.del.push(r); });
+    return plan;
+  }
+  window.uxiTest = { findHeaderRow: findHeaderRow, detectCols: detectCols, extract: extract, makePlan: makePlan, diffConds: diffConds };
+
+  /* ---------- 화면 ---------- */
+  async function loadCompanies() {
+    var c = conn(); if (!c) return;
+    var seen = {}, from = 0;
+    for (var guard = 0; guard < 60; guard++) {
+      var r = await c.from('underwriting_exceptions').select('company').range(from, from + 999);
+      if (r.error || !r.data) break;
+      r.data.forEach(function (x) { if (x.company) seen[x.company] = 1; });
+      if (r.data.length < 1000) break; from += 1000;
+    }
+    var dl = $('uxi_companies'); if (dl) dl.innerHTML = Object.keys(seen).sort().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
+  }
+  window.uxiSync = function () {
+    var card = $('uxi_card'); if (!card) return;
+    var on = isMaster(); card.style.display = on ? 'block' : 'none';
+    if (on) { $('uxi_sql').textContent = SQL; loadCompanies(); }
+  };
+  window.uxiClearPreview = function (keep) { var p = $('uxi_preview'); if (p) p.innerHTML = ''; S.plan = null; };
+  window.uxiReset = function () {
+    S.grid = null; S.wb = null; S.parsed = null; S.plan = null;
+    $('uxi_file').value = ''; $('uxi_cols').innerHTML = ''; $('uxi_preview').innerHTML = '';
+    $('uxi_sheetrow').style.display = 'none'; $('uxi_btns').style.display = 'none'; $('uxi_replace_row').style.display = 'none'; $('uxi_replace').checked = false;
+    msg('');
+  };
+  function sheetGrid(ws) {
+    var ref = ws['!ref']; if (!ref) return [];
+    var rg = XLSX.utils.decode_range(ref);
+    var grid = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, blankrows: true });
+    (ws['!merges'] || []).forEach(function (m) {
+      var sr = m.s.r - rg.s.r, sc = m.s.c - rg.s.c;
+      if (sr < 0 || sc < 0 || !grid[sr]) return;
+      var v = grid[sr][sc];
+      for (var r = m.s.r; r <= m.e.r; r++) for (var c = m.s.c; c <= m.e.c; c++) {
+        var rr = r - rg.s.r, cc = c - rg.s.c;
+        if (!grid[rr]) continue;
+        while (grid[rr].length <= cc) grid[rr].push('');
+        grid[rr][cc] = v;
+      }
+    });
+    return grid;
+  }
+  window.uxiPick = function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    S.file = f.name; msg('읽는 중…');
+    var rd = new FileReader();
+    rd.onload = function (e) {
+      try {
+        S.wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        var sel = $('uxi_sheet');
+        sel.innerHTML = S.wb.SheetNames.map(function (n, i) { return '<option value="' + i + '">' + esc(n) + '</option>'; }).join('');
+        $('uxi_sheetrow').style.display = 'flex';
+        uxiParse(true);
+      } catch (err) { console.error(err); msg('❌ 파일을 읽지 못했어요: ' + esc(err.message), true); }
+    };
+    rd.readAsArrayBuffer(f);
+  };
+  window.uxiParse = function (auto) {
+    if (!S.wb) return;
+    if (auto) {
+      var ws = S.wb.Sheets[S.wb.SheetNames[Number($('uxi_sheet').value) || 0]];
+      S.grid = sheetGrid(ws);
+      var h0 = findHeaderRow(S.grid);
+      $('uxi_hrow').value = h0 >= 0 ? h0 + 1 : '';
+    }
+    var h = (Number($('uxi_hrow').value) || 0) - 1;
+    if (h < 0 || !S.grid) { msg('❌ 진단명이 들어 있는 머리글 줄을 못 찾았어요. 위 칸에 줄 번호를 직접 넣어 주세요.', true); $('uxi_cols').innerHTML = ''; return; }
+    var info = detectCols(S.grid, h);
+    if (!info) { msg('❌ ' + (h + 1) + '번째 줄에서 진단명 열을 못 찾았어요. 머리글 줄 번호를 확인해 주세요.', true); $('uxi_cols').innerHTML = ''; return; }
+    S.parsed = info;
+    var opts = [['cond', '조건으로 가져오기'], ['disease', '진단명'], ['category', '구분(분류)'], ['skip', '가져오지 않기']];
+    var rows = info.cols.filter(function (c) { return c.role !== 'skip' || c.sample.length; }).map(function (c) {
+      return '<tr><td style="white-space:nowrap;"><b>' + esc(c.label) + '</b></td><td style="color:var(--muted);font-size:11.5px;">' + esc(c.sample.join(' / ')) + '</td><td><select data-c="' + c.idx + '" onchange="uxiClearPreview()">' +
+        opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === c.role ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></td></tr>';
+    }).join('');
+    $('uxi_cols').innerHTML = '<div style="font-size:12.5px;margin:8px 0 4px;"><b>열 지정</b> (자동 인식 결과예요. 틀린 열만 바꿔 주세요)</div><div style="overflow:auto;max-height:300px;"><table><thead><tr><th>열 이름(항목)</th><th>예시 값</th><th>어떻게 쓸까요</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    var res = extract(S.grid, info, currentRoles());
+    msg('✓ 진단명 ' + res.items.length + '개 인식 (' + esc(S.file) + ')' + (res.dup ? ' · 파일 안 중복 ' + res.dup + '건은 아래쪽 내용 사용' : '') + '. 보험사를 입력하고 "미리보기"를 눌러 주세요.');
+    $('uxi_btns').style.display = 'flex'; $('uxi_replace_row').style.display = 'flex';
+    uxiClearPreview();
+  };
+  function currentRoles() {
+    var roles = {};
+    [].forEach.call(document.querySelectorAll('#uxi_cols select[data-c]'), function (s) { roles[s.getAttribute('data-c')] = s.value; });
+    return roles;
+  }
+  async function loadExisting(company) {
+    var c = conn(), all = [], from = 0;
+    for (var guard = 0; guard < 60; guard++) {
+      var r = await c.from('underwriting_exceptions').select('*').eq('company', company).order('id', { ascending: true }).range(from, from + 999);
+      if (r.error) throw r.error;
+      all = all.concat(r.data || []);
+      if (!r.data || r.data.length < 1000) break; from += 1000;
+    }
+    return all;
+  }
+  window.uxiPreview = async function () {
+    if (!isMaster()) return;
+    var company = clean($('uxi_company').value);
+    if (!company) { msg('❌ 보험사를 먼저 입력해 주세요.', true); return; }
+    if (!S.parsed) return;
+    var roles = currentRoles();
+    if (Object.keys(roles).filter(function (k) { return roles[k] === 'disease'; }).length !== 1) { msg('❌ "진단명"으로 지정된 열이 정확히 1개여야 해요.', true); return; }
+    var res = extract(S.grid, S.parsed, roles);
+    if (!res.items.length) { msg('❌ 가져올 진단명이 없어요. 열 지정을 확인해 주세요.', true); return; }
+    msg('기존 자료를 읽는 중…');
+    try {
+      var existing = await loadExisting(company);
+      var replaceAll = $('uxi_replace').checked;
+      /* 항목 이름을 기존 자료에 맞춤: 엑셀 '입원' ↔ 기존 '입원(일)' 처럼 괄호만 다른 경우 */
+      var elabels = {}, mapped = {};
+      existing.forEach(function (r) { (r.conditions || []).forEach(function (cd) { if (cd && cd.label) elabels[cd.label] = 1; }); });
+      function baseL(s) { return nz(String(s).replace(/[（(][^)）]*[)）]/g, '')); }
+      var ekeys = Object.keys(elabels);
+      res.items.forEach(function (it) {
+        it.conditions.forEach(function (cd) {
+          if (elabels[cd.label]) return;
+          var cand = ekeys.filter(function (e) { return nz(e) === nz(cd.label) || (baseL(cd.label) && baseL(e) === baseL(cd.label)); });
+          if (cand.length === 1) { mapped[cd.label] = cand[0]; cd.label = cand[0]; }
+        });
+      });
+      var mapNote = Object.keys(mapped).length ? ' 항목 이름을 기존 자료에 맞췄어요: ' + Object.keys(mapped).map(function (k) { return esc(k) + ' → ' + esc(mapped[k]); }).join(', ') + '.' : '';
+      var plan = makePlan(existing, res.items, replaceAll);
+      plan.company = company; plan.existingCount = existing.length; plan.replaceAll = replaceAll;
+      S.plan = plan;
+      var isNew = !existing.length;
+      msg(isNew ? '⚠️ "' + esc(company) + '"은(는) 지금 등록된 자료가 없어서 <b>새 보험사</b>로 추가돼요. 이름이 맞는지 확인하세요.' : '기존 ' + esc(company) + ' 자료 ' + existing.length + '건과 비교했어요.' + mapNote, isNew);
+      renderPlan(plan);
+    } catch (e) { console.error(e); msg('❌ 기존 자료를 읽지 못했어요: ' + esc(e.message || e), true); }
+  };
+  function sect(title, color, n, body) {
+    if (!n) return '';
+    return '<details ' + (color === '#b45309' || color === '#047857' ? 'open' : '') + ' style="margin:8px 0;"><summary style="cursor:pointer;font-weight:700;color:' + color + ';">' + title + ' ' + n + '건</summary><div style="margin-top:6px;">' + body + '</div></details>';
+  }
+  function renderPlan(p) {
+    var LIM = 150;
+    function cut(arr, fn) { var h = arr.slice(0, LIM).map(fn).join(''); return h + (arr.length > LIM ? '<div style="color:var(--muted);font-size:12px;">…외 ' + (arr.length - LIM) + '건 (반영에는 모두 포함됩니다)</div>' : ''); }
+    var html = '<div style="padding:10px 12px;background:#f8fafc;border-radius:8px;font-size:13px;line-height:1.7;"><b>' + esc(p.company) + '</b> — 신규 <b style="color:#047857;">' + p.add.length + '</b> · 변경 <b style="color:#b45309;">' + p.chg.length + '</b> · 그대로 ' + p.same.length + (p.replaceAll ? ' · 삭제 <b style="color:#c0392b;">' + p.del.length + '</b>' : ' · 기존에만 있는 ' + Math.max(0, p.existingCount - p.same.length - p.chg.length) + '건은 그대로 유지') + '</div>';
+    if (p.multi) html += '<div style="font-size:12px;color:#a15c00;margin-top:6px;">⚠ 기존 자료에 같은 진단명이 둘 이상인 건이 ' + p.multi + '개 있어요. 그 경우 첫 번째 건만 비교·변경해요.</div>';
+    html += sect('🆕 신규 추가', '#047857', p.add.length, cut(p.add, function (it) { return '<div style="font-size:12.5px;padding:3px 0;border-bottom:1px dashed #eee;"><b>' + esc(it.disease) + '</b> <span style="color:var(--muted);">' + esc(it.conditions.map(function (c) { return c.label + ':' + c.value; }).join(' · ')) + '</span></div>'; }));
+    html += sect('✏️ 변경', '#b45309', p.chg.length, cut(p.chg, function (x) { return '<div style="font-size:12.5px;padding:4px 0;border-bottom:1px dashed #eee;"><b>' + esc(x.it.disease) + '</b>' + (x.catChanged ? ' <span style="color:var(--muted);">(구분 ' + esc(x.cur.category || '-') + ' → ' + esc(x.it.category || '-') + ')</span>' : '') + '<div style="color:#444;margin-left:8px;">' + x.diff.slice(0, 8).map(esc).join('<br>') + (x.diff.length > 8 ? '<br>…외 ' + (x.diff.length - 8) + '개 항목' : '') + '</div></div>'; }));
+    html += sect('🗑️ 삭제 (통째 교체)', '#c0392b', p.del.length, cut(p.del, function (r) { return '<div style="font-size:12.5px;padding:3px 0;border-bottom:1px dashed #eee;">' + esc(r.disease) + '</div>'; }));
+    html += sect('＝ 그대로', '#6b7280', p.same.length, cut(p.same, function (x) { return '<span style="display:inline-block;font-size:12px;margin:2px 6px 2px 0;color:#666;">' + esc(x.it.disease) + '</span>'; }));
+    var total = p.add.length + p.chg.length + p.del.length;
+    html += total ? '<div style="margin-top:10px;"><button class="act" onclick="uxiCommit()">✅ 반영하기 (신규 ' + p.add.length + ' · 변경 ' + p.chg.length + (p.replaceAll ? ' · 삭제 ' + p.del.length : '') + ')</button></div>' : '<div style="margin-top:10px;color:var(--muted);font-size:13px;">바뀌는 내용이 없어요. (이미 최신 자료예요)</div>';
+    $('uxi_preview').innerHTML = html;
+  }
+  function permHint(e) {
+    var m = String((e && e.message) || e || '');
+    if (/permission|policy|row-level|denied|rls/i.test(m)) { $('uxi_sql').textContent = SQL; var d = $('uxi_sql').parentNode; if (d) d.open = true; return '<br>👉 권한 문제예요. 아래 "저장이 안 될 때" 의 SQL을 Supabase SQL Editor에서 한 번 실행한 뒤 다시 눌러 주세요.'; }
+    return '';
+  }
+  window.uxiCommit = async function () {
+    if (!isMaster() || !S.plan) return;
+    var p = S.plan, c = conn();
+    var ask = '「' + p.company + '」 신규 ' + p.add.length + '건 · 변경 ' + p.chg.length + '건' + (p.replaceAll ? ' · 삭제 ' + p.del.length + '건' : '') + '을 반영할까요?';
+    if (p.replaceAll && p.del.length) ask += '\n\n⚠️ 삭제는 되돌릴 수 없어요. (먼저 "현재 자료 백업"을 받아 두셨나요?)';
+    if (!confirm(ask)) return;
+    msg('저장 중… 창을 닫지 마세요.');
+    try {
+      var i, r;
+      for (i = 0; i < p.add.length; i += 200) {
+        var chunk = p.add.slice(i, i + 200).map(function (it) { return { company: p.company, disease: it.disease, category: it.category, conditions: it.conditions }; });
+        r = await c.from('underwriting_exceptions').insert(chunk); if (r.error) throw r.error;
+      }
+      for (i = 0; i < p.chg.length; i += 8) {
+        var res = await Promise.all(p.chg.slice(i, i + 8).map(function (x) {
+          var upd = { conditions: x.it.conditions }; if (x.it.hasCat) upd.category = x.it.category;
+          return c.from('underwriting_exceptions').update(upd).eq('id', x.cur.id);
+        }));
+        for (var j = 0; j < res.length; j++) if (res[j].error) throw res[j].error;
+      }
+      if (p.replaceAll) {
+        for (i = 0; i < p.del.length; i += 100) {
+          r = await c.from('underwriting_exceptions').delete().in('id', p.del.slice(i, i + 100).map(function (x) { return x.id; })); if (r.error) throw r.error;
+        }
+      }
+      var done = '✅ 반영 완료 — 신규 ' + p.add.length + ' · 변경 ' + p.chg.length + (p.replaceAll ? ' · 삭제 ' + p.del.length : '') + '건 (' + esc(p.company) + ')';
+      uxiReset(); msg(done); loadCompanies();
+      var q = $('uw_q'); if (q && q.value.trim() && window.searchUnderwriting) window.searchUnderwriting();
+    } catch (e) {
+      console.error(e);
+      msg('❌ 저장 중 오류: ' + esc((e && e.message) || e) + permHint(e) + '<br>일부만 저장됐을 수 있어요. 미리보기를 다시 눌러 현재 상태와 비교해 보세요.', true);
+    }
+  };
+  window.uxiBackup = async function () {
+    var company = clean($('uxi_company').value);
+    if (!company) { msg('❌ 백업할 보험사를 먼저 입력해 주세요.', true); return; }
+    try {
+      var rows = await loadExisting(company);
+      if (!rows.length) { msg('이 보험사로 등록된 기존 자료가 없어요.'); return; }
+      var labels = [], seen = {};
+      rows.forEach(function (r) { (r.conditions || []).forEach(function (c) { if (c && c.label && !seen[c.label]) { seen[c.label] = 1; labels.push(c.label); } }); });
+      var aoa = [['진단명', '구분'].concat(labels)];
+      rows.forEach(function (r) { var m = condSig(r.conditions); aoa.push([r.disease, r.category || ''].concat(labels.map(function (l) { return m[l] || ''; }))); });
+      var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), '예외질환');
+      var d = new Date(), ds = d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
+      XLSX.writeFile(wb, '예외질환_' + company + '_백업_' + ds + '.xlsx');
+      msg('✓ 현재 ' + esc(company) + ' 자료 ' + rows.length + '건을 엑셀로 저장했어요.');
+    } catch (e) { msg('❌ 백업 실패: ' + esc((e && e.message) || e), true); }
+  };
+})();
+</script>
+
 <script id="product_guide">
 /* ===== 인수·병력 확인 > 상품별 비교가이드 =====
    PDF는 Supabase Storage(product-guide 보관함)에 두고, 마스터가 올릴 때 브라우저에서 쪽별 글자·목차를 뽑아 검색용 색인(guide-index.json)을 같이 저장한다.
