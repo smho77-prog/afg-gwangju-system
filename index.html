@@ -1641,7 +1641,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     </div>
     <div class="card">
       <div style="font-weight:700;font-size:14px;margin-bottom:8px;">업계누적 자료 추가 (엑셀/PDF/사진)</div>
-      <div class="sub">엑셀은 구분/보험사명/담보종류/한도내용 컬럼으로 자동 등록되고, PDF·사진은 참고자료로 첨부됩니다.</div>
+      <div class="sub">엑셀은 구분/보험사명/담보종류/한도내용 컬럼으로 자동 등록되고, PDF·사진은 참고자료로 첨부됩니다. (첨부 파일은 하나당 45MB까지)</div>
       <div class="row">
         <div><label>엑셀 업로드</label><input type="file" id="il_excelFile" accept=".xlsx,.xls,.csv" onchange="handleLimitExcelUpload(event)"></div>
         <div><label>PDF/사진 첨부</label><input type="file" id="il_fileInput" accept="image/*,.pdf,application/pdf"></div>
@@ -9818,33 +9818,105 @@ async function loadUwFiles(topic){
   allUwFiles[topic] = data || [];
   renderUwFiles(topic);
 }
+const UWF_BUCKET = 'uw-files';
+const UWF_MAX_MB = 45;
+const UWF_SQL = [
+  "-- 인수기준 첨부 자료(큰 PDF) 보관함 (한 번만 실행)",
+  "insert into storage.buckets (id, name, public) values ('uw-files', 'uw-files', false) on conflict (id) do nothing;",
+  "drop policy if exists \"uwf_select\" on storage.objects;",
+  "create policy \"uwf_select\" on storage.objects for select to anon, authenticated using (bucket_id = 'uw-files');",
+  "drop policy if exists \"uwf_insert\" on storage.objects;",
+  "create policy \"uwf_insert\" on storage.objects for insert to anon, authenticated with check (bucket_id = 'uw-files');",
+  "drop policy if exists \"uwf_update\" on storage.objects;",
+  "create policy \"uwf_update\" on storage.objects for update to anon, authenticated using (bucket_id = 'uw-files') with check (bucket_id = 'uw-files');",
+  "drop policy if exists \"uwf_delete\" on storage.objects;",
+  "create policy \"uwf_delete\" on storage.objects for delete to anon, authenticated using (bucket_id = 'uw-files');"
+].join('\n');
+function uwfIsStored(f){ return typeof f.file_data === 'string' && f.file_data.indexOf('storage:') === 0; }
 function renderUwFiles(topic){
   const elId = topic === 'industry_limit' ? 'il_fileList' : 'fu_fileList';
   const el = document.getElementById(elId);
   if (!el) return;
   const list = allUwFiles[topic] || [];
-  if (!list.length) { el.innerHTML = '<div style="color:var(--muted);font-size:12.5px;">첨부된 자료가 없습니다.</div>'; return; }
-  el.innerHTML = list.map(f => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #eee;font-size:12.5px;">
-      <span style="flex:1;">📎 <a href="${f.file_data}" download="${escAttr(f.file_name)}">${escapeHtml(f.memo || f.file_name)}</a></span>
+  const sqlBox = el.getAttribute('data-sql') === '1' ? uwfSqlBoxHtml() : '';
+  if (!list.length) { el.innerHTML = sqlBox + '<div style="color:var(--muted);font-size:12.5px;">첨부된 자료가 없습니다.</div>'; return; }
+  el.innerHTML = sqlBox + list.map(f => {
+    const dt = f.uploaded_at ? ' <span style="color:var(--muted);font-size:11.5px;">(' + String(f.uploaded_at).slice(0, 10) + ')</span>' : '';
+    const name = escapeHtml(f.memo || f.file_name);
+    const link = uwfIsStored(f)
+      ? `<a href="#" onclick="uwFileOpen(${f.id},'${topic}',false);return false;">${name}</a>${dt}
+         <button class="secondary small" style="margin-left:6px;" onclick="uwFileOpen(${f.id},'${topic}',false)">👁 보기</button>
+         <button class="secondary small" onclick="uwFileOpen(${f.id},'${topic}',true)">⬇ 받기</button>`
+      : `<a href="${f.file_data}" download="${escAttr(f.file_name)}">${name}</a>${dt}`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #eee;font-size:12.5px;flex-wrap:wrap;">
+      <span style="flex:1;min-width:200px;">📎 ${link}</span>
       <button class="small danger" onclick="deleteUwFile(${f.id},'${topic}')">삭제</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+function uwfSqlBoxHtml(){
+  return `<div style="background:#fff8e1;border:1px solid #f0d58a;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12.5px;">
+    <b>⚠️ 큰 파일을 올리려면 보관함을 한 번 만들어야 해요.</b> 아래 SQL을 복사해서 Supabase SQL Editor에 붙여넣고 실행한 뒤, 다시 올려 주세요. (처음 한 번만)
+    <textarea readonly style="width:100%;height:110px;margin-top:6px;font-size:11.5px;" onclick="this.select()">${escapeHtml(UWF_SQL)}</textarea>
+    <button class="secondary small" onclick="navigator.clipboard&&navigator.clipboard.writeText(UWF_SQL).then(()=>alert('SQL을 복사했어요.'))">SQL 복사</button>
+  </div>`;
 }
 async function addUwFile(topic, inputId){
   const fileInput = document.getElementById(inputId);
   const file = fileInput.files[0];
   if (!file) { alert('파일을 선택해주세요.'); return; }
-  if (file.size > 5 * 1024 * 1024) { alert('파일 용량이 너무 큽니다 (5MB 이하로 올려주세요).'); return; }
-  const fileData = await readImageAsBase64(file);
-  const { error } = await sb.from('underwriting_files').insert([{ topic, file_name: file.name, file_type: file.type, file_data: fileData }]);
-  if (error) { alert('저장 실패: ' + error.message); return; }
-  fileInput.value = '';
-  await loadUwFiles(topic);
+  if (file.size > UWF_MAX_MB * 1024 * 1024) { alert('파일 용량이 너무 큽니다 (' + UWF_MAX_MB + 'MB 이하로 올려주세요).'); return; }
+  const btn = (window.event && window.event.target && window.event.target.tagName === 'BUTTON') ? window.event.target : null;
+  const oldTxt = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '올리는 중…'; }
+  const el = document.getElementById(topic === 'industry_limit' ? 'il_fileList' : 'fu_fileList');
+  try {
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin';
+    const path = 'f/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7) + '.' + ext;
+    const up = await sb.storage.from(UWF_BUCKET).upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+    if (up.error) {
+      const m = String(up.error.message || up.error);
+      const noBucket = /bucket not found|row-level security|policy|not found/i.test(m);
+      if (noBucket && file.size <= 5 * 1024 * 1024) {
+        /* 보관함이 아직 없으면 5MB 이하는 예전 방식으로 저장 */
+        const fileData = await readImageAsBase64(file);
+        const r = await sb.from('underwriting_files').insert([{ topic, file_name: file.name, file_type: file.type, file_data: fileData }]);
+        if (r.error) throw r.error;
+        fileInput.value = ''; await loadUwFiles(topic);
+        alert('저장했어요. (큰 파일을 올리려면 화면에 안내된 SQL을 한 번 실행해야 해요)');
+        if (el) { el.setAttribute('data-sql', '1'); renderUwFiles(topic); }
+        return;
+      }
+      if (noBucket) { if (el) { el.setAttribute('data-sql', '1'); renderUwFiles(topic); } alert('큰 파일 보관함이 아직 없어요. 화면에 나온 SQL을 Supabase에서 한 번 실행한 뒤 다시 올려 주세요.'); return; }
+      throw up.error;
+    }
+    const ins = await sb.from('underwriting_files').insert([{ topic, file_name: file.name, file_type: file.type, file_data: 'storage:' + path }]);
+    if (ins.error) { await sb.storage.from(UWF_BUCKET).remove([path]); throw ins.error; }
+    fileInput.value = '';
+    await loadUwFiles(topic);
+  } catch (e) {
+    console.error(e);
+    alert('저장 실패: ' + (e && e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldTxt; }
+  }
+}
+async function uwFileOpen(id, topic, download){
+  const f = (allUwFiles[topic] || []).find(x => x.id === id);
+  if (!f || !uwfIsStored(f)) return;
+  const path = f.file_data.slice(8);
+  const w = download ? null : window.open('', '_blank');
+  const r = await sb.storage.from(UWF_BUCKET).createSignedUrl(path, 300, download ? { download: f.file_name } : undefined);
+  if (r.error || !r.data) { if (w) w.close(); alert('파일을 열지 못했어요: ' + (r.error && r.error.message || '')); return; }
+  if (download) { const a = document.createElement('a'); a.href = r.data.signedUrl; a.download = f.file_name; document.body.appendChild(a); a.click(); a.remove(); }
+  else if (w) w.location.href = r.data.signedUrl; else window.location.href = r.data.signedUrl;
 }
 async function deleteUwFile(id, topic){
   if (!confirm('이 자료를 삭제할까요?')) return;
+  const f = (allUwFiles[topic] || []).find(x => x.id === id);
   const { error } = await sb.from('underwriting_files').delete().eq('id', id);
   if (error) { alert('삭제 실패: ' + error.message); return; }
+  if (f && uwfIsStored(f)) { try { await sb.storage.from(UWF_BUCKET).remove([f.file_data.slice(8)]); } catch (e) { console.error(e); } }
   await loadUwFiles(topic);
 }
 
@@ -13951,17 +14023,29 @@ function hyRuleHtml() {
   function msg(t, bad) { var m = $('uxi_msg'); if (m) { m.style.color = bad ? 'var(--red)' : 'var(--muted)'; m.innerHTML = t; } }
 
   /* ---------- 순수 계산: 격자(2차원 배열) → 열 정보 + 진단명별 조건 ---------- */
+  /* 머리글 칸 판정: 설명 문장(길이가 긴 칸)은 제외하고, 짧은 제목 칸만 인정 */
+  function isDisHdr(v, strict) {
+    var t = nz(v);
+    if (!t || t.length > 25) return false;
+    if (/진단명|동의어|질환명|질병명|병명|상병명/.test(t)) return true;
+    return !strict && t.length <= 8 && /상병|질환|질병/.test(t);
+  }
   function findHeaderRow(grid) {
-    for (var r = 0; r < Math.min(grid.length, 60); r++) {
-      var row = grid[r] || [];
-      for (var c = 0; c < row.length; c++) { if (/진단명|동의어|질환명|병명|상병/.test(nz(row[c]))) return r; }
+    for (var pass = 0; pass < 2; pass++) {
+      for (var r = 0; r < Math.min(grid.length, 80); r++) {
+        var row = grid[r] || [];
+        var filled = row.filter(function (x) { return clean(x) !== ''; }).length;
+        if (filled < 2) continue;
+        for (var c = 0; c < row.length; c++) { if (isDisHdr(row[c], pass === 0)) return r; }
+      }
     }
     return -1;
   }
   function detectCols(grid, h) {
     var row = grid[h] || [], disC = -1, c;
-    for (c = 0; c < row.length; c++) { if (/진단명/.test(nz(row[c]))) { disC = c; break; } }
-    if (disC < 0) for (c = 0; c < row.length; c++) { if (/동의어|질환명|병명|상병/.test(nz(row[c]))) { disC = c; break; } }
+    for (c = 0; c < row.length; c++) { if (/진단명/.test(nz(row[c])) && nz(row[c]).length <= 25) { disC = c; break; } }
+    if (disC < 0) for (c = 0; c < row.length; c++) { if (isDisHdr(row[c], true)) { disC = c; break; } }
+    if (disC < 0) for (c = 0; c < row.length; c++) { if (isDisHdr(row[c], false)) { disC = c; break; } }
     if (disC < 0) return null;
     var hdrText = clean(row[disC]), k = 1;
     while (k < 4 && h + k < grid.length) {
