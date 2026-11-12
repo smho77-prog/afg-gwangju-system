@@ -163,7 +163,7 @@ body.t-election .nm .rank{border-radius:.6vh}
 #settings input[type=text],#settings input[type=number],#settings textarea{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
 #settings .row{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;font-weight:700}
 #settings .row input[type=number]{width:70px;margin:0}
-#s-manual .mr{display:flex;gap:6px;align-items:center;margin:4px 0;font-size:12px;color:#334155}#s-manual .mr span{flex:1;word-break:break-all}#s-manual .mr input{width:70px;flex:none}#s-info{margin-top:12px;font-size:12px;line-height:1.55;color:#475569;background:#f1f5f9;border-radius:8px;padding:8px 10px;white-space:pre-wrap}
+#s-manual .mr{display:flex;gap:6px;align-items:center;margin:4px 0;font-size:12px;color:#334155}#s-manual .mr span{flex:1;word-break:break-all}#s-manual .mr input{width:70px;flex:none}#s-tbl .mr{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px;color:#334155}#s-tbl .mr span{flex:1}#s-tbl .mr input{width:70px;flex:none}#s-tbl .mr input.ch{background:#fff7ed;border-color:#f59e0b}#s-info{margin-top:12px;font-size:12px;line-height:1.55;color:#475569;background:#f1f5f9;border-radius:8px;padding:8px 10px;white-space:pre-wrap}
 #settings .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 #settings .btns button{padding:9px 18px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700}
 #settings .btns button.pri{background:#2563eb;color:#fff;border-color:#2563eb}
@@ -216,6 +216,8 @@ body.t-election .nm .rank{border-radius:.6vh}
     <label>자동 갱신 주기 (초)<input type="number" id="s-poll" min="5"></label>
     <div class="row"><input type="checkbox" id="s-auto"><label style="margin:0">테마 자동 순환</label><input type="number" id="s-autosec" min="10"> 초마다</div>
     <div id="s-manual-box" hidden><label style="margin-bottom:4px">✍️ 인정율 직접 입력 (상품별 · 비우면 표 기준으로 돌아감)</label><div id="s-manual"></div></div>
+    <details id="s-tbl-box" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700;font-size:13px">📊 보험사·상품별 인정율 표 (눌러서 수정)</summary>
+      <div style="font-size:11px;color:#64748b;margin:4px 0">바꾼 칸은 주황색으로 표시돼요. 칸을 비우면 공문 기본값으로 돌아가요.</div><div id="s-tbl"></div></details>
     <div id="s-info">-</div>
     <div class="btns"><button id="s-cancel">닫기</button><button class="pri" id="s-save">저장</button></div>
   </div>
@@ -229,7 +231,7 @@ body.t-election .nm .rank{border-radius:.6vh}
 var SB_URL='https://wxsscpjafyszvtdkzrgv.supabase.co';
 var SB_KEY='sb_publishable_gkQJVz2h0mvwR50OpgobRA_-ufWbsOT';
 var LS='afgRace.v1';
-var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60,useRate:true,noRate:100,manual:{}};
+var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60,useRate:true,noRate:100,manual:{},rateOv:{}};
 var THEMES=['moto','cycle','mountain','election','marathon','pullup','swim'];
 var PAL=['#ef4444','#f59e0b','#22c55e','#06b6d4','#6366f1','#d946ef','#f97316','#84cc16','#14b8a6','#ec4899','#a855f7','#eab308'];
 var PREM_CANDS=['premium','monthly_premium','insurance_premium','보험료','premium_amount','fee','amount'];
@@ -247,6 +249,7 @@ function loadCfg(){
   c.goal=Number(c.goal)>0?Number(c.goal):100;
   c.poll=Math.max(5,Number(c.poll)||20);
   c.useRate=c.useRate!==false;
+  if(!c.rateOv||typeof c.rateOv!=='object'||Array.isArray(c.rateOv))c.rateOv={};
   if(!c.manual||typeof c.manual!=='object'||Array.isArray(c.manual))c.manual={};
   c.noRate=isFinite(Number(c.noRate))&&c.noRate!==''&&c.noRate!==null?Math.max(0,Number(c.noRate)):100;
   c.autoSec=Math.max(10,Number(c.autoSec)||60);
@@ -316,7 +319,8 @@ function rateFor(ins,prod){
     if(r.k&&!anyIn(t,r.k))continue;
     if(r.a&&!r.a.every(function(w){return t.indexOf(nz(w))>=0;}))continue;
     if(r.x&&anyIn(t,r.x)){skipped=true;continue;}
-    return {p:r.p,st:'ok',c:r.c||''};
+    var ov=cfg.rateOv[it.n+'|'+i];
+    return {p:(ov!==undefined&&isFinite(Number(ov)))?Number(ov):r.p,st:'ok',c:r.c||''};
   }
   return {p:cfg.noRate,st:skipped?'ex':'none'};
 }
@@ -690,6 +694,10 @@ function openSettings(){
   }else if(!cfg.useRate)lines.push('인정율 적용 안 함 (원 보험료 그대로 합산)');
   if(info.unknown.length)lines.push('명단에 없는 담당자(합계 제외): '+info.unknown.join(', '));
   if(info.err)lines.push('최근 오류: '+info.err);
+  var th='';
+  RATES.forEach(function(it){it.r.forEach(function(r,i){var k=it.n+'|'+i,ov=cfg.rateOv[k],has=ov!==undefined&&isFinite(Number(ov));
+    th+='<div class="mr"><span><b>'+esc(it.n)+'</b> · '+esc(r.k?r.k.join(' / '):'보장성 전상품')+(r.x?' <i style="color:#94a3b8">(제외: '+esc(r.x.join(', '))+')</i>':'')+(r.c?' <b style="color:#b45309">['+esc(r.c)+']</b>':'')+'</span><input type="number" min="0" max="300" data-rk="'+esc(k)+'" data-def="'+r.p+'" class="'+(has?'ch':'')+'" value="'+(has?esc(ov):'')+'" placeholder="'+r.p+'"> %</div>';});});
+  $('#s-tbl').innerHTML=th;
   var mh='',seen={};
   function mrow(k,lab,val,tag){seen[k]=1;mh+='<div class="mr"><span>'+esc(lab)+(tag?' <b style="color:#b45309">'+tag+'</b>':'')+'</span><input type="number" min="0" max="300" data-k="'+esc(k)+'" data-l="'+esc(lab)+'" value="'+(val===''?'':esc(val))+'" placeholder="%"> %</div>';}
   Object.keys(cfg.manual).forEach(function(k){var v=cfg.manual[k];mrow(k,v.l||k,v.p,'(수기)');});
@@ -709,6 +717,10 @@ function saveSettings(){
   var nr=Number($('#s-norate').value);cfg.noRate=isFinite(nr)&&$('#s-norate').value!==''?Math.max(0,nr):100;
   cfg.poll=Math.max(5,Number($('#s-poll').value)||20);
   cfg.auto=$('#s-auto').checked;cfg.autoSec=Math.max(10,Number($('#s-autosec').value)||60);
+  [].forEach.call(document.querySelectorAll('#s-tbl input'),function(i){
+    var k=i.getAttribute('data-rk'),v=i.value.trim();
+    if(v===''||!isFinite(Number(v))||Number(v)===Number(i.getAttribute('data-def')))delete cfg.rateOv[k];else cfg.rateOv[k]=Math.max(0,Number(v));
+  });
   [].forEach.call(document.querySelectorAll('#s-manual input'),function(i){
     var k=i.getAttribute('data-k'),v=i.value.trim();
     if(v===''||!isFinite(Number(v))){delete cfg.manual[k];}else cfg.manual[k]={p:Math.max(0,Number(v)),l:i.getAttribute('data-l')};
