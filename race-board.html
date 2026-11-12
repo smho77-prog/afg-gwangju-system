@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>목표달성 레이스 현황판</title>
 <style>
-:root{--nameW:17vw;--pctW:9vw;--goalPad:5vw;--lh:70px}
+:root{--nameW:18vw;--pctW:9vw;--goalPad:5vw;--lh:70px}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;font-family:"Pretendard","Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#fff;background:#0b1020}
 body.idle{cursor:none}
@@ -51,13 +51,13 @@ body.t-mountain .finish,body.t-election .finish,body.t-pullup .finish{display:no
 
 .lane{position:absolute;left:0;right:0;display:grid;grid-template-columns:var(--nameW) 1fr var(--pctW);align-items:center;transition:top 1s cubic-bezier(.3,1.25,.4,1)}
 .nm{display:flex;align-items:center;gap:.9vw;padding-right:1vw;min-width:0}
-.rank{position:relative;flex:none;width:calc(var(--lh)*.58);height:calc(var(--lh)*.58);border-radius:50%;background:rgba(0,0,0,.45);border:.2vh solid rgba(255,255,255,.5);display:grid;place-items:center;font-weight:900;font-size:calc(var(--lh)*.32)}
+.rank{position:relative;flex:none;width:min(calc(var(--lh)*.58),3.4vw);height:min(calc(var(--lh)*.58),3.4vw);border-radius:50%;background:rgba(0,0,0,.45);border:.2vh solid rgba(255,255,255,.5);display:grid;place-items:center;font-weight:900;font-size:min(calc(var(--lh)*.32),1.9vw)}
 .lane.first .rank{background:linear-gradient(#ffe27a,#f5a524);color:#4a2c00;border-color:#fff}
 .lane.first .rank::after{content:"👑";position:absolute;top:-62%;left:50%;transform:translateX(-50%);font-size:calc(var(--lh)*.36)}
-.who{min-width:0}
-.who b{display:flex;align-items:center;gap:.5vw;font-size:calc(var(--lh)*.38);font-weight:900;white-space:nowrap;text-shadow:0 .2vh .5vh rgba(0,0,0,.6)}
+.who{min-width:0;flex:1}
+.who b{display:flex;align-items:center;gap:.5vw;font-size:min(calc(var(--lh)*.38),1.9vw);font-weight:900;white-space:nowrap;text-shadow:0 .2vh .5vh rgba(0,0,0,.6)}
 .who .dot{display:inline-block;width:calc(var(--lh)*.2);height:calc(var(--lh)*.2);border-radius:50%;border:.2vh solid #fff;flex:none}
-.who small{display:block;font-size:calc(var(--lh)*.26);opacity:.9;text-shadow:0 .2vh .5vh rgba(0,0,0,.6);font-variant-numeric:tabular-nums}
+.who small{display:block;white-space:nowrap;font-size:min(calc(var(--lh)*.26),1.1vw);opacity:.9;text-shadow:0 .2vh .5vh rgba(0,0,0,.6);font-variant-numeric:tabular-nums}
 .run{position:relative;height:calc(var(--lh)*.84);margin-right:var(--goalPad)}
 .tick{position:absolute;top:0;bottom:0;width:0;border-left:.2vh dashed rgba(255,255,255,.3);z-index:0}
 .goal{position:absolute;left:100%;top:50%;width:var(--goalPad);text-align:center;transform:translateY(-50%);font-size:calc(var(--lh)*.55);z-index:1}
@@ -66,7 +66,7 @@ body.t-mountain .goal::before{content:"🚩"}
 body.t-marathon .goal::before{content:"🏅"}
 body.t-pullup .goal::before{content:"🏆"}
 body.t-election .goal{display:none}
-.pct{font-size:calc(var(--lh)*.5);font-weight:900;text-align:right;padding-right:.4vw;font-variant-numeric:tabular-nums;text-shadow:0 .3vh .8vh rgba(0,0,0,.6)}
+.pct{font-size:min(calc(var(--lh)*.5),2.1vw);white-space:nowrap;font-weight:900;text-align:right;padding-right:.4vw;font-variant-numeric:tabular-nums;text-shadow:0 .3vh .8vh rgba(0,0,0,.6)}
 .lane.done .pct{color:#ffd84d}
 .lane.done .pct::before{content:"🎫 ";font-size:.7em}
 
@@ -131,7 +131,7 @@ body.t-election .stamp{display:block;position:absolute;right:.5vw;top:50%;transf
 body.t-election .stamp:empty{display:none}
 body.t-election .lane[data-st=likely] .stamp{background:#f97316}
 body.t-election .lane[data-st=fight] .stamp{background:rgba(0,0,0,.45)}
-body.t-election .pct{font-size:calc(var(--lh)*.56)}
+body.t-election .pct{font-size:min(calc(var(--lh)*.56),2.2vw)}
 body.t-election .nm .rank{border-radius:.6vh}
 
 /* ---------- 속보 티커 ---------- */
