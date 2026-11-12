@@ -163,7 +163,7 @@ body.t-election .nm .rank{border-radius:.6vh}
 #settings input[type=text],#settings input[type=number],#settings textarea{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
 #settings .row{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;font-weight:700}
 #settings .row input[type=number]{width:70px;margin:0}
-#s-info{margin-top:12px;font-size:12px;line-height:1.55;color:#475569;background:#f1f5f9;border-radius:8px;padding:8px 10px;white-space:pre-wrap}
+#s-manual .mr{display:flex;gap:6px;align-items:center;margin:4px 0;font-size:12px;color:#334155}#s-manual .mr span{flex:1;word-break:break-all}#s-manual .mr input{width:70px;flex:none}#s-info{margin-top:12px;font-size:12px;line-height:1.55;color:#475569;background:#f1f5f9;border-radius:8px;padding:8px 10px;white-space:pre-wrap}
 #settings .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 #settings .btns button{padding:9px 18px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700}
 #settings .btns button.pri{background:#2563eb;color:#fff;border-color:#2563eb}
@@ -215,6 +215,7 @@ body.t-election .nm .rank{border-radius:.6vh}
     <label>표에 없는 상품·보험사의 인정율 (%)<input type="number" id="s-norate" min="0" max="300"></label>
     <label>자동 갱신 주기 (초)<input type="number" id="s-poll" min="5"></label>
     <div class="row"><input type="checkbox" id="s-auto"><label style="margin:0">테마 자동 순환</label><input type="number" id="s-autosec" min="10"> 초마다</div>
+    <div id="s-manual-box" hidden><label style="margin-bottom:4px">✍️ 인정율 직접 입력 (상품별 · 비우면 표 기준으로 돌아감)</label><div id="s-manual"></div></div>
     <div id="s-info">-</div>
     <div class="btns"><button id="s-cancel">닫기</button><button class="pri" id="s-save">저장</button></div>
   </div>
@@ -228,7 +229,7 @@ body.t-election .nm .rank{border-radius:.6vh}
 var SB_URL='https://wxsscpjafyszvtdkzrgv.supabase.co';
 var SB_KEY='sb_publishable_gkQJVz2h0mvwR50OpgobRA_-ufWbsOT';
 var LS='afgRace.v1';
-var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60,useRate:true,noRate:100};
+var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60,useRate:true,noRate:100,manual:{}};
 var THEMES=['moto','cycle','mountain','election','marathon','pullup','swim'];
 var PAL=['#ef4444','#f59e0b','#22c55e','#06b6d4','#6366f1','#d946ef','#f97316','#84cc16','#14b8a6','#ec4899','#a855f7','#eab308'];
 var PREM_CANDS=['premium','monthly_premium','insurance_premium','보험료','premium_amount','fee','amount'];
@@ -246,6 +247,7 @@ function loadCfg(){
   c.goal=Number(c.goal)>0?Number(c.goal):100;
   c.poll=Math.max(5,Number(c.poll)||20);
   c.useRate=c.useRate!==false;
+  if(!c.manual||typeof c.manual!=='object'||Array.isArray(c.manual))c.manual={};
   c.noRate=isFinite(Number(c.noRate))&&c.noRate!==''&&c.noRate!==null?Math.max(0,Number(c.noRate)):100;
   c.autoSec=Math.max(10,Number(c.autoSec)||60);
   if(THEMES.indexOf(c.theme)<0)c.theme='moto';
@@ -260,7 +262,7 @@ var lastSums=null;       // 마지막으로 정상 수신한 합계
 var prevBoard=null;
 var lanes={};            // name -> {el,...}
 var news=[];
-var info={col:null,unknown:[],err:'',rows:0,at:null,raw:0,adj:0,okN:0,bad:[],chk:[]};
+var info={col:null,unknown:[],err:'',rows:0,at:null,raw:0,adj:0,okN:0,bad:[],chk:[],badL:{}};
 var pollTimer=null,autoTimer=null,demoTimer=null;
 
 /* ===== 상품별 인정율 (2027 AFG S/S COLLECTION, 공문 5P 기준) =====
@@ -302,7 +304,10 @@ function findIns(name){
 }
 function anyIn(t,arr){for(var i=0;i<arr.length;i++){if(t.indexOf(nz(arr[i]))>=0)return true;}return false;}
 /* 반환: {p:인정율%, st:'ok'|'ex'|'none'|'noins', c:확인조건} — st가 ok가 아니면 p는 '표에 없는 상품' 기본값 */
+function mkey(ins,prod){return nz(ins)+'|'+nz(prod);}
 function rateFor(ins,prod){
+  var mk=mkey(ins,prod),mv=cfg.manual[mk];
+  if(mv&&isFinite(Number(mv.p)))return {p:Number(mv.p),st:'ok',man:true};
   var it=findIns(ins);
   if(!it)return {p:cfg.noRate,st:'noins'};
   var t=nz(prod),skipped=false;
@@ -331,7 +336,7 @@ function detectCol(rows){
 }
 function sumRows(rows){
   var col=detectCol(rows);
-  var sums={},unk={},raw=0,adj=0,okN=0,chk={},bad={};
+  var sums={},unk={},raw=0,adj=0,okN=0,chk={},bad={},badL={};
   cfg.roster.forEach(function(n){sums[n]=0;});
   rows.forEach(function(r){
     var n=String(r.manager_name||'').replace(/\s+/g,'');
@@ -343,13 +348,13 @@ function sumRows(rows){
         var q=rateFor(r.insurer,r.product_name);
         a=v*q.p/100;
         if(q.st==='ok'){okN++;if(q.c)chk[(r.insurer||'')+' '+(r.product_name||'')+' → '+q.c]=1;}
-        else{var lab={noins:'표에 없는 보험사',ex:'제외 상품',none:'표에 없는 상품'}[q.st];bad[lab+': '+(r.insurer||'(보험사 비어 있음)')+' / '+(r.product_name||'(상품명 비어 있음)')]=1;}
+        else{badL[mkey(r.insurer,r.product_name)]={ins:r.insurer||'',prod:r.product_name||'',st:q.st};var lab={noins:'표에 없는 보험사',ex:'제외 상품',none:'표에 없는 상품'}[q.st];bad[lab+': '+(r.insurer||'(보험사 비어 있음)')+' / '+(r.product_name||'(상품명 비어 있음)')]=1;}
       }
       sums[hit]+=a;raw+=v;adj+=a;
     }else if(n)unk[n]=1;
   });
   info.col=col;info.unknown=Object.keys(unk);info.rows=rows.length;
-  info.raw=raw;info.adj=adj;info.okN=okN;info.bad=Object.keys(bad);info.chk=Object.keys(chk);
+  info.raw=raw;info.adj=adj;info.okN=okN;info.bad=Object.keys(bad);info.badL=badL;info.chk=Object.keys(chk);
   return sums;
 }
 function fetchLive(){
@@ -685,6 +690,11 @@ function openSettings(){
   }else if(!cfg.useRate)lines.push('인정율 적용 안 함 (원 보험료 그대로 합산)');
   if(info.unknown.length)lines.push('명단에 없는 담당자(합계 제외): '+info.unknown.join(', '));
   if(info.err)lines.push('최근 오류: '+info.err);
+  var mh='',seen={};
+  function mrow(k,lab,val,tag){seen[k]=1;mh+='<div class="mr"><span>'+esc(lab)+(tag?' <b style="color:#b45309">'+tag+'</b>':'')+'</span><input type="number" min="0" max="300" data-k="'+esc(k)+'" data-l="'+esc(lab)+'" value="'+(val===''?'':esc(val))+'" placeholder="%"> %</div>';}
+  Object.keys(cfg.manual).forEach(function(k){var v=cfg.manual[k];mrow(k,v.l||k,v.p,'(수기)');});
+  Object.keys(info.badL||{}).forEach(function(k){if(seen[k])return;var b=info.badL[k];mrow(k,(b.ins||'(보험사 없음)')+' / '+(b.prod||'(상품명 없음)'),'',{noins:'표에 없는 보험사',ex:'제외 상품',none:'표에 없는 상품'}[b.st]);});
+  $('#s-manual').innerHTML=mh;$('#s-manual-box').hidden=!mh;
   $('#s-info').textContent=lines.join('\n');
   $('#settings').hidden=false;
 }
@@ -699,6 +709,10 @@ function saveSettings(){
   var nr=Number($('#s-norate').value);cfg.noRate=isFinite(nr)&&$('#s-norate').value!==''?Math.max(0,nr):100;
   cfg.poll=Math.max(5,Number($('#s-poll').value)||20);
   cfg.auto=$('#s-auto').checked;cfg.autoSec=Math.max(10,Number($('#s-autosec').value)||60);
+  [].forEach.call(document.querySelectorAll('#s-manual input'),function(i){
+    var k=i.getAttribute('data-k'),v=i.value.trim();
+    if(v===''||!isFinite(Number(v))){delete cfg.manual[k];}else cfg.manual[k]={p:Math.max(0,Number(v)),l:i.getAttribute('data-l')};
+  });
   saveCfg();closeSettings();
   syncLanes();titles();setupAuto();
   prevBoard=null;news=[];
