@@ -239,6 +239,7 @@ var PREM_CANDS=['premium','monthly_premium','insurance_premium','보험료','pre
 function $(s){return document.querySelector(s);}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function pad(n){return n<10?'0'+n:''+n;}
+function mf(w){return (w/10000).toLocaleString('ko-KR',{maximumFractionDigits:2});}
 function fmt(won){return (won/10000).toLocaleString('ko-KR',{minimumFractionDigits:0,maximumFractionDigits:1});}
 
 var cfg=loadCfg();
@@ -304,7 +305,7 @@ var lastSums=null;       // 마지막으로 정상 수신한 합계
 var prevBoard=null;
 var lanes={};            // name -> {el,...}
 var news=[];
-var info={shared:'',sharedErr:'',col:null,unknown:[],err:'',rows:0,at:null,raw:0,adj:0,okN:0,bad:[],chk:[],badL:{}};
+var info={shared:'',sharedErr:'',col:null,unknown:[],err:'',rows:0,at:null,raw:0,adj:0,okN:0,bad:[],chk:[],badL:{},exl:[]};
 var pollTimer=null,autoTimer=null,demoTimer=null;
 
 /* ===== 상품별 인정율 (2027 AFG S/S COLLECTION, 공문 5P 기준) =====
@@ -350,6 +351,8 @@ function mkey(ins,prod){return nz(ins)+'|'+nz(prod);}
 function rateFor(ins,prod){
   var mk=mkey(ins,prod),mv=cfg.manual[mk];
   if(mv&&isFinite(Number(mv.p)))return {p:Number(mv.p),st:'ok',man:true};
+  /* 단독실손(상품명에 '실손'이 들어간 상품)은 어느 보험사든 레이스 실적에서 제외 → 0% */
+  if(nz(prod).indexOf('실손')>=0)return {p:0,st:'ex'};
   var it=findIns(ins);
   if(!it)return {p:cfg.noRate,st:'noins'};
   var t=nz(prod),skipped=false;
@@ -361,7 +364,7 @@ function rateFor(ins,prod){
     var ov=cfg.rateOv[it.n+'|'+i];
     return {p:(ov!==undefined&&isFinite(Number(ov)))?Number(ov):r.p,st:'ok',c:r.c||''};
   }
-  return {p:cfg.noRate,st:skipped?'ex':'none'};
+  return skipped?{p:0,st:'ex'}:{p:cfg.noRate,st:'none'};
 }
 
 /* ===== 날짜 ===== */
@@ -379,7 +382,7 @@ function detectCol(rows){
 }
 function sumRows(rows){
   var col=detectCol(rows);
-  var sums={},unk={},raw=0,adj=0,okN=0,chk={},bad={},badL={};
+  var sums={},unk={},raw=0,adj=0,okN=0,chk={},bad={},badL={},exl={};
   cfg.roster.forEach(function(n){sums[n]=0;});
   rows.forEach(function(r){
     var n=String(r.manager_name||'').replace(/\s+/g,'');
@@ -391,13 +394,13 @@ function sumRows(rows){
         var q=rateFor(r.insurer,r.product_name);
         a=v*q.p/100;
         if(q.st==='ok'){okN++;if(q.c)chk[(r.insurer||'')+' '+(r.product_name||'')+' → '+q.c]=1;}
-        else{badL[mkey(r.insurer,r.product_name)]={ins:r.insurer||'',prod:r.product_name||'',st:q.st};var lab={noins:'표에 없는 보험사',ex:'제외 상품',none:'표에 없는 상품'}[q.st];bad[lab+': '+(r.insurer||'(보험사 비어 있음)')+' / '+(r.product_name||'(상품명 비어 있음)')]=1;}
+        else{badL[mkey(r.insurer,r.product_name)]={ins:r.insurer||'',prod:r.product_name||'',st:q.st};var lab={noins:'표에 없는 보험사',ex:'제외 상품',none:'표에 없는 상품'}[q.st];(q.st==='ex'?exl:bad)[lab+': '+(r.insurer||'(보험사 비어 있음)')+' / '+(r.product_name||'(상품명 비어 있음)')+' '+mf(v)+'만원']=1;}
       }
       sums[hit]+=a;raw+=v;adj+=a;
     }else if(n)unk[n]=1;
   });
   info.col=col;info.unknown=Object.keys(unk);info.rows=rows.length;
-  info.raw=raw;info.adj=adj;info.okN=okN;info.bad=Object.keys(bad);info.badL=badL;info.chk=Object.keys(chk);
+  info.raw=raw;info.adj=adj;info.okN=okN;info.bad=Object.keys(bad);info.badL=badL;info.exl=Object.keys(exl);info.chk=Object.keys(chk);
   return sums;
 }
 function fetchLive(){
@@ -728,7 +731,8 @@ function openSettings(){
   var lines=[sharedState(),'보험료 컬럼: '+colTxt,'이번 달 계약 건수(읽어온 행): '+(info.at?info.rows:'-')];
   if(info.at&&cfg.useRate){
     lines.push('인정율 적용: 원 보험료 '+fmt(info.raw)+'만원 → 인정 보험료 '+fmt(info.adj)+'만원 (표에 맞은 계약 '+info.okN+'건)');
-    if(info.bad.length)lines.push('⚠️ 표에서 못 찾아 '+cfg.noRate+'%로 계산한 계약 '+info.bad.length+'종 (공문 확인 필요):\n  '+info.bad.slice(0,10).join('\n  ')+(info.bad.length>10?'\n  …외 '+(info.bad.length-10)+'종':''));
+    if(info.exl.length)lines.push('🚫 제외 상품(레이스 실적 0원 처리) '+info.exl.length+'종:\n  '+info.exl.slice(0,10).join('\n  '));
+    if(info.bad.length)lines.push('⚠️ 표에서 못 찾아 '+cfg.noRate+'%로 계산한 상품 '+info.bad.length+'종 (공문 확인 필요):\n  '+info.bad.slice(0,10).join('\n  ')+(info.bad.length>10?'\n  …외 '+(info.bad.length-10)+'종':''));
     if(info.chk.length)lines.push('ℹ️ 납입기간 등 조건 확인 필요(자동 판정 불가, 우선 인정율 적용):\n  '+info.chk.slice(0,8).join('\n  '));
   }else if(!cfg.useRate)lines.push('인정율 적용 안 함 (원 보험료 그대로 합산)');
   if(info.unknown.length)lines.push('명단에 없는 담당자(합계 제외): '+info.unknown.join(', '));
