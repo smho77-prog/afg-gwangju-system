@@ -163,7 +163,7 @@ body.t-election .nm .rank{border-radius:.6vh}
 #settings input[type=text],#settings input[type=number],#settings textarea{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px}
 #settings .row{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;font-weight:700}
 #settings .row input[type=number]{width:70px;margin:0}
-#s-info{margin-top:12px;font-size:12px;line-height:1.55;color:#475569;background:#f1f5f9;border-radius:8px;padding:8px 10px;white-space:pre-wrap}
+#s-manual .mr{display:flex;gap:6px;align-items:center;margin:4px 0;font-size:12px;color:#334155}#s-manual .mr span{flex:1;word-break:break-all}#s-manual .mr input{width:70px;flex:none}#s-tbl .mr{display:flex;gap:6px;align-items:center;margin:3px 0;font-size:12px;color:#334155}#s-tbl .mr span{flex:1}#s-tbl .mr input{width:70px;flex:none}#s-tbl .mr input.ch{background:#fff7ed;border-color:#f59e0b}#s-info{margin-top:12px;font-size:12px;line-height:1.55;color:#475569;background:#f1f5f9;border-radius:8px;padding:8px 10px;white-space:pre-wrap}
 #settings .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 #settings .btns button{padding:9px 18px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:700}
 #settings .btns button.pri{background:#2563eb;color:#fff;border-color:#2563eb}
@@ -211,8 +211,13 @@ body.t-election .nm .rank{border-radius:.6vh}
     <label>인당 월 목표 (만원)<input type="number" id="s-goal" min="1"></label>
     <label>팀원 명단 (한 줄에 한 명 — 계약관리의 '담당 팀장' 이름과 똑같이)<textarea id="s-roster" rows="8"></textarea></label>
     <label>보험료 컬럼명 (비워두면 자동 인식)<input type="text" id="s-col" placeholder="예: premium"></label>
+    <div class="row"><input type="checkbox" id="s-rate"><label style="margin:0">상품별 인정율 적용 (2027 S/S 공문 기준)</label></div>
+    <label>표에 없는 상품·보험사의 인정율 (%)<input type="number" id="s-norate" min="0" max="300"></label>
     <label>자동 갱신 주기 (초)<input type="number" id="s-poll" min="5"></label>
     <div class="row"><input type="checkbox" id="s-auto"><label style="margin:0">테마 자동 순환</label><input type="number" id="s-autosec" min="10"> 초마다</div>
+    <div id="s-manual-box" hidden><label style="margin-bottom:4px">✍️ 인정율 직접 입력 (상품별 · 비우면 표 기준으로 돌아감)</label><div id="s-manual"></div></div>
+    <details id="s-tbl-box" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700;font-size:13px">📊 보험사·상품별 인정율 표 (눌러서 수정)</summary>
+      <div style="font-size:11px;color:#64748b;margin:4px 0">바꾼 칸은 주황색으로 표시돼요. 칸을 비우면 공문 기본값으로 돌아가요.</div><div id="s-tbl"></div></details>
     <div id="s-info">-</div>
     <div class="btns"><button id="s-cancel">닫기</button><button class="pri" id="s-save">저장</button></div>
   </div>
@@ -226,7 +231,7 @@ body.t-election .nm .rank{border-radius:.6vh}
 var SB_URL='https://wxsscpjafyszvtdkzrgv.supabase.co';
 var SB_KEY='sb_publishable_gkQJVz2h0mvwR50OpgobRA_-ufWbsOT';
 var LS='afgRace.v1';
-var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60};
+var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60,useRate:true,noRate:100,manual:{},rateOv:{}};
 var THEMES=['moto','cycle','mountain','election','marathon','pullup','swim'];
 var PAL=['#ef4444','#f59e0b','#22c55e','#06b6d4','#6366f1','#d946ef','#f97316','#84cc16','#14b8a6','#ec4899','#a855f7','#eab308'];
 var PREM_CANDS=['premium','monthly_premium','insurance_premium','보험료','premium_amount','fee','amount'];
@@ -238,14 +243,57 @@ function fmt(won){return (won/10000).toLocaleString('ko-KR',{minimumFractionDigi
 
 var cfg=loadCfg();
 function loadCfg(){
+  var s=null;try{s=JSON.parse(localStorage.getItem(LS)||'null');}catch(e){}
+  return loadCfgFrom(s);
+}
+function loadCfgFrom(s){
   var c={};for(var k in DEF)c[k]=DEF[k];
-  try{var s=JSON.parse(localStorage.getItem(LS)||'null');if(s)for(var k2 in s){if(k2 in DEF)c[k2]=s[k2];}}catch(e){}
+  if(s)for(var k2 in s){if(k2 in DEF)c[k2]=s[k2];}
   if(!Array.isArray(c.roster))c.roster=DEF.roster.slice();
   c.goal=Number(c.goal)>0?Number(c.goal):100;
   c.poll=Math.max(5,Number(c.poll)||20);
+  c.useRate=c.useRate!==false;
+  if(!c.rateOv||typeof c.rateOv!=='object'||Array.isArray(c.rateOv))c.rateOv={};
+  if(!c.manual||typeof c.manual!=='object'||Array.isArray(c.manual))c.manual={};
+  c.noRate=isFinite(Number(c.noRate))&&c.noRate!==''&&c.noRate!==null?Math.max(0,Number(c.noRate)):100;
   c.autoSec=Math.max(10,Number(c.autoSec)||60);
   if(THEMES.indexOf(c.theme)<0)c.theme='moto';
   return c;
+}
+/* ===== 모든 PC 공유 설정 (Supabase race_settings) ===== */
+var SHARED_KEYS=['goal','trip','roster','premCol','useRate','noRate','rateOv','manual'];
+var RS_SQL="create table if not exists race_settings (key text primary key, value jsonb not null, updated_at timestamptz not null default now());\ngrant select, insert, update, delete on race_settings to anon, authenticated;";
+function sharedPick(){var o={};SHARED_KEYS.forEach(function(k){o[k]=cfg[k];});return o;}
+function sharedState(){
+  if(info.shared==='missing')return '⚠️ 공유 저장 테이블이 아직 없어요. Supabase SQL Editor에서 아래 SQL을 한 번 실행해 주세요 (그전에는 이 PC에서만 적용):\n'+RS_SQL;
+  if(info.shared==='ok')return '✅ 모든 PC 공유 중 (인정율·목표·명단은 어느 PC에서 열어도 같아요)';
+  if(info.shared==='empty')return 'ℹ️ 아직 공유된 설정이 없어요. 저장하면 모든 PC에 적용돼요.';
+  if(info.shared==='err')return '⚠️ 공유 설정 연결 실패: '+(info.sharedErr||'')+' (이 PC 저장값으로 계산 중)';
+  return '공유 설정: 확인 전';
+}
+function pullShared(){
+  if(demo)return Promise.resolve(false);
+  return fetch(SB_URL+'/rest/v1/race_settings?key=eq.main&select=value',{headers:{apikey:SB_KEY}}).then(function(r){
+    if(r.status===404||r.status===400){info.shared='missing';return false;}
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json().then(function(rows){
+      if(!Array.isArray(rows)||!rows.length||!rows[0].value){info.shared='empty';return false;}
+      info.shared='ok';
+      var v=rows[0].value,before=JSON.stringify(sharedPick());
+      SHARED_KEYS.forEach(function(k){if(k in v)cfg[k]=v[k];});
+      var c=loadCfgFrom(cfg);for(var k2 in c)cfg[k2]=c[k2];
+      if(JSON.stringify(sharedPick())===before)return false;
+      saveCfg();return true;
+    });
+  }).catch(function(e){info.shared='err';info.sharedErr=String(e&&e.message||e);return false;});
+}
+function pushShared(){
+  if(demo)return Promise.resolve(true);
+  return fetch(SB_URL+'/rest/v1/race_settings?on_conflict=key',{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:'main',value:sharedPick(),updated_at:new Date().toISOString()})}).then(function(r){
+    if(r.ok){info.shared='ok';return true;}
+    if(r.status===404||r.status===400){info.shared='missing';return false;}
+    throw new Error('HTTP '+r.status);
+  }).catch(function(e){if(info.shared!=='missing'){info.shared='err';info.sharedErr=String(e&&e.message||e);}return false;});
 }
 function saveCfg(){try{localStorage.setItem(LS,JSON.stringify(cfg));}catch(e){}}
 
@@ -256,8 +304,65 @@ var lastSums=null;       // 마지막으로 정상 수신한 합계
 var prevBoard=null;
 var lanes={};            // name -> {el,...}
 var news=[];
-var info={col:null,unknown:[],err:'',rows:0,at:null};
+var info={shared:'',sharedErr:'',col:null,unknown:[],err:'',rows:0,at:null,raw:0,adj:0,okN:0,bad:[],chk:[],badL:{}};
 var pollTimer=null,autoTimer=null,demoTimer=null;
+
+/* ===== 상품별 인정율 (2027 AFG S/S COLLECTION, 공문 5P 기준) =====
+   보험사마다 al(이름 조각)로 계약의 '보험사' 칸과 맞추고, r(규칙)을 위에서부터 보며 처음 맞는 줄의 인정율(p)을 쓴다.
+   k=상품명에 들어 있어야 할 글자(하나라도 맞으면 됨, 없으면 그 보험사의 나머지 전부), a=모두 들어 있어야 할 글자,
+   x=들어 있으면 제외할 글자, c=납입기간 등 계약 정보만으로는 확인 못 하는 조건(설정창에 안내).
+   공문이 바뀌면 이 표만 고친다. */
+var RATES=[
+ {n:'메리츠화재',al:['메리츠'],r:[{p:130,x:['단독실손','펫']}]},
+ {n:'라이나손보',al:['라이나손보','라이나손해'],r:[{p:120}]},
+ {n:'DB손보',al:['db손보','db손해','동부화재'],r:[{p:110}]},
+ {n:'KB손보',al:['kb손보','kb손해','kb화재'],r:[{p:110}]},
+ {n:'흥국화재',al:['흥국화재'],r:[{p:100}]},
+ {n:'삼성화재',al:['삼성화재'],r:[{p:110}]},
+ {n:'현대해상',al:['현대해상'],r:[{p:100}]},
+ {n:'하나손보',al:['하나손보','하나손해'],r:[{p:80}]},
+ {n:'NH농협손보',al:['nh농협손보','nh손보','농협손보','농협손해'],r:[{p:70,x:['단독실손']}]},
+ {n:'롯데손보',al:['롯데손보','롯데손해'],r:[{p:60}]},
+ {n:'한화손보',al:['한화손보','한화손해'],r:[{p:60}]},
+ {n:'미래에셋생명',al:['미래에셋'],r:[{p:130,k:['케어건강','케어0세','암걱정없는암치료'],x:['기본형','치아']}]},
+ {n:'흥국생명',al:['흥국생명'],r:[{p:130,k:['건강'],x:['기본형']}]},
+ {n:'KB라이프생명',al:['kb라이프','kb생명'],r:[{p:130,k:['딱좋은건강','딱좋은간병'],x:['기본형']},{p:50,k:['트리플','넥스트'],x:['기본형']}]},
+ {n:'라이나생명',al:['라이나생명'],r:[{p:70,k:['종신'],a:['무해지'],x:['기본형']},{p:120,k:['건강','치아'],x:['기본형','종신']}]},
+ {n:'한화생명',al:['한화생명'],r:[{p:90,k:['종신'],x:['기본형']},{p:110,x:['스마트상해','기업재해보장','튼튼이치아','곰두리']}]},
+ {n:'신한라이프생명',al:['신한라이프','신한생명'],r:[{p:70,k:['종신']},{p:110,k:['통합건강','손보형']},{p:50,k:['더드림','변액연금','위너스'],x:['기본형']}]},
+ {n:'DB생명',al:['db생명','동부생명'],r:[{p:100,k:['생활비암','내가고른건강','건강100','치매간병']}]},
+ {n:'메트라이프생명',al:['메트라이프'],r:[{p:90,k:['모두의달러종신','백만인을위한달러종신'],c:'납입기간 확인(7·10년납)'},{p:60,k:['변액리치정기','리치정기']},{p:50,k:['오로지연금','달러연금']}]},
+ {n:'KDB생명',al:['kdb생명'],r:[{p:70,k:['서포트100']},{p:90,k:['건강']}]},
+ {n:'삼성생명',al:['삼성생명'],r:[{p:90,k:['라이트건강','다모은건강','가족대표건강','1540','4180','인생대표건강'],c:'10년납 초과만 인정'}]},
+ {n:'처브라이프생명',al:['처브','chubb','에이스생명'],r:[{p:60,k:['매월받는암생활비']},{p:70,k:['수종신','medical종신','플러스건강종신'],c:'10년납 초과 조건 확인'}]},
+ {n:'동양생명',al:['동양생명'],r:[{p:50,k:['플러스종신','알뜰플러스'],x:['표준형']},{p:60,k:['치매간병','건강보장','보장','암보험','꿈나무'],x:['표준형']}]}
+];
+function nz(s){return String(s==null?'':s).toLowerCase().replace(/[\s\-_·.,()\[\]]/g,'').replace(/주식회사/g,'').replace(/손해보험/g,'손보').replace(/생명보험/g,'생명').replace(/화재해상보험|화재보험/g,'화재');}
+function findIns(name){
+  var a=nz(name),best=null,bl=0;
+  if(!a)return null;
+  RATES.forEach(function(it){it.al.forEach(function(al){var b=nz(al);if(a.indexOf(b)>=0&&b.length>bl){best=it;bl=b.length;}});});
+  return best;
+}
+function anyIn(t,arr){for(var i=0;i<arr.length;i++){if(t.indexOf(nz(arr[i]))>=0)return true;}return false;}
+/* 반환: {p:인정율%, st:'ok'|'ex'|'none'|'noins', c:확인조건} — st가 ok가 아니면 p는 '표에 없는 상품' 기본값 */
+function mkey(ins,prod){return nz(ins)+'|'+nz(prod);}
+function rateFor(ins,prod){
+  var mk=mkey(ins,prod),mv=cfg.manual[mk];
+  if(mv&&isFinite(Number(mv.p)))return {p:Number(mv.p),st:'ok',man:true};
+  var it=findIns(ins);
+  if(!it)return {p:cfg.noRate,st:'noins'};
+  var t=nz(prod),skipped=false;
+  for(var i=0;i<it.r.length;i++){
+    var r=it.r[i];
+    if(r.k&&!anyIn(t,r.k))continue;
+    if(r.a&&!r.a.every(function(w){return t.indexOf(nz(w))>=0;}))continue;
+    if(r.x&&anyIn(t,r.x)){skipped=true;continue;}
+    var ov=cfg.rateOv[it.n+'|'+i];
+    return {p:(ov!==undefined&&isFinite(Number(ov)))?Number(ov):r.p,st:'ok',c:r.c||''};
+  }
+  return {p:cfg.noRate,st:skipped?'ex':'none'};
+}
 
 /* ===== 날짜 ===== */
 function ym(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth()+1,d:d.getDate(),last:new Date(d.getFullYear(),d.getMonth()+1,0).getDate()};}
@@ -274,15 +379,25 @@ function detectCol(rows){
 }
 function sumRows(rows){
   var col=detectCol(rows);
-  var sums={},unk={};
+  var sums={},unk={},raw=0,adj=0,okN=0,chk={},bad={},badL={};
   cfg.roster.forEach(function(n){sums[n]=0;});
   rows.forEach(function(r){
     var n=String(r.manager_name||'').replace(/\s+/g,'');
     var hit=null;
     cfg.roster.forEach(function(x){if(x.replace(/\s+/g,'')===n)hit=x;});
-    if(hit)sums[hit]+=col?num(r[col]):0;else if(n)unk[n]=1;
+    if(hit){
+      var v=col?num(r[col]):0,a=v;
+      if(cfg.useRate){
+        var q=rateFor(r.insurer,r.product_name);
+        a=v*q.p/100;
+        if(q.st==='ok'){okN++;if(q.c)chk[(r.insurer||'')+' '+(r.product_name||'')+' → '+q.c]=1;}
+        else{badL[mkey(r.insurer,r.product_name)]={ins:r.insurer||'',prod:r.product_name||'',st:q.st};var lab={noins:'표에 없는 보험사',ex:'제외 상품',none:'표에 없는 상품'}[q.st];bad[lab+': '+(r.insurer||'(보험사 비어 있음)')+' / '+(r.product_name||'(상품명 비어 있음)')]=1;}
+      }
+      sums[hit]+=a;raw+=v;adj+=a;
+    }else if(n)unk[n]=1;
   });
   info.col=col;info.unknown=Object.keys(unk);info.rows=rows.length;
+  info.raw=raw;info.adj=adj;info.okN=okN;info.bad=Object.keys(bad);info.badL=badL;info.chk=Object.keys(chk);
   return sums;
 }
 function fetchLive(){
@@ -402,7 +517,7 @@ function titles(){
   var h={moto:tr+' 그랑프리',cycle:'투르 드 '+tr,mountain:tr+' 정상 정복 대작전',election:tr+' 개표방송',marathon:tr+' 마라톤',pullup:tr+' 철봉 챌린지',swim:tr+' 수영 대회'}[th];
   var ic={moto:'🏍️ ',cycle:'🚴 ',mountain:'⛰️ ',election:'📺 ',marathon:'🏃 ',pullup:'💪 ',swim:'🏊 '}[th];
   $('#h-title').textContent=ic+h;
-  $('#h-sub').textContent=t.m+'월 인당 '+cfg.goal+'만원 달성 레이스 · 골인하면 '+tr+' 출발!';
+  $('#h-sub').textContent=t.m+'월 인당 '+cfg.goal+'만원'+(cfg.useRate?'(인정보험료)':'')+' 달성 레이스 · 골인하면 '+tr+' 출발!';
   $('#o-lab').textContent=th==='election'?'전체 개표율':'센터 전체 달성률';
   var ax=$('#axrun');
   var pts=[[0,th==='election'?'0%':'출발'],[25,'25%'],[50,'50%'],[75,'75%'],[100,'🏁 '+cfg.goal+'만원']];
@@ -558,7 +673,7 @@ function setStatus(kind,txt){
 }
 function pollOnce(){
   if(demo)return Promise.resolve();
-  return fetchLive().then(function(sums){
+  return pullShared().then(function(ch){if(ch){syncLanes();titles();prevBoard=null;lastSums=null;}return fetchLive();}).then(function(sums){
     info.err='';info.at=new Date();
     applySums(sums);
     var d=info.at;
@@ -608,11 +723,25 @@ function tickClock(){
 /* ===== 설정창 ===== */
 function openSettings(){
   $('#s-trip').value=cfg.trip;$('#s-goal').value=cfg.goal;$('#s-roster').value=cfg.roster.join('\n');
-  $('#s-col').value=cfg.premCol;$('#s-poll').value=cfg.poll;$('#s-auto').checked=!!cfg.auto;$('#s-autosec').value=cfg.autoSec;
+  $('#s-col').value=cfg.premCol;$('#s-rate').checked=!!cfg.useRate;$('#s-norate').value=cfg.noRate;$('#s-poll').value=cfg.poll;$('#s-auto').checked=!!cfg.auto;$('#s-autosec').value=cfg.autoSec;
   var colTxt=demo?'데모 모드라 확인 안 함':(!info.at?'아직 확인 전':(info.col===null?'못 찾음 (컬럼명을 직접 입력해 주세요)':info.col));
-  var lines=['보험료 컬럼: '+colTxt,'이번 달 계약 건수(읽어온 행): '+(info.at?info.rows:'-')];
+  var lines=[sharedState(),'보험료 컬럼: '+colTxt,'이번 달 계약 건수(읽어온 행): '+(info.at?info.rows:'-')];
+  if(info.at&&cfg.useRate){
+    lines.push('인정율 적용: 원 보험료 '+fmt(info.raw)+'만원 → 인정 보험료 '+fmt(info.adj)+'만원 (표에 맞은 계약 '+info.okN+'건)');
+    if(info.bad.length)lines.push('⚠️ 표에서 못 찾아 '+cfg.noRate+'%로 계산한 계약 '+info.bad.length+'종 (공문 확인 필요):\n  '+info.bad.slice(0,10).join('\n  ')+(info.bad.length>10?'\n  …외 '+(info.bad.length-10)+'종':''));
+    if(info.chk.length)lines.push('ℹ️ 납입기간 등 조건 확인 필요(자동 판정 불가, 우선 인정율 적용):\n  '+info.chk.slice(0,8).join('\n  '));
+  }else if(!cfg.useRate)lines.push('인정율 적용 안 함 (원 보험료 그대로 합산)');
   if(info.unknown.length)lines.push('명단에 없는 담당자(합계 제외): '+info.unknown.join(', '));
   if(info.err)lines.push('최근 오류: '+info.err);
+  var th='';
+  RATES.forEach(function(it){it.r.forEach(function(r,i){var k=it.n+'|'+i,ov=cfg.rateOv[k],has=ov!==undefined&&isFinite(Number(ov));
+    th+='<div class="mr"><span><b>'+esc(it.n)+'</b> · '+esc(r.k?r.k.join(' / '):'보장성 전상품')+(r.x?' <i style="color:#94a3b8">(제외: '+esc(r.x.join(', '))+')</i>':'')+(r.c?' <b style="color:#b45309">['+esc(r.c)+']</b>':'')+'</span><input type="number" min="0" max="300" data-rk="'+esc(k)+'" data-def="'+r.p+'" class="'+(has?'ch':'')+'" value="'+(has?esc(ov):'')+'" placeholder="'+r.p+'"> %</div>';});});
+  $('#s-tbl').innerHTML=th;
+  var mh='',seen={};
+  function mrow(k,lab,val,tag){seen[k]=1;mh+='<div class="mr"><span>'+esc(lab)+(tag?' <b style="color:#b45309">'+tag+'</b>':'')+'</span><input type="number" min="0" max="300" data-k="'+esc(k)+'" data-l="'+esc(lab)+'" value="'+(val===''?'':esc(val))+'" placeholder="%"> %</div>';}
+  Object.keys(cfg.manual).forEach(function(k){var v=cfg.manual[k];mrow(k,v.l||k,v.p,'(수기)');});
+  Object.keys(info.badL||{}).forEach(function(k){if(seen[k])return;var b=info.badL[k];mrow(k,(b.ins||'(보험사 없음)')+' / '+(b.prod||'(상품명 없음)'),'',{noins:'표에 없는 보험사',ex:'제외 상품',none:'표에 없는 상품'}[b.st]);});
+  $('#s-manual').innerHTML=mh;$('#s-manual-box').hidden=!mh;
   $('#s-info').textContent=lines.join('\n');
   $('#settings').hidden=false;
 }
@@ -623,9 +752,20 @@ function saveSettings(){
   var seen={};
   cfg.roster=$('#s-roster').value.split(/\n/).map(function(s){return s.trim();}).filter(function(s){if(!s||seen[s])return false;seen[s]=1;return true;});
   cfg.premCol=$('#s-col').value.trim();
+  cfg.useRate=$('#s-rate').checked;
+  var nr=Number($('#s-norate').value);cfg.noRate=isFinite(nr)&&$('#s-norate').value!==''?Math.max(0,nr):100;
   cfg.poll=Math.max(5,Number($('#s-poll').value)||20);
   cfg.auto=$('#s-auto').checked;cfg.autoSec=Math.max(10,Number($('#s-autosec').value)||60);
+  [].forEach.call(document.querySelectorAll('#s-tbl input'),function(i){
+    var k=i.getAttribute('data-rk'),v=i.value.trim();
+    if(v===''||!isFinite(Number(v))||Number(v)===Number(i.getAttribute('data-def')))delete cfg.rateOv[k];else cfg.rateOv[k]=Math.max(0,Number(v));
+  });
+  [].forEach.call(document.querySelectorAll('#s-manual input'),function(i){
+    var k=i.getAttribute('data-k'),v=i.value.trim();
+    if(v===''||!isFinite(Number(v))){delete cfg.manual[k];}else cfg.manual[k]={p:Math.max(0,Number(v)),l:i.getAttribute('data-l')};
+  });
   saveCfg();closeSettings();
+  pushShared().then(function(ok){if(!ok){alert(info.shared==='missing'?'공유 저장 테이블이 없어서 이 PC에만 저장됐어요.\n설정창 맨 아래 안내의 SQL을 Supabase SQL Editor에서 한 번 실행한 뒤 다시 저장해 주세요.':'공유 저장에 실패했어요(이 PC에는 저장됨): '+(info.sharedErr||''));}});
   syncLanes();titles();setupAuto();
   prevBoard=null;news=[];
   if(demo)startDemo();else{lastSums=null;setStatus('','연결 중…');startPoll();}
