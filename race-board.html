@@ -210,6 +210,7 @@ body.t-election .nm .rank{border-radius:.6vh}
     <label>목표 이름 (예: 나트랑)<input type="text" id="s-trip"></label>
     <label>인당 월 목표 (만원)<input type="number" id="s-goal" min="1"></label>
     <label>팀원 명단 (한 줄에 한 명 — 계약관리의 '담당 팀장' 이름과 똑같이)<textarea id="s-roster" rows="8"></textarea></label>
+    <label>공휴일·휴무일 (D-day 영업일 계산에서 제외 · 한 줄에 하나, 예: 2026-12-25)<textarea id="s-hol" rows="3"></textarea></label>
     <label>보험료 컬럼명 (비워두면 자동 인식)<input type="text" id="s-col" placeholder="예: premium"></label>
     <div class="row"><input type="checkbox" id="s-rate"><label style="margin:0">상품별 인정율 적용 (2027 S/S 공문 기준)</label></div>
     <label>표에 없는 상품·보험사의 인정율 (%)<input type="number" id="s-norate" min="0" max="300"></label>
@@ -231,7 +232,7 @@ body.t-election .nm .rank{border-radius:.6vh}
 var SB_URL='https://wxsscpjafyszvtdkzrgv.supabase.co';
 var SB_KEY='sb_publishable_gkQJVz2h0mvwR50OpgobRA_-ufWbsOT';
 var LS='afgRace.v1';
-var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60,useRate:true,noRate:100,manual:{},rateOv:{}};
+var DEF={goal:100,trip:'나트랑',roster:['임채주','정나겸','윤혜원','유명수','안세현','김라희','배해영','정인옥','안지예','박현주'],premCol:'',poll:20,theme:'moto',auto:false,autoSec:60,useRate:true,noRate:100,manual:{},rateOv:{},holidays:['2026-12-25']};
 var THEMES=['moto','cycle','mountain','election','marathon','pullup','swim'];
 var PAL=['#ef4444','#f59e0b','#22c55e','#06b6d4','#6366f1','#d946ef','#f97316','#84cc16','#14b8a6','#ec4899','#a855f7','#eab308'];
 var PREM_CANDS=['premium','monthly_premium','insurance_premium','보험료','premium_amount','fee','amount'];
@@ -254,6 +255,7 @@ function loadCfgFrom(s){
   c.goal=Number(c.goal)>0?Number(c.goal):100;
   c.poll=Math.max(5,Number(c.poll)||20);
   c.useRate=c.useRate!==false;
+  c.holidays=Array.isArray(c.holidays)?c.holidays.map(function(x){return String(x).trim();}).filter(function(x){return /^\d{4}-\d{2}-\d{2}$/.test(x);}):DEF.holidays.slice();
   if(!c.rateOv||typeof c.rateOv!=='object'||Array.isArray(c.rateOv))c.rateOv={};
   if(!c.manual||typeof c.manual!=='object'||Array.isArray(c.manual))c.manual={};
   c.noRate=isFinite(Number(c.noRate))&&c.noRate!==''&&c.noRate!==null?Math.max(0,Number(c.noRate)):100;
@@ -262,7 +264,7 @@ function loadCfgFrom(s){
   return c;
 }
 /* ===== 모든 PC 공유 설정 (Supabase race_settings) ===== */
-var SHARED_KEYS=['goal','trip','roster','premCol','useRate','noRate','rateOv','manual'];
+var SHARED_KEYS=['goal','trip','roster','premCol','useRate','noRate','rateOv','manual','holidays'];
 var RS_SQL="create table if not exists race_settings (key text primary key, value jsonb not null, updated_at timestamptz not null default now());\ngrant select, insert, update, delete on race_settings to anon, authenticated;";
 function sharedPick(){var o={};SHARED_KEYS.forEach(function(k){o[k]=cfg[k];});return o;}
 function sharedState(){
@@ -717,16 +719,30 @@ function stopDemo(){
 }
 
 /* ===== 시계 / D-day ===== */
+/* 영업일 기준 D-day: 주말과 휴무일(설정의 공휴일·휴무일)을 빼고, 그 달 마지막 영업일을 마감일로 센다 */
+function ymd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function isBiz(d){var w=d.getDay();return w!==0&&w!==6&&cfg.holidays.indexOf(ymd(d))<0;}
+function bizLeft(now){
+  var y=now.getFullYear(),m=now.getMonth();
+  var dl=new Date(y,m+1,0);
+  while(!isBiz(dl)&&dl.getDate()>1)dl.setDate(dl.getDate()-1);
+  var today=new Date(y,m,now.getDate());
+  if(today>dl)return -1;
+  var n=0,c=new Date(today);
+  while(c<dl){c.setDate(c.getDate()+1);if(isBiz(c))n++;}
+  return n;
+}
 function tickClock(){
-  var d=new Date(),t=ym(),left=t.last-t.d;
+  var d=new Date(),t=ym(),left=bizLeft(d);
   $('#clk').textContent=(d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
-  $('#dd').textContent=left===0?'오늘 마감!':t.m+'월 마감 D-'+left;
+  var txt=left<0?t.m+'월 영업일 마감':(left===0?'오늘 마감!':t.m+'월 마감 D-'+left);
+  $('#dd').innerHTML=txt+'<small style="display:block;font-size:11px;font-weight:600;opacity:.75;margin-top:1px;">영업일 기준 · 주말·휴무일 제외</small>';
 }
 
 /* ===== 설정창 ===== */
 function openSettings(){
   $('#s-trip').value=cfg.trip;$('#s-goal').value=cfg.goal;$('#s-roster').value=cfg.roster.join('\n');
-  $('#s-col').value=cfg.premCol;$('#s-rate').checked=!!cfg.useRate;$('#s-norate').value=cfg.noRate;$('#s-poll').value=cfg.poll;$('#s-auto').checked=!!cfg.auto;$('#s-autosec').value=cfg.autoSec;
+  $('#s-hol').value=cfg.holidays.join('\n');$('#s-col').value=cfg.premCol;$('#s-rate').checked=!!cfg.useRate;$('#s-norate').value=cfg.noRate;$('#s-poll').value=cfg.poll;$('#s-auto').checked=!!cfg.auto;$('#s-autosec').value=cfg.autoSec;
   var colTxt=demo?'데모 모드라 확인 안 함':(!info.at?'아직 확인 전':(info.col===null?'못 찾음 (컬럼명을 직접 입력해 주세요)':info.col));
   var lines=[sharedState(),'보험료 컬럼: '+colTxt,'이번 달 계약 건수(읽어온 행): '+(info.at?info.rows:'-')];
   if(info.at&&cfg.useRate){
@@ -755,6 +771,7 @@ function saveSettings(){
   cfg.goal=Math.max(1,Number($('#s-goal').value)||100);
   var seen={};
   cfg.roster=$('#s-roster').value.split(/\n/).map(function(s){return s.trim();}).filter(function(s){if(!s||seen[s])return false;seen[s]=1;return true;});
+  cfg.holidays=$('#s-hol').value.split(/[\n,]+/).map(function(x){return x.trim();}).filter(function(x){return /^\d{4}-\d{2}-\d{2}$/.test(x);});
   cfg.premCol=$('#s-col').value.trim();
   cfg.useRate=$('#s-rate').checked;
   var nr=Number($('#s-norate').value);cfg.noRate=isFinite(nr)&&$('#s-norate').value!==''?Math.max(0,nr):100;
