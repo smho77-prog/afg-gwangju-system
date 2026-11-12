@@ -13951,17 +13951,29 @@ function hyRuleHtml() {
   function msg(t, bad) { var m = $('uxi_msg'); if (m) { m.style.color = bad ? 'var(--red)' : 'var(--muted)'; m.innerHTML = t; } }
 
   /* ---------- 순수 계산: 격자(2차원 배열) → 열 정보 + 진단명별 조건 ---------- */
+  /* 머리글 칸 판정: 설명 문장(길이가 긴 칸)은 제외하고, 짧은 제목 칸만 인정 */
+  function isDisHdr(v, strict) {
+    var t = nz(v);
+    if (!t || t.length > 25) return false;
+    if (/진단명|동의어|질환명|질병명|병명|상병명/.test(t)) return true;
+    return !strict && t.length <= 8 && /상병|질환|질병/.test(t);
+  }
   function findHeaderRow(grid) {
-    for (var r = 0; r < Math.min(grid.length, 60); r++) {
-      var row = grid[r] || [];
-      for (var c = 0; c < row.length; c++) { if (/진단명|동의어|질환명|병명|상병/.test(nz(row[c]))) return r; }
+    for (var pass = 0; pass < 2; pass++) {
+      for (var r = 0; r < Math.min(grid.length, 80); r++) {
+        var row = grid[r] || [];
+        var filled = row.filter(function (x) { return clean(x) !== ''; }).length;
+        if (filled < 2) continue;
+        for (var c = 0; c < row.length; c++) { if (isDisHdr(row[c], pass === 0)) return r; }
+      }
     }
     return -1;
   }
   function detectCols(grid, h) {
     var row = grid[h] || [], disC = -1, c;
-    for (c = 0; c < row.length; c++) { if (/진단명/.test(nz(row[c]))) { disC = c; break; } }
-    if (disC < 0) for (c = 0; c < row.length; c++) { if (/동의어|질환명|병명|상병/.test(nz(row[c]))) { disC = c; break; } }
+    for (c = 0; c < row.length; c++) { if (/진단명/.test(nz(row[c])) && nz(row[c]).length <= 25) { disC = c; break; } }
+    if (disC < 0) for (c = 0; c < row.length; c++) { if (isDisHdr(row[c], true)) { disC = c; break; } }
+    if (disC < 0) for (c = 0; c < row.length; c++) { if (isDisHdr(row[c], false)) { disC = c; break; } }
     if (disC < 0) return null;
     var hdrText = clean(row[disC]), k = 1;
     while (k < 4 && h + k < grid.length) {
