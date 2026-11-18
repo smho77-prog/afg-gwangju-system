@@ -227,6 +227,43 @@
   .side-btn { width: 100%; background: transparent; color: #C9D0E0; border: 1px solid #3A4E78; border-radius: 6px; padding: 7px; font-size: 12px; cursor: pointer; margin-top: 8px; }
   .side-btn:hover { background: #24365E; }
   .side-note { font-size: 11px; color: #7C86A0; margin-top: 10px; line-height: 1.5; }
+  .ov-btn { width: 100%; background: transparent; color: #EDEAE1; border: 1px solid #3A4E78; border-radius: 8px; padding: 9px; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-bottom: 16px; }
+  .ov-btn:hover, .ov-btn.on { background: #24365E; }
+  .exam-alert { border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin: 0 0 8px 0; line-height: 1.5; }
+  .exam-alert.bad { background: var(--red-bg); color: var(--red); font-weight: 700; }
+  .exam-alert.warn { background: var(--amber-bg); color: var(--amber); font-weight: 600; }
+  .exam-alert.ok { background: var(--green-bg); color: var(--green); }
+  .exam-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-bottom: 12px; }
+  .exam-grid .field-row { margin-bottom: 0; }
+  .exam-grid input[type="text"], .exam-grid select, .exam-sel, .log-form input[type="text"], .log-form select {
+    width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 13px; background: #FCFCFA;
+  }
+  .dd { font-size: 12px; font-weight: 700; margin-left: 6px; }
+  .dd.soon { color: var(--red); }
+  .dd.near { color: var(--amber); }
+  .sec-title { font-size: 12.5px; font-weight: 700; color: var(--navy); margin: 14px 0 8px 0; }
+  .type-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .type-row label { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
+  .mini-btn { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; font-size: 12px; cursor: pointer; color: var(--ink); }
+  .mini-btn:hover { background: var(--lb, #EEF3FA); }
+  .mini-btn.red { color: var(--red); }
+  .log-form { display: grid; grid-template-columns: 130px 90px 1fr auto; gap: 8px; align-items: center; margin: 8px 0 10px 0; }
+  .log-item { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 12.5px; background: #FCFCFA; display: flex; gap: 10px; align-items: flex-start; }
+  .log-item .lt { flex: 1; line-height: 1.5; word-break: break-all; }
+  .lv { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .lv-양호 { background: var(--green-bg); color: var(--green); }
+  .lv-보통 { background: var(--amber-bg); color: var(--amber); }
+  .lv-미흡 { background: var(--red-bg); color: var(--red); }
+  table.ov { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 12.5px; }
+  table.ov th { background: #EFEDE6; color: var(--muted); font-weight: 700; padding: 8px 10px; text-align: left; font-size: 11.5px; }
+  table.ov td { padding: 9px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+  table.ov tr.row { cursor: pointer; }
+  table.ov tr.row:hover td { background: #FAF9F4; }
+  .ov-scroll { overflow-x: auto; }
+  @media (max-width: 760px) {
+    .exam-grid { grid-template-columns: 1fr; }
+    .log-form { grid-template-columns: 1fr 1fr; }
+  }
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
 </style>
@@ -237,6 +274,7 @@
     <h1>입사 프로세스</h1>
     <div class="sub">광주센터 · 위촉 체크리스트</div>
     <button class="add-btn" onclick="addCandidate()">+ 신규 후보자 추가</button>
+    <button class="ov-btn" id="examOvBtn" onclick="showExamOverview()">📝 시험 일정·점검 현황</button>
     <div id="candidateList"></div>
     <div id="storageStatus" class="storage-status ok">저장 상태 확인 중...</div>
     <button class="side-btn" onclick="exportBackup()">백업 파일 저장</button>
@@ -268,6 +306,8 @@ let candidates = {}; // id -> {name, contact, address, steps: {...}}
 let candidateOrder = [];
 let activeId = null;
 let openStep = 'career';
+let view = 'cand'; /* 'cand' = 후보자 화면, 'exam' = 시험 현황 화면 */
+let examDraft = { date: '', level: '보통', memo: '' };
 
 function uid() { return 'c' + Date.now() + Math.random().toString(36).slice(2,7); }
 
@@ -334,9 +374,34 @@ async function persist() {
 function saveCandidate() { return persist(); }
 function saveIndex() { return persist(); }
 
+function defaultExam() {
+  return {
+    target: 'auto', types: [], examDate: '', applyDeadline: '', place: '',
+    applied: false, appliedDate: '', result: '',
+    checks: { material: false, study: false, progress: false, mock: false, notice: false },
+    nextCheck: '', logs: []
+  };
+}
+
+function normalizeExam(x) {
+  const b = defaultExam();
+  if (!x || typeof x !== 'object') return b;
+  ['target', 'examDate', 'applyDeadline', 'place', 'appliedDate', 'result', 'nextCheck'].forEach(function (k) { if (typeof x[k] === 'string') b[k] = x[k]; });
+  if (['auto', 'yes', 'no'].indexOf(b.target) < 0) b.target = 'auto';
+  b.applied = !!x.applied;
+  if (Array.isArray(x.types)) b.types = x.types.filter(function (t) { return typeof t === 'string'; });
+  if (x.checks && typeof x.checks === 'object') Object.keys(b.checks).forEach(function (k) { b.checks[k] = !!x.checks[k]; });
+  if (Array.isArray(x.logs)) {
+    b.logs = x.logs.filter(function (l) { return l && typeof l === 'object'; }).map(function (l) {
+      return { id: String(l.id || uid()), date: String(l.date || ''), level: ['양호', '보통', '미흡'].indexOf(l.level) >= 0 ? l.level : '보통', memo: String(l.memo || '') };
+    });
+  }
+  return b;
+}
+
 function normalizeCandidate(c) {
   const base = defaultSteps();
-  const out = { name: String((c && c.name) || ''), contact: String((c && c.contact) || ''), address: String((c && c.address) || ''), steps: base };
+  const out = { name: String((c && c.name) || ''), contact: String((c && c.contact) || ''), address: String((c && c.address) || ''), steps: base, exam: normalizeExam(c && c.exam) };
   const st = (c && c.steps) || {};
   Object.keys(base).forEach(function (k) {
     if (st[k] && typeof st[k] === 'object') {
@@ -454,10 +519,11 @@ function addCandidate() {
   const name = prompt('후보자 이름을 입력하세요');
   if (!name || !name.trim()) return;
   const id = uid();
-  candidates[id] = { name: name.trim(), contact: '', address: '', steps: defaultSteps() };
+  candidates[id] = { name: name.trim(), contact: '', address: '', steps: defaultSteps(), exam: defaultExam() };
   candidateOrder.unshift(id);
   activeId = id;
   openStep = 'career';
+  view = 'cand';
   saveCandidate(id);
   saveIndex();
   renderSidebar();
@@ -505,6 +571,13 @@ function calcRetest(career) {
 
 function renderSidebar() {
   const list = document.getElementById('candidateList');
+  const ovb = document.getElementById('examOvBtn');
+  if (ovb) {
+    let n = 0;
+    candidateOrder.forEach(function (id) { n += examAlerts(candidates[id]).length; });
+    ovb.textContent = '📝 시험 일정·점검 현황' + (n ? ' (' + n + ')' : '');
+    ovb.classList.toggle('on', view === 'exam');
+  }
   if (!candidateOrder.length) {
     list.innerHTML = '<div class="empty-side">등록된 후보자가 없습니다</div>';
     return;
@@ -516,6 +589,7 @@ function renderSidebar() {
     return `<div class="candidate-item ${id===activeId?'active':''}" onclick="selectCandidate('${id}')">
       <div class="cname">${escapeHtml(c.name)}</div>
       <div class="cmeta">${done}/7 단계 완료</div>
+      ${examNeeded(c) && c.exam.result !== '합격' ? `<div class="cmeta">📝 ${escapeHtml(examBrief(c))}</div>` : ''}
       <div class="candidate-progress"><div class="candidate-progress-bar" style="width:${pct}%"></div></div>
     </div>`;
   }).join('');
@@ -523,6 +597,7 @@ function renderSidebar() {
 
 function selectCandidate(id) {
   activeId = id;
+  view = 'cand';
   openStep = 'career';
   renderSidebar();
   renderMain();
@@ -538,6 +613,16 @@ function updateField(path, value) {
   let obj = c;
   for (let i=0;i<parts.length-1;i++) obj = obj[parts[i]];
   obj[parts[parts.length-1]] = value;
+  if (path === 'steps.career.examBooked') {
+    c.exam.applied = !!value;
+    if (value && !c.exam.appliedDate) c.exam.appliedDate = todayStr();
+    if (!value) c.exam.appliedDate = '';
+  }
+  if (path === 'exam.applied') {
+    c.steps.career.examBooked = !!value;
+    if (value && !c.exam.appliedDate) c.exam.appliedDate = todayStr();
+    if (!value) c.exam.appliedDate = '';
+  }
   saveCandidate(activeId);
   renderSidebar();
   renderMain();
@@ -610,6 +695,7 @@ function copyText(elId, btn) {
 
 function renderMain() {
   const main = document.getElementById('main');
+  if (view === 'exam') { main.innerHTML = renderExamOverview(); return; }
   if (!activeId || !candidates[activeId]) {
     main.innerHTML = `<div class="welcome"><h2>후보자를 추가해주세요</h2>왼쪽에서 '신규 후보자 추가'를 눌러 이름을 입력하면<br>7단계 위촉 프로세스를 순서대로 체크할 수 있습니다.</div>`;
     return;
@@ -652,6 +738,7 @@ function renderMain() {
       </div>
     </div>
 
+    ${renderExamCard(c)}
     ${renderStepCareer(s.career, retest)}
     ${renderStepEdu(s.edu, eduRedo)}
     ${renderStepApply(s.apply, c.name)}
@@ -891,6 +978,277 @@ function renderStepPc(d) {
       </label>
     </div>
   </div>`;
+}
+
+/* ================= 시험 관리 ================= */
+function pad2(n) { return String(n).padStart(2, '0'); }
+function todayStr() { const d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function parseDate(str) { const p = String(str).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function dayDiff(str) {
+  if (!str) return null;
+  const t = parseDate(str);
+  if (isNaN(t.getTime())) return null;
+  const n = new Date();
+  const t0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  return Math.round((t - t0) / 86400000);
+}
+function ddayLabel(n) { if (n === null) return ''; if (n === 0) return 'D-Day'; return n > 0 ? ('D-' + n) : ('D+' + (-n)); }
+function addDays(str, days) {
+  const t = parseDate(str);
+  const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + days);
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+}
+function fmtDate(str) {
+  if (!str) return '-';
+  const t = parseDate(str);
+  if (isNaN(t.getTime())) return '-';
+  return (t.getMonth() + 1) + '/' + t.getDate() + '(' + ['일', '월', '화', '수', '목', '금', '토'][t.getDay()] + ')';
+}
+function ddClass(n) { if (n === null) return ''; if (n >= 0 && n <= 3) return 'soon'; if (n > 3 && n <= 7) return 'near'; if (n < 0) return 'soon'; return ''; }
+
+function examNeeded(c) {
+  const t = c.exam.target;
+  if (t === 'yes') return true;
+  if (t === 'no') return false;
+  return calcRetest(c.steps.career) === true;
+}
+function lastLog(e) {
+  let best = null;
+  e.logs.forEach(function (l) { if (!best || String(l.date) > String(best.date)) best = l; });
+  return best;
+}
+function examAlerts(c) {
+  const e = c.exam, out = [];
+  if (!examNeeded(c) || e.result === '합격') return out;
+  const dEx = dayDiff(e.examDate), dDl = dayDiff(e.applyDeadline), dNext = dayDiff(e.nextCheck);
+  if (e.result === '불합격') { out.push({ lv: 'bad', t: '불합격 — 재응시 일정을 새로 잡아주세요' }); }
+  if (!e.examDate && !e.applied && e.result !== '불합격') out.push({ lv: 'warn', t: '시험 일정이 아직 없어요. 담당 과장과 일정을 확인해 입력하세요' });
+  if (e.applyDeadline && !e.applied && dDl !== null) {
+    if (dDl < 0) out.push({ lv: 'bad', t: '접수 마감이 지났는데 아직 접수 전이에요 (' + ddayLabel(dDl) + ')' });
+    else if (dDl <= 7) out.push({ lv: dDl <= 3 ? 'bad' : 'warn', t: '접수 마감 ' + ddayLabel(dDl) + ' — 아직 접수 전' });
+  }
+  if (e.examDate && !e.applyDeadline && !e.applied) out.push({ lv: 'warn', t: '접수 마감일을 입력해 주세요' });
+  if (e.examDate && dEx !== null && dEx >= 0 && dEx <= 7) out.push({ lv: 'warn', t: '시험 ' + ddayLabel(dEx) + ' — 시험 전 안내(일시·장소·준비물) 확인' });
+  if (e.examDate && dEx !== null && dEx < 0 && !e.result) out.push({ lv: 'warn', t: '시험일이 지났어요. 결과를 입력해 주세요' });
+  if (e.nextCheck && dNext !== null && dNext <= 0) out.push({ lv: 'bad', t: '준비 점검이 필요해요 (' + (dNext === 0 ? '오늘' : (-dNext) + '일 지남') + ')' });
+  const last = lastLog(e);
+  if (last && last.level === '미흡') out.push({ lv: 'warn', t: '최근 점검에서 준비 미흡으로 기록됐어요' });
+  if (!e.logs.length && e.examDate && dEx !== null && dEx >= 0 && dEx <= 30) out.push({ lv: 'warn', t: '시험이 30일 안인데 점검 기록이 아직 없어요' });
+  return out;
+}
+function examBrief(c) {
+  const e = c.exam;
+  let t = '';
+  if (e.result === '불합격') t = '불합격·재응시';
+  else if (e.examDate) t = ddayLabel(dayDiff(e.examDate)) + ' ' + (e.applied ? '접수완료' : '접수필요');
+  else t = '시험일 미정';
+  if (examAlerts(c).some(function (a) { return a.lv === 'bad'; })) t += ' ⚠';
+  return t;
+}
+function examBadge(c) {
+  const e = c.exam;
+  if (!examNeeded(c)) return '<span class="step-status status-todo">해당 없음</span>';
+  if (e.result === '합격') return '<span class="step-status status-done">합격</span>';
+  if (e.result === '불합격') return '<span class="step-status status-warn">불합격·재응시</span>';
+  if (e.applied) return '<span class="step-status status-progress">접수 완료</span>';
+  return '<span class="step-status status-warn">' + (e.examDate ? '접수 필요' : '일정 확인') + '</span>';
+}
+
+function toggleExamType(name, checked) {
+  const c = candidates[activeId];
+  const i = c.exam.types.indexOf(name);
+  if (checked && i < 0) c.exam.types.push(name);
+  if (!checked && i >= 0) c.exam.types.splice(i, 1);
+  saveCandidate(activeId);
+  renderSidebar();
+  renderMain();
+}
+function setNextCheckIn(days) {
+  const c = candidates[activeId];
+  c.exam.nextCheck = addDays(todayStr(), days);
+  saveCandidate(activeId);
+  renderSidebar();
+  renderMain();
+}
+function addExamLog() {
+  const c = candidates[activeId];
+  if (!c) return;
+  const date = examDraft.date || todayStr();
+  const level = ['양호', '보통', '미흡'].indexOf(examDraft.level) >= 0 ? examDraft.level : '보통';
+  const memo = String(examDraft.memo || '').trim();
+  c.exam.logs.push({ id: uid(), date: date, level: level, memo: memo });
+  c.exam.logs.sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  c.exam.nextCheck = addDays(date, 7);
+  examDraft = { date: '', level: '보통', memo: '' };
+  saveCandidate(activeId);
+  renderSidebar();
+  renderMain();
+}
+function deleteExamLog(id) {
+  const c = candidates[activeId];
+  if (!c || !confirm('이 점검 기록을 삭제할까요?')) return;
+  c.exam.logs = c.exam.logs.filter(function (l) { return l.id !== id; });
+  saveCandidate(activeId);
+  renderSidebar();
+  renderMain();
+}
+function resetForRetake() {
+  const c = candidates[activeId];
+  if (!c) return;
+  if (!confirm('불합격 기록을 점검 기록에 남기고, 시험일·접수 정보를 비워서 재응시 일정을 새로 입력할 수 있게 할까요?')) return;
+  const e = c.exam;
+  e.logs.push({ id: uid(), date: todayStr(), level: '미흡', memo: '불합격 (시험일 ' + (e.examDate || '미입력') + ') → 재응시 준비' });
+  e.logs.sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  e.examDate = ''; e.applyDeadline = ''; e.applied = false; e.appliedDate = ''; e.result = '';
+  e.nextCheck = addDays(todayStr(), 3);
+  c.steps.career.examBooked = false;
+  saveCandidate(activeId);
+  renderSidebar();
+  renderMain();
+}
+function showExamOverview() { view = 'exam'; renderSidebar(); renderMain(); }
+function openExam(id) { activeId = id; view = 'cand'; openStep = 'exam'; renderSidebar(); renderMain(); }
+
+function renderExamCard(c) {
+  const e = c.exam;
+  const need = examNeeded(c);
+  const isOpen = openStep === 'exam';
+  const retestNow = calcRetest(c.steps.career);
+  const autoNote = retestNow === null ? '아직 판정 전' : (retestNow ? '재시험 필요' : '재시험 불필요');
+  let body = `
+      <div class="field-row">
+        <label>시험 응시 대상</label>
+        <select class="exam-sel" style="max-width:360px" onchange="updateField('exam.target', this.value)">
+          <option value="auto" ${e.target === 'auto' ? 'selected' : ''}>자동 (①단계 경력조회 결과 따름 · 현재: ${autoNote})</option>
+          <option value="yes" ${e.target === 'yes' ? 'selected' : ''}>시험 응시 대상</option>
+          <option value="no" ${e.target === 'no' ? 'selected' : ''}>대상 아님</option>
+        </select>
+      </div>`;
+  if (!need) {
+    body += `<div class="calc-box calc-neutral">시험 응시 대상이 아니에요. ①단계 경력조회에서 재시험이 필요하다고 나오면 자동으로 이 칸이 활성화돼요. 연수원 교육이수 확인 후 시험을 봐야 하는 경우에는 위에서 "시험 응시 대상"으로 바꿔주세요.</div>`;
+  } else {
+    const dEx = dayDiff(e.examDate), dDl = dayDiff(e.applyDeadline), dNext = dayDiff(e.nextCheck);
+    const alerts = examAlerts(c);
+    body += alerts.length
+      ? alerts.map(a => `<div class="exam-alert ${a.lv}">${a.lv === 'bad' ? '🚨' : '⚠'} ${escapeHtml(a.t)}</div>`).join('')
+      : (e.result === '합격' ? `<div class="exam-alert ok">✓ 합격 확인 완료</div>` : `<div class="exam-alert ok">✓ 지금 챙길 알림이 없어요</div>`);
+    body += `
+      <div class="sec-title">시험 종류</div>
+      <div class="type-row">
+        ${['생명보험', '손해보험', '제3보험'].map(t => `<label><input type="checkbox" ${e.types.indexOf(t) >= 0 ? 'checked' : ''} onchange="toggleExamType('${t}', this.checked)"> ${t}</label>`).join('')}
+      </div>
+      <div class="exam-grid">
+        <div class="field-row">
+          <label>시험일 ${e.examDate ? `<span class="dd ${ddClass(dEx)}">${fmtDate(e.examDate)} · ${ddayLabel(dEx)}</span>` : ''}</label>
+          <input type="date" value="${escapeHtml(e.examDate)}" onchange="updateField('exam.examDate', this.value)">
+        </div>
+        <div class="field-row">
+          <label>접수 마감일 ${e.applyDeadline ? `<span class="dd ${e.applied ? '' : ddClass(dDl)}">${fmtDate(e.applyDeadline)} · ${ddayLabel(dDl)}</span>` : ''}</label>
+          <input type="date" value="${escapeHtml(e.applyDeadline)}" onchange="updateField('exam.applyDeadline', this.value)">
+        </div>
+        <div class="field-row" style="grid-column:1 / -1">
+          <label>시험 장소</label>
+          <input type="text" value="${escapeHtml(e.place)}" placeholder="예: 시험장 이름 / 주소" onchange="updateField('exam.place', this.value)">
+        </div>
+      </div>
+      <label class="check-row ${e.applied ? 'checked' : ''}">
+        <input type="checkbox" ${e.applied ? 'checked' : ''} onchange="updateField('exam.applied', this.checked)">
+        <span>시험 접수(신청) 완료 ${e.applied && e.appliedDate ? `<span style="color:var(--muted);text-decoration:none">· 접수 ${fmtDate(e.appliedDate)}</span>` : ''}</span>
+      </label>
+
+      <div class="sec-title">시험 준비 체크</div>
+      ${[['material', '학습 교재·자료 전달'], ['study', '연수원(교육) 수강 시작 확인'], ['progress', '학습 진도 중간 점검 완료'], ['mock', '모의문제·기출 풀이 점검 완료'], ['notice', '시험 전 안내(일시·장소·준비물) 전달']].map(x => `
+      <label class="check-row ${e.checks[x[0]] ? 'checked' : ''}">
+        <input type="checkbox" ${e.checks[x[0]] ? 'checked' : ''} onchange="updateField('exam.checks.${x[0]}', this.checked)">
+        <span>${x[1]}</span>
+      </label>`).join('')}
+
+      <div class="sec-title">준비 점검 기록 <span style="font-weight:400;color:var(--muted)">(기록을 남기면 다음 점검일이 1주 뒤로 자동 설정돼요)</span></div>
+      <div class="field-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <label style="margin:0">다음 점검 예정일</label>
+        <input type="date" value="${escapeHtml(e.nextCheck)}" onchange="updateField('exam.nextCheck', this.value)">
+        ${e.nextCheck ? `<span class="dd ${dNext !== null && dNext <= 0 ? 'soon' : ''}">${ddayLabel(dNext)}</span>` : ''}
+        <button class="mini-btn" onclick="setNextCheckIn(3)">3일 뒤</button>
+        <button class="mini-btn" onclick="setNextCheckIn(7)">1주 뒤</button>
+        <button class="mini-btn" onclick="setNextCheckIn(14)">2주 뒤</button>
+      </div>
+      <div class="log-form">
+        <input type="date" value="${escapeHtml(examDraft.date || todayStr())}" oninput="examDraft.date=this.value">
+        <select onchange="examDraft.level=this.value">
+          ${['양호', '보통', '미흡'].map(l => `<option ${examDraft.level === l ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+        <input type="text" value="${escapeHtml(examDraft.memo)}" placeholder="점검 내용 (예: 진도 50%, 모의 점수, 어려워하는 과목)" oninput="examDraft.memo=this.value" onkeydown="if(event.key==='Enter'){addExamLog()}">
+        <button class="copy-btn" style="margin:0" onclick="addExamLog()">기록 추가</button>
+      </div>
+      ${e.logs.length ? e.logs.map(l => `
+      <div class="log-item">
+        <div><b>${fmtDate(l.date)}</b></div>
+        <span class="lv lv-${l.level}">${l.level}</span>
+        <div class="lt">${escapeHtml(l.memo) || '<span style="color:var(--muted)">(메모 없음)</span>'}</div>
+        <button class="mini-btn red" onclick="deleteExamLog('${l.id}')">삭제</button>
+      </div>`).join('') : `<div class="calc-box calc-neutral">아직 점검 기록이 없어요. 통화나 면담으로 준비 상황을 확인할 때마다 한 줄씩 남겨두세요.</div>`}
+
+      <div class="sec-title">시험 결과</div>
+      <div class="field-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <select class="exam-sel" style="max-width:200px" onchange="updateField('exam.result', this.value)">
+          ${[['', '미정'], ['합격', '합격'], ['불합격', '불합격']].map(x => `<option value="${x[0]}" ${e.result === x[0] ? 'selected' : ''}>${x[1]}</option>`).join('')}
+        </select>
+        ${e.result === '불합격' ? `<button class="mini-btn" onclick="resetForRetake()">재응시 일정 새로 잡기</button>` : ''}
+      </div>`;
+  }
+  return `
+  <div class="step ${need && e.result === '합격' ? 'done' : ''} ${isOpen ? 'open' : ''}">
+    <div class="step-head" onclick="toggleStep('exam')">
+      <div class="step-num">📝</div>
+      <div class="step-title">시험 일정·준비 점검</div>
+      ${examBadge(c)}
+      <span class="chevron">▶</span>
+    </div>
+    <div class="step-body">${body}
+    </div>
+  </div>`;
+}
+
+function renderExamOverview() {
+  const rows = candidateOrder.map(id => ({ id: id, c: candidates[id] })).filter(x => examNeeded(x.c) && x.c.exam.result !== '합격');
+  rows.sort(function (a, b) {
+    const x = a.c.exam.examDate || '9999-12-31', y = b.c.exam.examDate || '9999-12-31';
+    return x.localeCompare(y);
+  });
+  const passedN = candidateOrder.filter(id => examNeeded(candidates[id]) && candidates[id].exam.result === '합격').length;
+  let alertsHtml = '';
+  rows.forEach(function (x) {
+    examAlerts(x.c).forEach(function (a) {
+      alertsHtml += `<div class="exam-alert ${a.lv}" style="cursor:pointer" onclick="openExam('${x.id}')"><b>${escapeHtml(x.c.name)}</b> · ${escapeHtml(a.t)}</div>`;
+    });
+  });
+  let h = `
+    <div class="header-row"><div><p class="cand-title">시험 일정·점검 현황</p><p class="cand-sub">시험을 봐야 하는 후보자만 모아서 보여줘요${passedN ? ' · 합격 ' + passedN + '명은 제외' : ''}</p></div></div>
+    <div class="sec-title" style="margin-top:22px">오늘 챙길 것</div>
+    ${alertsHtml || '<div class="exam-alert ok">✓ 지금 챙길 알림이 없어요</div>'}
+    <div class="sec-title" style="margin-top:22px">시험 대상자 (시험일 빠른 순)</div>`;
+  if (!rows.length) {
+    h += `<div class="calc-box calc-neutral">시험 응시 대상 후보자가 없어요. 후보자의 ①단계 경력조회에서 재시험이 필요하게 나오면 여기에 자동으로 올라와요.</div>`;
+  } else {
+    h += `<div class="ov-scroll"><table class="ov"><thead><tr><th>후보자</th><th>시험 종류</th><th>시험일</th><th>접수</th><th>장소</th><th>최근 점검</th><th>다음 점검</th></tr></thead><tbody>`;
+    rows.forEach(function (x) {
+      const e = x.c.exam;
+      const dEx = dayDiff(e.examDate), dDl = dayDiff(e.applyDeadline), dNext = dayDiff(e.nextCheck);
+      const last = lastLog(e);
+      const lastD = last ? dayDiff(last.date) : null;
+      h += `<tr class="row" onclick="openExam('${x.id}')">
+        <td><b>${escapeHtml(x.c.name)}</b>${e.result === '불합격' ? '<br><span class="dd soon">불합격</span>' : ''}</td>
+        <td>${e.types.length ? escapeHtml(e.types.join(', ')) : '<span style="color:var(--muted)">-</span>'}</td>
+        <td>${e.examDate ? fmtDate(e.examDate) + '<br><span class="dd ' + ddClass(dEx) + '" style="margin-left:0">' + ddayLabel(dEx) + '</span>' : '<span style="color:var(--muted)">미정</span>'}</td>
+        <td>${e.applied ? '<span style="color:var(--green);font-weight:700">접수 완료</span>' : ('<span style="color:var(--red);font-weight:700">접수 전</span>' + (e.applyDeadline ? '<br>마감 ' + fmtDate(e.applyDeadline) + ' <span class="dd ' + ddClass(dDl) + '" style="margin-left:0">' + ddayLabel(dDl) + '</span>' : ''))}</td>
+        <td>${e.place ? escapeHtml(e.place) : '<span style="color:var(--muted)">-</span>'}</td>
+        <td>${last ? fmtDate(last.date) + ' <span class="lv lv-' + last.level + '">' + last.level + '</span><br><span style="color:var(--muted)">' + (lastD === 0 ? '오늘' : (-lastD) + '일 전') + '</span>' : '<span style="color:var(--muted)">기록 없음</span>'}</td>
+        <td>${e.nextCheck ? fmtDate(e.nextCheck) + '<br><span class="dd ' + (dNext !== null && dNext <= 0 ? 'soon' : '') + '" style="margin-left:0">' + ddayLabel(dNext) + '</span>' : '<span style="color:var(--muted)">-</span>'}</td>
+      </tr>`;
+    });
+    h += `</tbody></table></div>`;
+  }
+  return h;
 }
 
 loadAll();
