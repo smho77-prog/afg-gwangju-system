@@ -914,6 +914,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="tabbtn" data-tab="callmon" onclick="switchTab('callmon')">📈 콜 모니터링</button>
       <button class="tabbtn" data-tab="salary" id="tabBtnSalary" onclick="switchTab('salary')">💰 급여계산기</button>
       <button class="tabbtn" data-tab="presence" onclick="switchTab('presence')">🟢 접속현황</button>
+      <button class="tabbtn" data-tab="onboard" onclick="switchTab('onboard')">🧑‍💼 입사 프로세스</button>
     </div>
   </div>
   <div id="presWidget" style="display:none;">
@@ -2227,6 +2228,17 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   </div>
 </div>
 
+<!-- ===== 입사 프로세스 (마스터 전용, onboarding-tracker.html 을 화면 안에 끼워 넣음) ===== -->
+<div class="panel" id="panel-onboard">
+  <div class="card" style="padding:10px 16px;margin-bottom:10px;">
+    <b>🧑‍💼 입사 프로세스</b>
+    <span class="sub" style="margin:0 0 0 8px;">신규 후보자의 위촉 7단계를 체크합니다. (마스터 전용) 후보자 정보는 이 PC의 이 브라우저에만 저장되고 서버에는 올라가지 않아요. 가끔 왼쪽 아래 "백업 파일 저장"으로 보관해 두세요.</span>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <iframe id="onboardFrame" title="입사 프로세스" style="width:100%;height:calc(100vh - 150px);min-height:720px;border:none;display:block;background:#F3F1EC;"></iframe>
+  </div>
+</div>
+
 <!-- ===== 보험사메뉴얼 (예전 이름 보험금청구서류: 보험사별 연락처·결제 방법·청구서 양식) ===== -->
 <div class="panel" id="panel-claimform">
   <div class="card" style="padding:14px 18px;">
@@ -2548,6 +2560,11 @@ function pdfeditSync(name){
   var f = document.getElementById('pdfeditFrame');
   if (f && name === 'pdfedit' && f.dataset.on !== '1') { f.src = 'pdf-editor.html'; f.dataset.on = '1'; }
 }
+function onboardIsMaster(){ return typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'master'; }
+function onboardSync(name){
+  var f = document.getElementById('onboardFrame');
+  if (f && name === 'onboard' && onboardIsMaster() && f.dataset.on !== '1') { f.src = 'onboarding-tracker.html'; f.dataset.on = '1'; }
+}
 function raceOpenWindow(){ window.open('race-board.html', 'afg_race_board', 'noopener'); }
 /* 로그인한 상태 그대로 현황판만 화면 가득 보여준다(왼쪽 메뉴·위쪽 바 숨김). Esc로 돌아온다. 안 되는 브라우저는 새 창으로 대신 연다 */
 function raceFullscreen(){
@@ -2654,6 +2671,7 @@ function renderSubTabs(name) {
   panel.insertBefore(bar, panel.firstChild);
 }
 function switchTab(name) {
+  if (name === 'onboard' && !onboardIsMaster()) name = 'home'; /* 마스터 전용 탭: 다른 계정은 들어올 수 없음 */
   document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab === name || (b.dataset.members || '').split(',').indexOf(name) >= 0));
   const ab = document.querySelector('#sideMenu .tabbtn.active');
   if (ab) { const g = ab.closest('.sg'); if (g) g.classList.remove('collapsed'); }
@@ -2665,6 +2683,7 @@ function switchTab(name) {
   boardSync(name);
   greetSync(name);
   pdfeditSync(name);
+  onboardSync(name);
   if (name === 'underwriting' && window.uxiSync) window.uxiSync();
   if (name === 'underwriting') {
     const gv = document.getElementById('uwmode-guide');

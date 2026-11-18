@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>입사 프로세스 트래커</title>
+<style>
+  :root {
+    --navy: #16233F;
+    --navy-2: #1E2F52;
+    --paper: #F3F1EC;
+    --line: #D9D5CA;
+    --ink: #1B1B1B;
+    --muted: #6B6558;
+    --amber: #B8863B;
+    --green: #3C6E52;
+    --green-bg: #E7EFE9;
+    --amber-bg: #F5EBDA;
+    --red: #A23B32;
+    --red-bg: #F4E4E1;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+  }
+  .app { display: flex; min-height: 100vh; }
+  @media (max-width: 760px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; }
+    .main { padding: 20px 16px; }
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 280px;
+    background: var(--navy);
+    color: #EDEAE1;
+    padding: 24px 18px;
+    flex-shrink: 0;
+  }
+  .sidebar h1 {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px 0;
+  }
+  .sidebar .sub {
+    font-size: 12px;
+    color: #9CA6BC;
+    margin-bottom: 20px;
+  }
+  .add-btn {
+    width: 100%;
+    background: #2A3E66;
+    color: #EDEAE1;
+    border: 1px solid #3A4E78;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 16px;
+  }
+  .add-btn:hover { background: #33477A; }
+  .candidate-item {
+    padding: 12px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 6px;
+    border: 1px solid transparent;
+  }
+  .candidate-item:hover { background: #1F3157; }
+  .candidate-item.active {
+    background: #24365E;
+    border-color: #3A4E78;
+  }
+  .candidate-item .cname { font-size: 14px; font-weight: 600; }
+  .candidate-item .cmeta { font-size: 11px; color: #9CA6BC; margin-top: 2px; }
+  .candidate-progress {
+    height: 4px;
+    background: #33477A;
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .candidate-progress-bar {
+    height: 100%;
+    background: #7FB08F;
+  }
+  .empty-side { font-size: 12px; color: #7C86A0; padding: 8px 10px; }
+
+  /* Main */
+  .main {
+    flex: 1;
+    padding: 32px 40px;
+    max-width: 860px;
+  }
+  .welcome {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+    max-width: 480px;
+  }
+  .welcome h2 { color: var(--ink); font-size: 20px; margin-bottom: 8px; }
+
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 4px;
+  }
+  .cand-title { font-size: 24px; font-weight: 700; margin: 0; }
+  .cand-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .del-btn {
+    background: none; border: 1px solid var(--line); color: var(--red);
+    border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+  }
+  .del-btn:hover { background: var(--red-bg); }
+
+  .overall-bar-wrap {
+    margin: 18px 0 28px 0;
+  }
+  .overall-bar {
+    height: 8px; background: var(--line); border-radius: 4px; overflow: hidden;
+  }
+  .overall-bar-fill { height: 100%; background: var(--green); transition: width 0.3s; }
+  .overall-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+  .info-grid label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .info-grid input {
+    width: 100%; border: 1px solid var(--line); border-radius: 6px;
+    padding: 7px 9px; font-size: 13px; background: #FCFCFA;
+  }
+  .rrn-note {
+    grid-column: 1 / -1;
+    font-size: 11px; color: var(--amber); background: var(--amber-bg);
+    border-radius: 6px; padding: 8px 10px; line-height: 1.5;
+  }
+
+  .step {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+  }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+    background: var(--line); color: var(--muted);
+  }
+  .step.done .step-num { background: var(--green); color: white; }
+  .step-title { font-size: 14.5px; font-weight: 600; flex: 1; }
+  .step-status { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 600; }
+  .status-todo { background: var(--line); color: var(--muted); }
+  .status-progress { background: var(--amber-bg); color: var(--amber); }
+  .status-done { background: var(--green-bg); color: var(--green); }
+  .status-warn { background: var(--red-bg); color: var(--red); }
+  .chevron { font-size: 12px; color: var(--muted); transition: transform 0.2s; }
+  .step.open .chevron { transform: rotate(90deg); }
+
+  .step-body {
+    display: none;
+    padding: 0 16px 16px 52px;
+    font-size: 13px;
+  }
+  .step.open .step-body { display: block; }
+
+  .field-row { margin-bottom: 12px; }
+  .field-row label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .field-row input[type="date"] {
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 13px;
+  }
+  .check-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer;
+  }
+  .check-row input { width: 16px; height: 16px; cursor: pointer; }
+  .check-row span { font-size: 13px; }
+  .check-row.checked span { text-decoration: line-through; color: var(--muted); }
+
+  .calc-box {
+    border-radius: 8px; padding: 10px 12px; font-size: 12.5px; margin: 10px 0 14px 0; line-height: 1.6;
+  }
+  .calc-ok { background: var(--green-bg); color: var(--green); }
+  .calc-warn { background: var(--red-bg); color: var(--red); }
+  .calc-neutral { background: #EFEDE6; color: var(--muted); }
+
+  .copy-box {
+    background: #FAFAF7; border: 1px dashed var(--line); border-radius: 8px;
+    padding: 10px 12px; font-size: 12px; color: var(--muted);
+    white-space: pre-wrap; margin: 8px 0; position: relative; max-height: 140px; overflow-y: auto;
+  }
+  .copy-btn {
+    background: var(--navy); color: white; border: none; border-radius: 6px;
+    padding: 6px 12px; font-size: 12px; cursor: pointer; margin-top: 6px;
+  }
+  .copy-btn:hover { background: var(--navy-2); }
+
+  .checkbox-3y {
+    margin-top: 6px;
+  }
+
+  .storage-status { font-size: 11.5px; line-height: 1.5; padding: 8px 10px; border-radius: 6px; margin-top: 16px; }
+  .storage-status.ok { background: #1F3A33; color: #A8D8B9; }
+  .storage-status.err { background: #5A2A26; color: #FFD6D0; font-weight: 700; }
+  .side-btn { width: 100%; background: transparent; color: #C9D0E0; border: 1px solid #3A4E78; border-radius: 6px; padding: 7px; font-size: 12px; cursor: pointer; margin-top: 8px; }
+  .side-btn:hover { background: #24365E; }
+  .side-note { font-size: 11px; color: #7C86A0; margin-top: 10px; line-height: 1.5; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <h1>입사 프로세스</h1>
+    <div class="sub">광주센터 · 위촉 체크리스트</div>
+    <button class="add-btn" onclick="addCandidate()">+ 신규 후보자 추가</button>
+    <div id="candidateList"></div>
+    <div id="storageStatus" class="storage-status ok">저장 상태 확인 중...</div>
+    <button class="side-btn" onclick="exportBackup()">백업 파일 저장</button>
+    <button class="side-btn" onclick="document.getElementById('importFile').click()">백업 파일 불러오기</button>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importBackup(this)">
+    <div class="side-note">자동저장은 이 PC의 이 브라우저 안에 됩니다. 같은 파일을 같은 브라우저로 열어야 목록이 보입니다. 가끔 '백업 파일 저장'으로 따로 보관해두세요.</div>
+  </div>
+  <div class="main" id="main">
+    <div class="welcome">
+      <h2>후보자를 추가해주세요</h2>
+      왼쪽에서 '신규 후보자 추가'를 눌러 이름을 입력하면<br>
+      7단계 위촉 프로세스를 순서대로 체크할 수 있습니다.
+    </div>
+  </div>
+</div>
+
+<script>
+const STEP_DEFS = [
+  { key: 'career', title: '생손보 경력조회' },
+  { key: 'edu', title: '연수원 교육이수 확인' },
+  { key: 'apply', title: '입사지원서 작성 및 승인' },
+  { key: 'redoc', title: '다위촉문서 발송요청' },
+  { key: 'commission', title: '위촉신청서류 처리' },
+  { key: 'training', title: '신입교육일정 안내' },
+  { key: 'pc', title: '컴퓨터 세팅' },
+];
+
+let candidates = {}; // id -> {name, contact, address, steps: {...}}
+let candidateOrder = [];
+let activeId = null;
+let openStep = 'career';
+
+function uid() { return 'c' + Date.now() + Math.random().toString(36).slice(2,7); }
+
+function defaultSteps() {
+  return {
+    career: { needsRetest: null, requested3y: false, dueDate: '', certDate: '', reported: false, examBooked: false },
+    edu: { lastEduDate: '', confirmed: false, reapplied: false },
+    apply: { linkSent: false, filled: false, approvalRequested: false, approved: false },
+    redoc: { requested: false },
+    commission: { received: false, filled: false, scannedToFM: false, mailedHQ: false },
+    training: { date: '', notified: false },
+    pc: { done: false },
+  };
+}
+
+const LS_KEY = 'afg_onboarding_v2';
+let lsAvailable = null;
+
+function lsOK() {
+  if (lsAvailable !== null) return lsAvailable;
+  try {
+    const k = '__afg_test__';
+    window.localStorage.setItem(k, '1');
+    window.localStorage.removeItem(k);
+    lsAvailable = true;
+  } catch (e) { lsAvailable = false; }
+  return lsAvailable;
+}
+
+function hasCloudStorage() {
+  return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.set === 'function';
+}
+
+function setStatus(ok, msg) {
+  const el = document.getElementById('storageStatus');
+  if (!el) return;
+  el.className = 'storage-status ' + (ok ? 'ok' : 'err');
+  el.textContent = msg;
+}
+
+function nowLabel() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
+}
+
+function snapshot() {
+  return JSON.stringify({ v: 2, order: candidateOrder, candidates: candidates });
+}
+
+async function persist() {
+  const data = snapshot();
+  let ok = false;
+  if (lsOK()) {
+    try { window.localStorage.setItem(LS_KEY, data); ok = true; } catch (e) { console.error('localStorage save failed', e); }
+  }
+  if (hasCloudStorage()) {
+    try { await window.storage.set(LS_KEY, data, false); ok = true; } catch (e) { console.error('window.storage save failed', e); }
+  }
+  if (ok) setStatus(true, '✓ 자동저장됨 (' + nowLabel() + ')');
+  else setStatus(false, '⚠ 저장 실패! 이 화면에서는 자동저장이 되지 않습니다. 닫기 전에 왼쪽 아래 "백업 파일 저장"을 꼭 눌러주세요. (시크릿 모드이거나 브라우저 저장이 차단된 상태일 수 있습니다)');
+  return ok;
+}
+
+function saveCandidate() { return persist(); }
+function saveIndex() { return persist(); }
+
+function normalizeCandidate(c) {
+  const base = defaultSteps();
+  const out = { name: String((c && c.name) || ''), contact: String((c && c.contact) || ''), address: String((c && c.address) || ''), steps: base };
+  const st = (c && c.steps) || {};
+  Object.keys(base).forEach(function (k) {
+    if (st[k] && typeof st[k] === 'object') {
+      Object.keys(base[k]).forEach(function (f) { if (st[k][f] !== undefined) base[k][f] = st[k][f]; });
+    }
+  });
+  return out;
+}
+
+function applyData(raw) {
+  const d = JSON.parse(raw);
+  if (!d || !Array.isArray(d.order) || !d.candidates || typeof d.candidates !== 'object') throw new Error('bad-format');
+  const cs = {};
+  const order = [];
+  d.order.forEach(function (id) {
+    if (d.candidates[id]) { cs[id] = normalizeCandidate(d.candidates[id]); order.push(id); }
+  });
+  candidates = cs;
+  candidateOrder = order;
+  activeId = order.length ? order[0] : null;
+  openStep = 'career';
+}
+
+async function loadAll() {
+  let loaded = false;
+  let corrupt = false;
+  let raw = null;
+  if (lsOK()) {
+    try { raw = window.localStorage.getItem(LS_KEY); } catch (e) { raw = null; }
+  }
+  if (!raw && hasCloudStorage() && typeof window.storage.get === 'function') {
+    try {
+      const r = await window.storage.get(LS_KEY, false);
+      if (r && r.value) raw = r.value;
+    } catch (e) { raw = null; }
+  }
+  if (raw) {
+    try { applyData(raw); loaded = true; }
+    catch (e) {
+      console.error('load failed', e);
+      corrupt = true;
+      try { if (lsOK()) window.localStorage.setItem(LS_KEY + '_corrupt_backup', raw); } catch (e2) {}
+    }
+  }
+  /* 예전 버전(후보자별 저장) 데이터 이전 */
+  if (!loaded && hasCloudStorage() && typeof window.storage.get === 'function') {
+    try {
+      const idx = await window.storage.get('onboarding:index', false);
+      const order = idx ? JSON.parse(idx.value) : [];
+      const cs = {};
+      const ok = [];
+      for (const id of order) {
+        try {
+          const res = await window.storage.get('onboarding:' + id, false);
+          if (res) { cs[id] = normalizeCandidate(JSON.parse(res.value)); ok.push(id); }
+        } catch (e) { /* skip */ }
+      }
+      if (ok.length) { candidates = cs; candidateOrder = ok; activeId = ok[0]; loaded = true; persist(); }
+    } catch (e) { /* none */ }
+  }
+  if (!lsOK() && !hasCloudStorage()) {
+    setStatus(false, '⚠ 이 화면에서는 자동저장이 되지 않습니다. 시크릿 모드가 아닌 일반 크롬 창에서 열어주세요. 닫기 전에 "백업 파일 저장"을 꼭 눌러주세요.');
+  } else if (corrupt) {
+    setStatus(false, '⚠ 저장된 데이터를 읽지 못했습니다. 이전 데이터는 따로 보관해두었으니, 먼저 백업 파일이 있다면 "백업 파일 불러오기"를 사용해주세요.');
+  } else if (loaded) {
+    setStatus(true, '✓ 저장된 후보자 ' + candidateOrder.length + '명을 불러왔습니다');
+  } else {
+    setStatus(true, '✓ 자동저장 사용 가능 (아직 저장된 후보자 없음)');
+  }
+  renderSidebar();
+  renderMain();
+}
+
+function exportBackup() {
+  const d = new Date();
+  const ymd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+  try {
+    const blob = new Blob([snapshot()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '입사프로세스_백업_' + ymd + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+    setStatus(true, '✓ 백업 파일을 저장했습니다 (' + nowLabel() + ')');
+  } catch (e) {
+    setStatus(false, '⚠ 백업 파일 저장에 실패했습니다.');
+  }
+}
+
+function importBackup(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = function () {
+    try {
+      const tmp = JSON.parse(r.result);
+      if (!tmp || !Array.isArray(tmp.order)) throw new Error('bad-format');
+      if (!confirm('백업 파일(' + tmp.order.length + '명)을 불러오면 현재 목록이 백업 내용으로 바뀝니다. 계속할까요?')) { input.value = ''; return; }
+      applyData(r.result);
+      persist();
+      renderSidebar();
+      renderMain();
+    } catch (e) {
+      alert('백업 파일을 읽을 수 없습니다. 이 도구에서 저장한 백업 파일(.json)인지 확인해주세요.');
+    }
+    input.value = '';
+  };
+  r.readAsText(f);
+}
+
+function addCandidate() {
+  const name = prompt('후보자 이름을 입력하세요');
+  if (!name || !name.trim()) return;
+  const id = uid();
+  candidates[id] = { name: name.trim(), contact: '', address: '', steps: defaultSteps() };
+  candidateOrder.unshift(id);
+  activeId = id;
+  openStep = 'career';
+  saveCandidate(id);
+  saveIndex();
+  renderSidebar();
+  renderMain();
+}
+
+async function deleteCandidate(id) {
+  if (!confirm('이 후보자의 체크리스트를 삭제할까요? 되돌릴 수 없습니다.')) return;
+  candidateOrder = candidateOrder.filter(c => c !== id);
+  delete candidates[id];
+  saveIndex();
+  if (activeId === id) activeId = candidateOrder[0] || null;
+  renderSidebar();
+  renderMain();
+}
+
+function stepDoneCount(steps) {
+  let done = 0;
+  if (steps.career.reported && (calcRetest(steps.career) === false || steps.career.examBooked)) done++;
+  if (steps.edu.confirmed && (!needsEduRedo(steps) || steps.edu.reapplied)) done++;
+  if (steps.apply.linkSent && steps.apply.filled && steps.apply.approvalRequested && steps.apply.approved) done++;
+  if (steps.redoc.requested) done++;
+  if (steps.commission.received && steps.commission.filled && steps.commission.scannedToFM && steps.commission.mailedHQ) done++;
+  if (steps.training.notified) done++;
+  if (steps.pc.done) done++;
+  return done;
+}
+
+function needsEduRedo(steps) {
+  if (!steps.edu.lastEduDate) return null;
+  const last = new Date(steps.edu.lastEduDate);
+  const now = new Date();
+  const diffDays = (now - last) / (1000*60*60*24);
+  return diffDays > 365;
+}
+
+function calcRetest(career) {
+  if (!career.certDate) return null;
+  if (career.requested3y) return false; // 3년이내 365일이상 경력 있으면 재시험 불필요
+  const cert = new Date(career.certDate);
+  const ref = career.dueDate ? new Date(career.dueDate) : new Date();
+  const diffDays = (ref - cert) / (1000*60*60*24);
+  return diffDays > 365;
+}
+
+function renderSidebar() {
+  const list = document.getElementById('candidateList');
+  if (!candidateOrder.length) {
+    list.innerHTML = '<div class="empty-side">등록된 후보자가 없습니다</div>';
+    return;
+  }
+  list.innerHTML = candidateOrder.map(id => {
+    const c = candidates[id];
+    const done = stepDoneCount(c.steps);
+    const pct = Math.round(done / STEP_DEFS.length * 100);
+    return `<div class="candidate-item ${id===activeId?'active':''}" onclick="selectCandidate('${id}')">
+      <div class="cname">${escapeHtml(c.name)}</div>
+      <div class="cmeta">${done}/7 단계 완료</div>
+      <div class="candidate-progress"><div class="candidate-progress-bar" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function selectCandidate(id) {
+  activeId = id;
+  openStep = 'career';
+  renderSidebar();
+  renderMain();
+}
+
+function escapeHtml(s) {
+  return (s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function updateField(path, value) {
+  const c = candidates[activeId];
+  const parts = path.split('.');
+  let obj = c;
+  for (let i=0;i<parts.length-1;i++) obj = obj[parts[i]];
+  obj[parts[parts.length-1]] = value;
+  saveCandidate(activeId);
+  renderSidebar();
+  renderMain();
+}
+
+function toggleStep(key) {
+  openStep = (openStep === key) ? null : key;
+  renderMain();
+}
+
+function applyTemplateText(name) {
+  return `***** AFG 입사지원서 작성 요청 *****
+아래의 링크를 통하여 입사지원서를 작성해주세요! 호환성문제로 PC의 경우 인터넷은 꼭 크롬(Chrome) 으로 접속해주세요!
+AFG 모바일 입사지원서 URL
+: https://apply.afg.kr?org_code=T3522
+
+* AFG 입사지원서 주의사항 *
+1. 해당 없는 항목 외 [빈칸] 금지
+2. [주민등록번호, 휴대전화번호] 정확하게 기재
+3. 영문명은 [여권 기준] 으로 기재
+4. 계좌번호에 [하이픈(-)] 필수 작성
+5. [농협, 지역농협] 은 급여계좌 설정 불가
+6. 가족사항은 [가족관계증명서] 기준으로 작성
+
+사진첨부란에 반명함 사진이 없으신 경우, 신분증 사진 부분만 잘라서 업로드 해주세요!
+
+***** 필수서류 PDF 다운로드 방법 *****
+1. 가족관계증명서 (주민등록번호 다 보이게 PDF 원본)
+: https://efamily.scourt.go.kr/index.jsp
+메인포탈 ▶ 가족관계증명서 ▶ 본인인증 ▶ 본인 ▶ 가족관계증명서 ▶ 일반증명서 ▶ 신청대상자 본인만 공개 ▶ 직접인쇄 ▶ 신청하기 ▶ 인쇄 ▶ PDF 저장
+
+2. 등본 (주민등록번호 본인만 보이게 PDF 원본)
+: https://www.gov.kr/mw/AA020InfoCappView.do?HighCtgCD=A01010&CappBizCD=13100000015&tp_seq=01
+메인포탈 ▶ 주민등록등본 ▶ 발급하기 ▶ 비회원 신청하기 ▶ 본인인증 ▶ 시/구 설정 ▶ 선택발급(세대구성원 전체체크, 주민등록번호 본인만 체크) ▶ 온라인발급 ▶ 인쇄 ▶ PDF 저장
+
+***** 서울보증(www.sgic.co.kr) 동의 안내 *****
+계약 체결을 위한 동의 / 보험 수당 동의, 각각 두 번씩 부탁드립니다.
+보험수당 동의 시 회사명 '어센틱', 사원번호는 핸드폰번호 010 제외 8자리를 입력해주세요.`;
+}
+
+function copyText(elId, btn) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const text = el.textContent;
+  function done() {
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = '복사됨!';
+    setTimeout(function () { btn.textContent = orig; }, 1200);
+  }
+  function fallback() {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) done(); else if (btn) btn.textContent = '복사 실패';
+    } catch (e) { if (btn) btn.textContent = '복사 실패'; }
+  }
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+  } catch (e) { fallback(); }
+}
+
+function renderMain() {
+  const main = document.getElementById('main');
+  if (!activeId || !candidates[activeId]) {
+    main.innerHTML = `<div class="welcome"><h2>후보자를 추가해주세요</h2>왼쪽에서 '신규 후보자 추가'를 눌러 이름을 입력하면<br>7단계 위촉 프로세스를 순서대로 체크할 수 있습니다.</div>`;
+    return;
+  }
+  const c = candidates[activeId];
+  const s = c.steps;
+  const done = stepDoneCount(s);
+  const pct = Math.round(done / STEP_DEFS.length * 100);
+
+  const retest = calcRetest(s.career);
+  const eduRedo = needsEduRedo(s);
+
+  main.innerHTML = `
+    <div class="header-row">
+      <div>
+        <p class="cand-title">${escapeHtml(c.name)}</p>
+        <p class="cand-sub">위촉 프로세스 체크리스트</p>
+      </div>
+      <button class="del-btn" onclick="deleteCandidate('${activeId}')">후보자 삭제</button>
+    </div>
+
+    <div class="overall-bar-wrap">
+      <div class="overall-bar"><div class="overall-bar-fill" style="width:${pct}%"></div></div>
+      <div class="overall-label">${done} / ${STEP_DEFS.length} 단계 완료</div>
+    </div>
+
+    <div class="info-grid">
+      <div>
+        <label>연락처</label>
+        <input type="text" value="${escapeHtml(c.contact)}" placeholder="010-0000-0000"
+          onchange="updateField('contact', this.value)">
+      </div>
+      <div>
+        <label>주소</label>
+        <input type="text" value="${escapeHtml(c.address)}" placeholder="주소 입력"
+          onchange="updateField('address', this.value)">
+      </div>
+      <div class="rrn-note">
+        ※ 주민등록번호는 이 도구에 저장되지 않습니다. ①단계에서 강현순과장에게 경력조회를 요청할 때만 필요하니, 별도 방법(카톡/문자 등)으로 직접 전달해주세요.
+      </div>
+    </div>
+
+    ${renderStepCareer(s.career, retest)}
+    ${renderStepEdu(s.edu, eduRedo)}
+    ${renderStepApply(s.apply, c.name)}
+    ${renderStepRedoc(s.redoc)}
+    ${renderStepCommission(s.commission)}
+    ${renderStepTraining(s.training)}
+    ${renderStepPc(s.pc)}
+  `;
+}
+
+function stepStatusBadge(state) {
+  // state: 'todo' | 'progress' | 'done' | 'warn'
+  const labels = { todo: '대기', progress: '진행중', done: '완료', warn: '확인필요' };
+  return `<span class="step-status status-${state}">${labels[state]}</span>`;
+}
+
+function renderStepCareer(d, retest) {
+  const isOpen = openStep === 'career';
+  let status = 'todo';
+  if (d.reported && (retest === false || d.examBooked)) status = 'done';
+  else if (d.certDate) status = (retest ? 'warn' : 'progress');
+
+  let calcHtml = '';
+  if (retest === null) {
+    calcHtml = `<div class="calc-box calc-neutral">합격증 발급일과 위촉예정일을 입력하면 재시험 필요 여부를 자동으로 계산합니다.</div>`;
+  } else if (retest) {
+    calcHtml = `<div class="calc-box calc-warn">⚠ 위촉예정일 기준 합격증 발급 1년 초과 → <b>재시험 필요</b> (단, 3년 이내 365일 이상 경력이 있으면 예외 처리하세요)</div>`;
+  } else {
+    calcHtml = `<div class="calc-box calc-ok">✓ 재시험 불필요 (${d.requested3y ? '3년 이내 365일 이상 경력 인정' : '합격증 1년 이내'})</div>`;
+  }
+
+  return `
+  <div class="step ${status==='done'?'done':''} ${isOpen?'open':''}">
+    <div class="step-head" onclick="toggleStep('career')">
+      <div class="step-num">1</div>
+      <div class="step-title">생손보 경력조회</div>
+      ${stepStatusBadge(status)}
+      <span class="chevron">▶</span>
+    </div>
+    <div class="step-body">
+      <div class="field-row">
+        <label>위촉예정일</label>
+        <input type="date" value="${d.dueDate}" onchange="updateField('steps.career.dueDate', this.value)">
+      </div>
+      <div class="field-row">
+        <label>마지막 합격증 발급일</label>
+        <input type="date" value="${d.certDate}" onchange="updateField('steps.career.certDate', this.value)">
+      </div>
+      <label class="check-row ${d.requested3y?'checked':''}">
+        <input type="checkbox" ${d.requested3y?'checked':''} onchange="updateField('steps.career.requested3y', this.checked)">
+        <span>최근 3년 이내 365일 이상 경력 있음 (재시험 면제 사유)</span>
+      </label>
+      ${calcHtml}
+      <label class="check-row ${d.reported?'checked':''}">
+        <input type="checkbox" ${d.reported?'checked':''} onchange="updateField('steps.career.reported', this.checked)">
+        <span>강현순과장에게 경력조회 내용 전달 완료</span>
+      </label>
+      ${retest ? `<label class="check-row ${d.examBooked?'checked':''}">
+        <input type="checkbox" ${d.examBooked?'checked':''} onchange="updateField('steps.career.examBooked', this.checked)">
+        <span>강현순과장과 일정 확인 후 재시험 신청 완료</span>
+      </label>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderStepEdu(d, redo) {
+  const isOpen = openStep === 'edu';
+  let status = 'todo';
+  if (d.confirmed && (!redo || d.reapplied)) status = 'done';
+  else if (d.lastEduDate) status = redo ? 'warn' : 'progress';
+
+  let calcHtml = '';
+  if (redo === null) {
+    calcHtml = `<div class="calc-box calc-neutral">마지막 연수원 교육이수일을 입력하면 재이수 필요 여부를 계산합니다.</div>`;
+  } else if (redo) {
+    calcHtml = `<div class="calc-box calc-warn">⚠ 교육이수일로부터 1년 초과 → <b>재이수 필요</b></div>`;
+  } else {
+    calcHtml = `<div class="calc-box calc-ok">✓ 1년 이내 교육이수 확인 → 재이수 불필요</div>`;
+  }
+
+  return `
+  <div class="step ${status==='done'?'done':''} ${isOpen?'open':''}">
+    <div class="step-head" onclick="toggleStep('edu')">
+      <div class="step-num">2</div>
+      <div class="step-title">연수원 교육이수 확인</div>
+      ${stepStatusBadge(status)}
+      <span class="chevron">▶</span>
+    </div>
+    <div class="step-body">
+      <div class="field-row">
+        <label>마지막 연수원 교육이수일</label>
+        <input type="date" value="${d.lastEduDate}" onchange="updateField('steps.edu.lastEduDate', this.value)">
+      </div>
+      ${calcHtml}
+      <label class="check-row ${d.confirmed?'checked':''}">
+        <input type="checkbox" ${d.confirmed?'checked':''} onchange="updateField('steps.edu.confirmed', this.checked)">
+        <span>교육이수조건 확인 완료</span>
+      </label>
+      ${redo ? `<label class="check-row ${d.reapplied?'checked':''}">
+        <input type="checkbox" ${d.reapplied?'checked':''} onchange="updateField('steps.edu.reapplied', this.checked)">
+        <span>재이수 신청 완료</span>
+      </label>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderStepApply(d, name) {
+  const isOpen = openStep === 'apply';
+  const allDone = d.linkSent && d.filled && d.approvalRequested && d.approved;
+  const status = allDone ? 'done' : (d.linkSent ? 'progress' : 'todo');
+  const tplId = 'applyTpl';
+
+  return `
+  <div class="step ${status==='done'?'done':''} ${isOpen?'open':''}">
+    <div class="step-head" onclick="toggleStep('apply')">
+      <div class="step-num">3</div>
+      <div class="step-title">입사지원서 작성 및 승인</div>
+      ${stepStatusBadge(status)}
+      <span class="chevron">▶</span>
+    </div>
+    <div class="step-body">
+      <label class="check-row ${d.linkSent?'checked':''}">
+        <input type="checkbox" ${d.linkSent?'checked':''} onchange="updateField('steps.apply.linkSent', this.checked)">
+        <span>입사지원서 링크 및 안내사항 후보자에게 전달</span>
+      </label>
+      <div class="copy-box" id="${tplId}">${escapeHtml(applyTemplateText(name))}</div>
+      <button class="copy-btn" onclick="copyText('${tplId}', this)">안내 문구 복사</button>
+      <div style="height:10px"></div>
+      <label class="check-row ${d.filled?'checked':''}">
+        <input type="checkbox" ${d.filled?'checked':''} onchange="updateField('steps.apply.filled', this.checked)">
+        <span>후보자 작성 완료 확인</span>
+      </label>
+      <label class="check-row ${d.approvalRequested?'checked':''}">
+        <input type="checkbox" ${d.approvalRequested?'checked':''} onchange="updateField('steps.apply.approvalRequested', this.checked)">
+        <span>정우중 본부장에게 승인요청</span>
+      </label>
+      <label class="check-row ${d.approved?'checked':''}">
+        <input type="checkbox" ${d.approved?'checked':''} onchange="updateField('steps.apply.approved', this.checked)">
+        <span>승인 완료</span>
+      </label>
+    </div>
+  </div>`;
+}
+
+function renderStepRedoc(d) {
+  const isOpen = openStep === 'redoc';
+  const status = d.requested ? 'done' : 'todo';
+  return `
+  <div class="step ${status==='done'?'done':''} ${isOpen?'open':''}">
+    <div class="step-head" onclick="toggleStep('redoc')">
+      <div class="step-num">4</div>
+      <div class="step-title">다위촉문서 발송요청</div>
+      ${stepStatusBadge(status)}
+      <span class="chevron">▶</span>
+    </div>
+    <div class="step-body">
+      <label class="check-row ${d.requested?'checked':''}">
+        <input type="checkbox" ${d.requested?'checked':''} onchange="updateField('steps.redoc.requested', this.checked)">
+        <span>강현순과장에게 다위촉문서 발송요청 완료</span>
+      </label>
+    </div>
+  </div>`;
+}
+
+function renderStepCommission(d) {
+  const isOpen = openStep === 'commission';
+  const allDone = d.received && d.filled && d.scannedToFM && d.mailedHQ;
+  const status = allDone ? 'done' : (d.received ? 'progress' : 'todo');
+  return `
+  <div class="step ${status==='done'?'done':''} ${isOpen?'open':''}">
+    <div class="step-head" onclick="toggleStep('commission')">
+      <div class="step-num">5</div>
+      <div class="step-title">위촉신청서류 처리</div>
+      ${stepStatusBadge(status)}
+      <span class="chevron">▶</span>
+    </div>
+    <div class="step-body">
+      <label class="check-row ${d.received?'checked':''}">
+        <input type="checkbox" ${d.received?'checked':''} onchange="updateField('steps.commission.received', this.checked)">
+        <span>강현순과장에게 위촉신청서류 수령</span>
+      </label>
+      <label class="check-row ${d.filled?'checked':''}">
+        <input type="checkbox" ${d.filled?'checked':''} onchange="updateField('steps.commission.filled', this.checked)">
+        <span>서류 작성 완료</span>
+      </label>
+      <label class="check-row ${d.scannedToFM?'checked':''}">
+        <input type="checkbox" ${d.scannedToFM?'checked':''} onchange="updateField('steps.commission.scannedToFM', this.checked)">
+        <span>스캔본 FM에게 전달</span>
+      </label>
+      <label class="check-row ${d.mailedHQ?'checked':''}">
+        <input type="checkbox" ${d.mailedHQ?'checked':''} onchange="updateField('steps.commission.mailedHQ', this.checked)">
+        <span>원본 본사 발송</span>
+      </label>
+    </div>
+  </div>`;
+}
+
+function renderStepTraining(d) {
+  const isOpen = openStep === 'training';
+  const status = d.notified ? 'done' : 'todo';
+  return `
+  <div class="step ${status==='done'?'done':''} ${isOpen?'open':''}">
+    <div class="step-head" onclick="toggleStep('training')">
+      <div class="step-num">6</div>
+      <div class="step-title">신입교육일정 안내</div>
+      ${stepStatusBadge(status)}
+      <span class="chevron">▶</span>
+    </div>
+    <div class="step-body">
+      <div class="field-row">
+        <label>신입교육 일정</label>
+        <input type="date" value="${d.date}" onchange="updateField('steps.training.date', this.value)">
+      </div>
+      <label class="check-row ${d.notified?'checked':''}">
+        <input type="checkbox" ${d.notified?'checked':''} onchange="updateField('steps.training.notified', this.checked)">
+        <span>후보자에게 신입교육일정 안내 완료</span>
+      </label>
+    </div>
+  </div>`;
+}
+
+function renderStepPc(d) {
+  const isOpen = openStep === 'pc';
+  const status = d.done ? 'done' : 'todo';
+  return `
+  <div class="step ${status==='done'?'done':''} ${isOpen?'open':''}">
+    <div class="step-head" onclick="toggleStep('pc')">
+      <div class="step-num">7</div>
+      <div class="step-title">컴퓨터 세팅</div>
+      ${stepStatusBadge(status)}
+      <span class="chevron">▶</span>
+    </div>
+    <div class="step-body">
+      <label class="check-row ${d.done?'checked':''}">
+        <input type="checkbox" ${d.done?'checked':''} onchange="updateField('steps.pc.done', this.checked)">
+        <span>컴퓨터 세팅 완료</span>
+      </label>
+    </div>
+  </div>`;
+}
+
+loadAll();
+</script>
+</body>
+</html>
