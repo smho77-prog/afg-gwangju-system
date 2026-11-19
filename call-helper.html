@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>통화 도우미</title>
+<style>
+:root{--navy:#0A1628;--mid:#1A3A5C;--blue:#4A90D9;--lb:#EBF3FB;--line:#D5DCE6;--bg:#F2F4F7;--ok:#1E8E5A;--warn:#C0392B;--ink:#1c2430;--muted:#5b6778}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:"맑은 고딕","Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.6}
+.wrap{max-width:1180px;margin:0 auto;padding:0 12px 60px}
+header{background:var(--navy);color:#fff;padding:14px 16px;margin:0 0 12px}
+header .in{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+header h1{margin:0;font-size:19px}
+header .badge{background:var(--blue);color:#fff;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700}
+header p{margin:0;width:100%;font-size:12.5px;color:#b9c8dc}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.lab{font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:700}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:0 1 auto;min-width:64px;padding:9px 12px;border:1px solid var(--line);background:#fff;border-radius:8px;font:inherit;font-size:14px;cursor:pointer;color:#2b3a4f}
+.seg button:hover{border-color:var(--blue)}
+.seg button.on{background:var(--mid);color:#fff;border-color:var(--mid);font-weight:700}
+.seg.sub button.on{background:var(--blue);border-color:var(--blue)}
+.ctlrow{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;align-items:flex-end}
+.ctlrow>div{min-width:0}
+.trait{margin-top:10px;background:var(--lb);border-radius:8px;padding:8px 12px;font-size:13.5px;color:var(--mid)}
+.trait b{color:var(--navy)}
+details.info{margin-top:10px}
+details.info>summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--mid)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}
+.grid label{display:block;font-size:12px;color:var(--muted);font-weight:700}
+.grid input,.grid select{width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:14px;background:#fff}
+.note{font-size:12px;color:var(--muted);margin-top:6px}
+.cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:12px;align-items:start}
+@media(max-width:900px){.cols{grid-template-columns:1fr}.side{position:static!important;max-height:none!important}}
+.side{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto}
+.flow{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.flow button{flex:1 1 120px;padding:9px 6px;border:1px solid var(--line);background:#fff;border-radius:8px;font:inherit;font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer}
+.flow button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.flow button.done{background:var(--lb);color:var(--mid)}
+.stt{margin:0 0 8px;font-size:17px;font-weight:800;color:var(--navy)}
+.stt small{font-size:12.5px;font-weight:400;color:var(--muted);margin-left:6px}
+.line{display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-top:1px dashed var(--line)}
+.line:first-of-type{border-top:none}
+.line .n{flex:0 0 24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:3px}
+.line .b{flex:1;min-width:0}
+.ltxt{font-size:16px;line-height:1.75;word-break:keep-all}
+.cue{margin-top:3px;font-size:12.5px;color:var(--ok);font-weight:700}
+.cue.w{color:var(--warn)}
+.cp{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:6px;font:inherit;font-size:11.5px;padding:3px 9px;cursor:pointer;color:#46515f}
+.cp.done{background:var(--ok);color:#fff;border-color:var(--ok)}
+mark.ph{background:#FFF1B8;color:#7a5b00;padding:0 2px;border-radius:3px}
+b.v{background:#DDF3E8;color:#14633f;padding:0 2px;border-radius:3px;font-weight:700}
+.big .ltxt{font-size:21px;line-height:1.85}
+.brief{margin:0 0 8px;padding-left:20px;font-size:15.5px}
+.brief li{margin:3px 0}
+details.more{margin-top:8px;border:1px solid var(--line);border-radius:8px;background:#FAFBFC}
+details.more>summary{cursor:pointer;padding:8px 12px;font-size:13px;font-weight:700;color:var(--mid)}
+details.more>.in{padding:0 12px 8px}
+.qcard{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:8px 0;background:#fff}
+.qcard.note{background:#FFFBEA;border-color:#EBD98A}
+.qcard.warn{background:#FDF0EE;border-color:#E9B2AA}
+.qcard .tag{font-size:11.5px;font-weight:800;color:var(--blue);margin-bottom:2px}
+.qcard.note .tag{color:#8a6a00}
+.qcard.warn .tag{color:var(--warn)}
+.nav{display:flex;justify-content:space-between;gap:8px;margin-top:12px}
+.btn{padding:10px 16px;border:1px solid var(--mid);background:var(--mid);color:#fff;border-radius:8px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.btn.sec{background:#fff;color:var(--mid)}
+.btn:disabled{opacity:.35;cursor:default}
+.side h3{margin:0 0 6px;font-size:15px;color:var(--navy)}
+.ogrp{margin:8px 0 4px;font-size:12px;font-weight:800;color:var(--muted)}
+.obtns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.obtns button{padding:9px 8px;border:1px solid var(--line);background:#fff;border-radius:8px;font:inherit;font-size:13.5px;cursor:pointer;text-align:left;color:#2b3a4f;line-height:1.35}
+.obtns button:hover{border-color:var(--blue)}
+.obtns button.on{background:var(--lb);border-color:var(--blue);color:var(--navy);font-weight:700}
+.obtns.main button{font-weight:700;padding:11px 8px}
+.odet{margin-top:12px;border-top:2px solid var(--blue);padding-top:10px}
+.odet h4{margin:0 0 6px;font-size:15.5px;color:var(--navy)}
+.say{background:#F5F3ED;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14.5px;margin-bottom:6px}
+.lbl{display:inline-block;font-size:11.5px;font-weight:800;color:#fff;background:var(--blue);border-radius:10px;padding:1px 8px;margin-right:6px}
+.lbl.b2{background:var(--mid)}.lbl.b3{background:var(--ok)}.lbl.b4{background:#7a8594}
+.tip{margin-top:6px;font-size:12.5px;color:var(--ok);font-weight:700}
+.peer{margin-top:8px;border:1px dashed var(--line);border-radius:8px;padding:8px 10px;background:#FAFBFC;font-size:13.5px}
+.peer .t{font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:3px}
+textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:14px;resize:vertical}
+.pbub{background:#F5F3ED;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:18px;line-height:1.6}
+.pmeta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.chip{background:var(--lb);color:var(--mid);border-radius:14px;padding:3px 10px;font-size:12.5px}
+.chip.g{background:#EEF0F3;color:#46515f}
+.chk{display:flex;gap:8px;align-items:flex-start;padding:7px 4px;font-size:14px;cursor:pointer}
+.chk input{margin-top:5px;width:auto}
+.stat{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+.stat div{background:var(--bg);border-radius:8px;padding:6px 12px;font-size:13px}
+.stat b{font-size:17px;color:var(--navy)}
+.hide{display:none!important}
+.foot{font-size:12px;color:var(--muted);margin-top:14px}
+.popts{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.popt{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;padding:11px 12px;border:1px solid var(--line);background:#fff;border-radius:10px;font:inherit;font-size:15px;line-height:1.55;cursor:pointer;color:var(--ink);word-break:keep-all}
+.popt:hover:not(:disabled){border-color:var(--blue);background:var(--lb)}
+.popt .pn{flex:0 0 22px;height:22px;border-radius:50%;background:var(--bg);color:var(--mid);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.popt:disabled{cursor:default}
+.popt.b{background:#E8F6EE;border-color:#9AD5B4}
+.popt.a{background:#FFF8E1;border-color:#EBD98A}
+.popt.x{background:#FDF0EE;border-color:#E9B2AA}
+.popt.sel{outline:3px solid var(--navy);outline-offset:1px}
+.pfb{margin:8px 0;padding:9px 12px;border-radius:8px;font-size:14px}
+.pfb.b{background:#E8F6EE;color:#14633f}.pfb.a{background:#FFF8E1;color:#7a5b00}.pfb.x{background:#FDF0EE;color:var(--warn)}
+
+html{font-size:17px}
+body{font-size:1.06rem}
+.topbar{display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap}
+.topbar .chip{font-size:14px;padding:5px 12px}
+.topbar .sp{flex:1}
+.tb{padding:10px 16px;border:1px solid var(--line);background:#fff;border-radius:10px;font:inherit;font-size:15px;font-weight:700;color:var(--mid);cursor:pointer}
+.hq{font-size:1.5rem;font-weight:800;color:var(--navy);margin:6px 0 4px}
+.hs{font-size:.95rem;color:var(--muted);margin:0 0 14px}
+.bigcards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.bigcards{grid-template-columns:1fr}}
+.bc{display:block;width:100%;text-align:left;padding:20px 18px;border:2px solid var(--line);background:#fff;border-radius:14px;font:inherit;cursor:pointer;color:var(--ink)}
+.bc:hover{border-color:var(--blue);background:var(--lb)}
+.bc b{display:block;font-size:1.3rem;color:var(--navy);margin-bottom:4px}
+.bc span{font-size:1rem;color:var(--muted);line-height:1.5}
+.bc.dark{background:var(--navy);border-color:var(--navy)}.bc.dark b,.bc.dark span{color:#fff}
+.cols{grid-template-columns:1fr!important}
+.side{position:static!important;max-height:none!important}
+.ltxt{font-size:1.25rem!important;line-height:1.85}
+.callhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.prog{flex:1;min-width:160px}
+.prog .bar{height:8px;background:var(--bg);border-radius:6px;overflow:hidden}
+.prog .bar i{display:block;height:100%;background:var(--blue)}
+.prog .tx{font-size:.95rem;font-weight:800;color:var(--navy);margin-bottom:3px}
+.objbtn{width:100%;margin-top:12px;padding:16px;font-size:1.1rem;background:#fff;color:var(--navy);border:2px solid var(--blue)}
+.sheetbg{position:fixed;inset:0;background:rgba(10,22,40,.45);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:82vh;overflow:auto;background:#fff;z-index:21;border-radius:16px 16px 0 0;padding:14px 16px 24px;box-shadow:0 -6px 24px rgba(0,0,0,.25);max-width:760px;margin:0 auto}
+.sheethead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.popt{font-size:1.1rem}
+.pbub{font-size:1.25rem}
+.btn{font-size:1.05rem;padding:13px 20px}
+.nav .btn{min-width:110px}
+.tb.on{background:var(--mid);color:#fff;border-color:var(--mid)}
+</style>
+</head>
+<body>
+<header><div class="in"><h1>📞 통화 도우미</h1></div></header>
+<div class="wrap" id="root">
+  <div class="topbar" id="topbar"></div>
+  <div id="main"></div>
+  <details class="info" id="infobox" style="margin-top:12px">
+    <summary>고객·내 이름 넣기 (선택 · 멘트에 자동으로 들어갑니다)</summary>
+    <div class="grid">
+      <div><label for="in_cust">고객 이름</label><input id="in_cust" placeholder="예: 홍길동"></div>
+      <div><label for="in_honor">호칭</label><select id="in_honor"><option value="auto">자동(고객 연령대)</option><option value="선생님">선생님</option><option value="고객님">고객님</option><option value="사모님">사모님</option></select></div>
+      <div><label for="in_me">내 이름</label><input id="in_me" placeholder="예: 김팀장"></div>
+      <div><label for="in_prem">월 보험료(선택)</label><input id="in_prem" placeholder="예: 20만 원"></div>
+      <div><label for="in_birth">생년월일 6자리(선택)</label><input id="in_birth" inputmode="numeric" maxlength="6" placeholder="예: 710917"></div>
+    </div>
+    <div class="note">내 이름과 호칭만 이 PC에 저장됩니다. 고객 정보는 저장하지 않고 화면을 닫으면 사라집니다.</div>
+  </details>
+  <div class="foot">멘트 속 노란 부분은 상황에 맞게 채워서 말하는 자리입니다.</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- 저장(내 이름·호칭·연습 기록·내 멘트) ---------- */
+var LS_KEY='ctool_v1';
+function lsGet(){try{var r=window.localStorage.getItem(LS_KEY);return r?JSON.parse(r):{};}catch(e){return {};}}
+function lsSet(o){try{window.localStorage.setItem(LS_KEY,JSON.stringify(o));}catch(e){}}
+var store=lsGet();
+if(!store||typeof store!=='object')store={};
+if(!Array.isArray(store.recs))store.recs=[];
+if(!store.mine||typeof store.mine!=='object')store.mine={};
+if(!Array.isArray(store.pat))store.pat=[];
+
+/* ---------- 공통 블록 ---------- */
+var INFO=[
+ {t:'성함 {고객 이름} 맞으시죠? → 전화번호 맞으시죠? → 생년월일 {생년} 맞으시죠?',cue:'세 번 모두 “네”를 받는 게 목표입니다. 앞에서 “네”를 반복하면 뒤에서도 거절이 줄어듭니다.'},
+ {t:'정확한 확인을 위해 뒷자리까지 말씀해 주시겠어요?'},
+ {t:'(거절하면 ①) 보험도 금융상품이라 본인 확인이 필수예요. 확인 목적으로만 쓰이고, 분석이 끝나면 가입하신 보험 리포트도 함께 보내드릴 수 있어요.'},
+ {t:'(거절하면 ②, 어르신 제외) 걱정되시면 제가 본인확인 알림톡을 보내드릴 테니 직접 인증해 주세요. 그러면 불필요한 절차도 줄어들어요.'}
+];
+var HEALTH=[
+ {t:'정확하지 않아도 괜찮고, 기억나는 범위로만 말씀 주시면 됩니다.',cue:'병력 질문 전에 이 말을 먼저 해서 부담을 낮춥니다.'},
+ {t:'최근 3개월 이내에 병원에서 진찰이나 검사 받으신 적 있으실까요?'},
+ {t:'지금 혈압약, 당뇨약, 고지혈증 약 포함해서 꾸준히 드시는 약 있으실까요?'},
+ {t:'최근 5년(또는 10년) 이내에 입원이나 수술 받으신 거 기억나시는 게 있으실까요?'},
+ {t:'(있을 때만) 병명 / 치료 시기(대략) / 치료 기간 / 수술 여부 / 치료 부위(좌우)',cue:'답마다 “네, 그러셨군요” 하고 호응합니다.'},
+ {t:'현재 하시는 일은 어떻게 되실까요? (직업에 따라 보험료가 달라요) 운전은 하시나요? 자가용인가요, 영업용인가요?'}
+];
+var CLOSE_FIX={t:'정리된 내용은 카톡으로 바로 보내드릴게요. {시간선택} 그 시간에 다시 연락드려도 될까요?',cue:'“언제 한번”이 아니라 시간까지 확정하고, 바로 예약으로 기록합니다.'};
+function mkClose(choice){
+ return [
+  {t:'아까 {고객 걱정} 부분이 제일 걱정이라고 하셨는데, 이번 설계는 그 부분을 먼저 채우는 쪽으로 잡았어요.',cue:'고객이 통화 중에 한 말을 그대로 인용합니다.'},
+  {t:choice,cue:'“할래요/안 할래요”가 아니라 A·B 중에서 고르게 묻습니다.'},
+  CLOSE_FIX
+ ];
+}
+function mkCompare(criteria){
+ return [
+  {t:'먼저 지금 가지고 계신 보험부터 정리해 드릴게요. 잘 되어 있는 부분은 {잘된 점}이고, 부족하거나 겹치는 부분은 {부족한 점}입니다.',warn:'기존에 가입한 보험을 절대 흉보지 않습니다. 잘된 점을 먼저 말합니다.'},
+  {t:'같은 보장도 보험사마다 조건이 달라서 세 곳을 나란히 놓고 보여드릴게요. 비교는 '+criteria+' 이 순서로 보시면 됩니다.',cue:'비교표나 화면을 보면서 하나씩 짚습니다.'},
+  {t:'그중 {추천 보험사}를 먼저 말씀드리는 이유는 {이유 1}, {이유 2} 때문이에요. 고객님이 말씀하신 {고객 걱정} 부분에 맞는 쪽이라서요.',cue:'추천 이유는 고객이 한 말과 연결합니다.'},
+  {t:'다만 {단점} 부분은 감안하셔야 해요. 이런 점까지 같이 말씀드려야 나중에 후회가 없으세요.',cue:'단점을 먼저 솔직하게 말하면 신뢰가 올라갑니다.'},
+  {t:'기존 보험을 바꾸거나 해지하시는 경우에는 환급금, 보장 공백, 면책·감액 재적용 같은 불이익이 생길 수 있어서 그 부분도 먼저 설명드릴게요.',warn:'기존 보험 해지를 먼저 권하지 않습니다. 불이익을 먼저 설명합니다.'}
+ ];
+}
+
+/* ---------- DB유형 ---------- */
+var TYPES=[
+{id:'tv',grp:'tv',name:'TV광고',topic:'기존 보험',
+ trait:'<b>케이블TV 보험점검 광고</b>를 보고 상담을 예약한 고객입니다. 가입이 아니라 <b>점검</b>을 기대하고 있어서, 가입 권유처럼 들리면 바로 방어합니다.',
+ intro:[
+  {t:'안녕하세요, {고객} 맞으시죠? 반갑습니다.',cue:'이름 확인으로 첫 “네”를 받습니다.'},
+  {t:'케이블TV에서 보신 보험 점검 광고 보시고 상담 예약 남겨주셔서 안내차 연락드린 어센틱금융 {나}입니다.',cue:'신청 경로를 먼저 말해서 “왜 전화했냐”를 막습니다.'},
+  {t:'그 방송은 새로 가입하라는 내용이 아니라, 지금 가입하신 보험이 잘 되어 있는지 점검하는 내용이었는데요. 방송 보시고 가장 궁금하셨던 부분이 있으셨을까요?',cue:'열린 질문은 이 한 번만. 답을 메모해 두었다가 클로징에서 인용합니다.'},
+  {t:'말씀해 주신 부분부터 답변드리고, 이어서 가입하신 보험을 같이 확인해 드릴게요. 괜찮으시죠?',cue:'“네”를 받고 점검으로 넘어갑니다.'}
+ ],
+ brief:['TV 점검 광고 보고 예약했다는 경로 말하기','“새 가입이 아니라 점검”이라고 한 줄','궁금하셨던 점 먼저 묻고 기존 보험 점검으로 연결'],
+ talk:[
+  {k:'q',t:'방송 보시고 가장 궁금하셨던 게 어떤 거예요?',why:'고객이 한 말을 그대로 적어 둡니다. 클로징에서 그대로 인용합니다.'},
+  {k:'q',t:'지금 가입하신 보험은 어느 보험사들이세요? 월 보험료는 대략 어느 정도 내세요?',why:'보험사 → 가입 시기 → 월 보험료 순서로, 한 번에 하나씩 묻습니다.'},
+  {k:'q',t:'이 보험은 어떻게 가입하게 되셨어요? 지금도 담당해 주시는 분이 계세요?',why:'가입 배경은 꼭 묻습니다. 기존 보험이나 담당 설계사를 흉보지 않습니다.'},
+  {k:'note',t:'점검 5가지: ① 보험료가 적정한지 ② 현재 보상 기준에 맞는지 ③ 중복된 보험은 없는지 ④ 갱신형 위주는 아닌지 ⑤ 보상받기 어려운 특약은 없는지'}
+ ],
+ compare:mkCompare('보장 범위, 보험료, 조건(갱신 여부·면책·감액)'),
+ close:mkClose('부족한 부분만 보완하는 쪽으로 진행해 볼까요, 아니면 정리된 내용을 가족분과 먼저 보시고 결정하실까요?'),
+ spec:['tvtrap','tvforget']},
+
+{id:'perm',grp:'perm',name:'퍼미션',topic:'기존 보험',
+ trait:'<b>보험료 점검·청구 안 한 보험금 확인</b>에 동의한 고객입니다. 광고가 아니라 상담원 동의 콜을 거쳐 왔고 “또 전화?”라는 반감이 많습니다. 가입 권유보다 <b>점검이라는 약속</b>을 먼저 지킵니다.',
+ intro:[
+  {t:'안녕하세요, {고객} 맞으시죠?',cue:'이름 확인으로 첫 “네”를 받습니다.'},
+  {t:'상담원을 통해서 보험료 점검이랑 놓친 보험금 확인에 동의 남겨주셔서 연락드린 어센틱금융 {나} 팀장입니다.',cue:'동의해 주신 내용을 그대로 말합니다.'},
+  {t:'길게 통화하는 건 아니고요, 지금 가입하신 보험에서 보험료를 조정할 부분이 있는지, 겹치거나 빠진 보장은 없는지, 청구 안 하고 지나간 보험금은 없는지 간단히 확인만 도와드릴게요.',cue:'확인할 것은 세 가지뿐이라고 짧게 약속합니다.'},
+  {t:'끝나면 가입하신 내용을 정리해서 카톡이나 문자로 보내드릴게요. 우선 지금 내고 계신 보험료가 대략 {월보험료} 정도라고 하셨는데 맞으실까요?',cue:'월 보험료 확인은 가장 답하기 쉬운 첫 질문입니다.'}
+ ],
+ brief:['동의해 주신 보험료 점검 건으로 연락했다고 말하기','길게 안 한다 + 확인할 것 세 가지(보험료·중복/부족·청구)','월 보험료 확인 질문으로 시작'],
+ talk:[
+  {k:'q',t:'지금 보험료가 대략 {월보험료} 정도 맞으시죠? 어느 보험사들에 가입돼 있으세요?',why:'이미 말해 준 내용을 확인만 하니 답하기 쉽습니다.'},
+  {k:'q',t:'이 보험들은 어떻게 가입하게 되셨어요? 최근에 담당해 주시는 분은 계세요?',why:'가입 배경은 필수 질문입니다.'},
+  {k:'q',t:'제가 가입하신 보험을 꼼꼼히 확인해서 다시 안내드릴 텐데, 시간이 조금 필요해요. 내일 이 시간쯤 통화 괜찮으세요?',why:'정보를 받은 뒤 재통화를 약속하는 흐름입니다. 시간까지 정해서 예약합니다.'},
+  {k:'note',t:'놓친 보험금(실효·만기·미청구 건)은 “확인해 보겠다”까지만 말하고, 금액이나 가능 여부는 확인 전에 단정하지 않습니다.'}
+ ],
+ compare:mkCompare('보장 범위, 보험료, 조건(갱신 여부·면책·감액)'),
+ close:mkClose('부족한 부분만 보완하는 쪽으로 진행해 볼까요, 아니면 정리된 내용을 먼저 보시고 결정하실까요?'),
+ spec:['permagain','permwhy','permid']},
+
+{id:'cancer',grp:'ad',name:'상품광고 · 암',topic:'암 보장',
+ trait:'<b>암보험 광고</b>(유튜브·SNS 등)를 보고 비교를 요청한 고객입니다. 관심이 <b>진단비</b>에 쏠려 있어서, 치료비 구성으로 넓혀 가는 질문이 핵심입니다.',
+ intro:[
+  {t:'안녕하세요, {고객} 되시죠?'},
+  {t:'{채널}에서 암보험 보시고 보장 내용 확인 요청 남겨주셔서 연락드린 어센틱금융 {나}입니다.',cue:'채널명은 실제 DB 정보와 정확히 맞춥니다. 틀리면 신뢰가 바로 떨어집니다.'},
+  {t:'광고에서 보신 암 치료비 보장 내용이 궁금하셨던 거죠? 본인 걸로 알아보고 계신 걸까요?',cue:'본인인지 가족인지 확인합니다. 이후 병력 질문 대상이 달라집니다.'},
+  {t:'저희는 한 회사 상품만 안내하는 곳이 아니라 여러 보험사를 비교해서 조건에 맞는 곳을 안내해 드려요. 지금 알아보시는 게 진단자금 위주세요, 아니면 항암치료비까지 포함해서 보고 계세요?',cue:'열린 질문 대신 선택형으로 묻습니다. 응답률이 높습니다.'}
+ ],
+ brief:['채널(유튜브/SNS 등)을 정확히 말하며 신청 확인','본인용인지 가족용인지 확인','여러 보험사 비교 한 줄 → 진단자금 vs 치료비 선택형 질문'],
+ talk:[
+  {k:'q',t:'지금 가입해 두신 암보험이 있으세요? 있으시면 보험사랑 언제쯤 가입하셨는지 기억나세요?',why:'가입 시기에 따라 치료비 담보가 있는지 없는지가 갈립니다. 시기가 핵심입니다.'},
+  {k:'q',t:'암 진단을 받았다고 가정하면 ① 치료비 ② 일을 못 할 때 생활비 ③ 비급여 치료비, 이 중 어느 쪽이 제일 걱정되세요?',why:'선택형 질문입니다. 고객이 고른 걱정을 클로징에서 그대로 씁니다.'},
+  {k:'note',t:'기존 보험에서 확인할 것: 일반암 진단비 / 유사암 / 암 수술비 / 항암약물치료 / 방사선치료 / 주요 치료비 / 갱신 여부 / 보장 기간'},
+  {k:'warn',t:'“그냥 봤어요”라는 말이 나와도 접지 않습니다. “암 진단자금은 지금 어느 정도 갖고 계세요?”처럼 더 쉬운 질문으로 좁혀서 이어갑니다.'}
+ ],
+ compare:mkCompare('보장하는 암의 범위(일반암·유사암), 진단비 외 치료비 구성(수술·항암·방사선·비급여), 갱신 여부와 보험료 변화, 면책·감액 조건'),
+ close:mkClose('진단비를 키우는 쪽이 좋으세요, 아니면 치료비를 먼저 탄탄하게 하는 쪽이 좋으세요?'),
+ spec:['adprice','cHave','cJust','cHealthy','cHist','rival'],
+ kw:{plan:'암보험 플랜',ad:'비급여 암 치료비 최대 1억 + 암 진단 후 생활비',a:'암 진단비',b:'항암·수술 치료비',A:'진단비를 키우는 쪽',B:'치료비를 먼저 탄탄하게 하는 쪽',frame:'진단비는 한 번 받고 끝나지만, 치료비는 급여·비급여 치료에 대해 매년 한도가 새로 생겨서 오래 보장받을 수 있어요. 그래서 진단비가 있으신 분도 치료비를 같이 많이 보세요. 한도는 설계안으로 같이 확인해 드릴게요.',ext:'뇌·심혈관이나 수술비도',ask:'최근 3개월 안에 병원 진료받으셨거나 꾸준히 드시는 약 있으세요?',ans:'약은 안 먹고 건강검진은 받았는데 별 이상 없었어요.'}},
+
+{id:'care',grp:'ad',name:'상품광고 · 치매·간병',topic:'치매·간병 보장',
+ trait:'<b>치매·간병보험</b>을 비교한 고객입니다. 치매보험과 간병보험을 헷갈리는 경우가 많아서 <b>“간병인 사용일당 vs 치매 진단·요양 생활비”</b> 구분이 첫 질문입니다.',
+ intro:[
+  {t:'안녕하세요, {고객} 되시죠?'},
+  {t:'{채널}에서 치매·간병보험 관련 보장 내용을 확인해 보셔서 연락드린 어센틱금융 {나}입니다.',cue:'신청 경로를 먼저 말합니다.'},
+  {t:'저희는 한 곳만 취급하는 게 아니라 여러 보험사를 비교해서 고객님 조건에 맞는 곳으로 안내해 드려요.',cue:'보험사 개수를 말할 때는 센터에서 정한 숫자 하나로 통일합니다.'},
+  {t:'지금 알아보시는 게 간병인을 썼을 때 받는 ‘간병인 사용일당’이세요, 아니면 치매 진단이나 요양 생활비 쪽이세요?',cue:'두 개념을 짧게 구분해 줍니다. 섞어서 말하면 되묻지 말고 쉬운 쪽부터 이어갑니다.'}
+ ],
+ brief:['치매·간병보험 확인 요청 건으로 연락했다고 말하기','여러 보험사 비교 한 줄','간병인 사용일당 vs 치매 진단·요양 생활비 선택형 질문'],
+ talk:[
+  {k:'q',t:'혹시 주변에서 간병이나 요양 때문에 고민하시는 분을 보신 적 있으세요?',why:'고객이 먼저 꺼내는 가족 이야기만 이어갑니다. 캐묻지 않습니다.'},
+  {k:'q',t:'지금 가입해 두신 보험에 간병이나 치매 쪽 보장이 있으세요? 어느 보험사세요?',why:'있으면 사용일당 한도와 지급 조건부터 확인합니다.'},
+  {k:'q',t:'간병인을 쓰게 되면 그 비용은 어떻게 마련하실 생각이세요?',why:'“자녀에게 부담 주기 싫다”는 말이 나오면 클로징 근거로 씁니다.'},
+  {k:'note',t:'간병인 사용일당은 보험사마다 한도·지급 조건·지급 기간이 다릅니다. 금액은 설계안에 나온 수치로만 말합니다.'}
+ ],
+ compare:mkCompare('간병인 사용일당 한도, 지급 조건(입원·요양병원 포함 여부), 지급 일수 한도, 갱신 여부와 보험료 변화'),
+ close:mkClose('간병인 사용일당 중심으로 먼저 잡아 볼까요, 아니면 치매 진단·요양 쪽까지 같이 볼까요?'),
+ spec:['adprice','mLong','mYoung','mKids','mDiff','rival'],
+ kw:{plan:'치매·장기요양 플랜',ad:'치매 검사·치료비부터 장기요양 월 보장금액까지',a:'간병인 사용일당',b:'치매 진단·요양 생활비',A:'간병인 사용일당 중심',B:'치매 진단·요양 생활비까지 같이',frame:'간병인 사용일당은 간병인을 쓴 날 받는 돈이고, 치매 진단·요양 생활비는 진단 때 목돈으로 받는 돈이라 쓰임이 달라요. 어느 쪽 비중을 높일지 같이 정하시면 돼요.',ext:'치매 진단·요양 쪽도',ask:'최근 3개월 안에 병원 진료받으셨거나 꾸준히 드시는 약 있으세요?',ans:'약은 혈압약 정도 먹고 큰 병은 없었어요.'}},
+
+{id:'health',grp:'ad',name:'상품광고 · 건강(뇌·심혈관·수술비)',topic:'뇌·심혈관·수술비 보장',
+ trait:'<b>건강보험(뇌·심혈관·수술비)</b>을 알아본 고객입니다. 암 하나로 시작해도 <b>뇌·심혈관, 수술·상해로 “두 개 중 선택”</b>하며 넓혀 가는 흐름이 자주 나옵니다. 가입 가능 여부는 확인 전에 단정하지 않습니다.',
+ intro:[
+  {t:'안녕하세요, {고객} 되시죠?'},
+  {t:'{채널}에서 건강보험(뇌·심혈관·수술비) 알아보시고 문의 남겨주셔서 연락드린 어센틱금융 {나}입니다.',cue:'신청 경로와 상품 이름을 정확히 말합니다.'},
+  {t:'저희는 한 곳 상품만 안내하는 게 아니라 여러 보험사를 비교해서 안내해 드려요.',cue:'보험사 개수를 말할 때는 센터에서 정한 숫자 하나로 통일합니다.'},
+  {t:'지금 알아보시는 게 뇌·심혈관 진단 쪽이세요, 아니면 수술비 쪽이세요?',cue:'선택형 질문으로 관심 항목을 확인합니다.'}
+ ],
+ brief:['건강보험 문의 건으로 연락했다고 말하기','여러 보험사 비교 한 줄','뇌·심혈관 진단 vs 수술비 선택형 질문'],
+ talk:[
+  {k:'q',t:'지금 가입해 두신 보험에 진단비나 수술비 쪽은 어떻게 되어 있어요? 실손은 따로 있으세요?',why:'기존 진단비·실손은 한 번에 한 가지씩만 묻습니다.'},
+  {k:'q',t:'뇌졸중이나 심근경색 진단을 받으면 치료와 회복 기간 동안 생활은 어떻게 되실 것 같으세요?',why:'가정형 질문으로 필요성을 고객 입으로 말하게 합니다. 겁주는 말투는 쓰지 않습니다.'},
+  {k:'note',t:'뇌·심혈관 진단비가 보장하는 질환 범위와 수술비 분류·횟수는 상품마다 달라서, 설계안에 나온 수치와 약관으로만 말합니다.'}
+ ],
+ compare:mkCompare('뇌·심혈관 진단비가 보장하는 질환 범위, 수술비 분류와 횟수 한도, 갱신 여부와 보험료 변화, 면책·감액 조건'),
+ close:mkClose('뇌·심혈관 진단비를 먼저 잡을까요, 수술비를 먼저 잡을까요? 나머지는 나중에 따로 하셔도 괜찮아요.'),
+ spec:['adprice','hBrain','hCover','rival'],
+ kw:{plan:'뇌·심혈관·수술비 플랜',ad:'광고에서 본 내용',a:'뇌·심혈관 진단비',b:'수술비',A:'뇌·심혈관 진단비를 먼저 잡는 쪽',B:'수술비를 먼저 잡는 쪽',frame:'진단비는 처음 한 번, 수술비는 수술을 받을 때마다 받는 돈이라 같이 있으면 서로 빈틈을 채워요. 수술 분류 기준과 횟수는 상품마다 달라서 설계안으로 확인해 드릴게요.',ext:'암 진단비나 상해 수술비도',ask:'최근 3개월 안에 병원 진료받으셨거나 꾸준히 드시는 약 있으세요?',ans:'약은 안 먹고 건강검진은 받았는데 별 이상 없었어요.'}},
+
+{id:'dental',grp:'ad',name:'상품광고 · 치아',topic:'치아 보장',
+ trait:'<b>치아보험</b>을 비교한 고객입니다. <b>면책·감액기간</b>과 <b>이미 치료가 필요한 치아가 있는지</b>가 핵심 확인 사항입니다. 장점만 말하지 않고 조건을 함께 말합니다.',
+ intro:[
+  {t:'안녕하세요, {고객} 맞으시죠?'},
+  {t:'온라인에서 치아보험 알아보셔서 연락드린 어센틱금융 {나}입니다. 저는 한 곳만 안내하는 게 아니라 여러 보험사를 비교해서 설계해 드려요.',cue:'신청 경로 + 비교 포지션을 한 번에 말합니다.'},
+  {t:'치과 치료는 크게 충치를 때우거나 씌우는 충전·크라운 치료와, 비용 부담이 큰 임플란트 두 가지로 많이 준비하세요. 어느 쪽이 더 걱정되세요?',cue:'선택형 질문입니다. 고객이 고른 쪽을 설계 중심으로 잡습니다.'}
+ ],
+ brief:['온라인 치아보험 문의 건 + 여러 보험사 비교','충전·크라운 vs 임플란트 선택형 질문'],
+ talk:[
+  {k:'q',t:'최근 1~2년 안에 치과에서 충치 치료나 크라운, 임플란트 같은 치료를 받으신 적 있으세요? 지금 아프거나 시린 곳, 치료받으라고 들은 치아는요?',why:'이미 치료 권유를 받은 치아는 상품별로 보장이 제한되거나 가입이 어려울 수 있습니다. 먼저 확인합니다.'},
+  {k:'note',t:'면책·감액 설명(꼭 말하기): “치아보험은 가입하자마자 모든 치료가 보장되는 게 아니라, 면책기간이나 감액기간이 있는 상품이 많아요. 기간과 지급 비율은 상품마다 달라서 비교할 때 같이 보여드릴게요.”'},
+  {k:'warn',t:'보장 예시를 말할 때: “낸 보험료보다 받는 보험금이 커서 손해가 없다”처럼 단정하지 않습니다. 감액기간 중에는 지급 비율이 달라질 수 있고, 실제 금액은 치료 시점과 상품 조건에 따라 달라진다고 함께 말합니다.'},
+  {k:'q',t:'충전·크라운 쪽을 더 탄탄하게 준비하고 싶으세요, 임플란트처럼 큰 치료를 준비하고 싶으세요?',why:'답에 맞춰 비교 기준을 정합니다.'}
+ ],
+ compare:mkCompare('면책기간, 감액기간과 감액 비율, 충전·크라운·임플란트의 치아당 한도와 횟수, 갱신 시 보험료 변화'),
+ close:mkClose('충전·크라운 쪽을 더 탄탄하게 볼까요, 임플란트 쪽을 더 중요하게 볼까요? 정확한 지급 조건은 비교표로 같이 확인해 드릴게요.'),
+ spec:['adprice','dLoss','dHave','sunk','rival'],
+ kw:{plan:'치아보장 플랜',ad:'임플란트·크라운 등 치료별 치아 보장금액',a:'충전·크라운',b:'임플란트',A:'충전·크라운 쪽을 탄탄하게 하는 쪽',B:'임플란트 같은 큰 치료 위주로 하는 쪽',frame:'충전·크라운은 자주 적게, 임플란트는 드물게 크게 들어가요. 치아당 한도와 횟수, 감액기간을 같이 봐야 해서 설계안으로 나란히 보여드릴게요.',ext:'임플란트 쪽도',ask:'치과에서 치료가 필요하다는 이야기를 들으셨나요?',ans:'아직 치료받으라는 얘기는 못 들었어요.'}},
+
+{id:'driver',grp:'ad',name:'상품광고 · 운전자',topic:'운전자 보장',
+ trait:'<b>운전자보험</b>을 비교한 고객입니다. <b>기존 운전자보험이 있는지</b>에 따라 흐름이 갈립니다(있음: 보장 점검 / 없음: 신규 비교). 자동차보험과의 차이를 짧게 설명합니다.',
+ intro:[
+  {t:'안녕하세요, {고객} 되시죠?'},
+  {t:'인터넷에서 운전자보험 비교 신청 남겨주셔서 연락드린 어센틱금융 {나}입니다. 여러 보험사를 비교해서 안내해 드려요.',cue:'신청 경로 + 비교 포지션을 한 번에 말합니다.'},
+  {t:'본인 운전용으로 알아보시는 거 맞으시죠? 기존에 가입하신 운전자보험은 따로 있으세요?',cue:'있다 → 가입 시기와 보장 점검 / 없다 → 신규 비교로 갈라집니다.'}
+ ],
+ brief:['운전자보험 비교 신청 건 + 여러 보험사 비교','본인 운전용인지 확인','기존 운전자보험 유무로 분기(있음=점검 / 없음=신규 비교)'],
+ talk:[
+  {k:'q',t:'(기존 있음) 혹시 언제쯤 가입하셨는지 기억나세요?',why:'가입 시기에 따라 변호사선임비용의 지급 단계와 한도 구성이 다를 수 있어서, 증권으로 확인하고 말합니다.'},
+  {k:'q',t:'다른 보험에 운전자 관련 특약이 들어 있을 수 있어서, 중복으로 내지 않게 확인해 드릴게요. 가입하신 보험사가 어디세요?',why:'중복 가입을 막아 주는 게 이득이라는 점을 짧게 말합니다.'},
+  {k:'q',t:'만약 내일 사고가 나서 경찰 조사를 받으러 오라고 한다면, 그때 도움받을 방법이 지금 준비되어 있으세요?',why:'가정형 질문으로 변호사선임비용 확인으로 연결합니다. 겁주는 말투는 쓰지 않습니다.'},
+  {k:'note',t:'확인 목록: 교통사고처리지원금 / 변호사선임비용(지급 단계·한도) / 벌금 / 비탑승 중 사고 보장 / 갱신 여부'}
+ ],
+ compare:mkCompare('교통사고처리지원금, 변호사선임비용(지급 단계·한도·현물 지원 여부), 벌금 구성, 비탑승 중 사고 보장, 갱신 시 보험료 변화'),
+ close:mkClose('경찰 조사 단계부터 변호사 도움을 받을 수 있는 구성을 먼저 볼까요, 합의금·벌금 한도를 먼저 볼까요?'),
+ spec:['adprice','rAuto','rNodrive','rSafe','rival'],
+ kw:{plan:'운전자보험 플랜',ad:'운전자보험 + 상해 입원보장',a:'변호사선임비용',b:'교통사고처리지원금',A:'조사 단계부터 변호사 도움을 받는 쪽',B:'합의금·벌금 한도를 먼저 보는 쪽',frame:'교통사고처리지원금은 합의 쪽, 변호사선임비용은 조사·재판 쪽이라 지급 단계와 한도를 같이 봐야 해요. 상품마다 달라서 설계안으로 확인해 드릴게요.',ext:'벌금·비탑승 중 사고 보장도',ask:'운전은 주로 본인 차량으로 하세요?',ans:'네, 출퇴근에 제 차로 거의 매일 운전해요.'}},
+
+{id:'unclosed',grp:'unclosed',name:'미체결DB',topic:'기존 보험',
+ trait:'이전에 한 번 상담이 <b>끝까지 진행되지 않은 DB</b>(회수 후 재지급)입니다. “또 전화냐”는 반응이 많아서, 도입을 <b>짧고 유연하게</b> 넘기고 대화를 이어가는 게 목표입니다. 새 가입 권유가 아니라는 점을 먼저 말합니다.',
+ intro:[
+  {t:'안녕하세요, {고객} 맞으시죠? 어센틱금융 {나}입니다.'},
+  {t:'이전에 보험료를 줄일 수 있는 부분이나 놓친 보험금이 있는지 상담 문의를 남겨주셨던 건으로 연락드렸는데요, 당시 상담이 끝까지 진행되지 않은 것으로 확인돼서 다시 한번 확인차 전화드렸습니다.',cue:'이전 접촉을 숨기지 않고 먼저 말합니다.'},
+  {t:'새로운 보험을 가입하시라는 전화는 아니고요, 지금 유지하고 계신 보험을 기준으로 보험료를 조정할 부분, 부족하거나 겹치는 보장, 청구 가능한 보험금이 있는지 세 가지만 확인해 드리려고 해요.',cue:'“새 가입 권유가 아니다”를 분명히 말합니다.'},
+  {t:'지난번에 충분히 안내받지 못한 부분이 있으셨을까요?',cue:'지난번 아쉬웠던 점부터 물으면 반감이 줄어듭니다.'}
+ ],
+ brief:['이전 상담이 끝까지 안 된 건이라 확인차 연락했다고 말하기','새 가입 권유가 아니고 확인 세 가지만 한다','지난번에 안내받지 못한 부분이 있는지 묻기'],
+ talk:[
+  {k:'q',t:'지난번 통화에서 궁금했는데 답을 못 들으신 게 있으세요?',why:'불편했던 점을 먼저 풀어야 다음 질문이 열립니다.'},
+  {k:'q',t:'지금 가입하신 보험은 어느 보험사들이세요? 월 보험료는 대략 어느 정도세요?',why:'보험사 → 월 보험료 순서로, 한 번에 하나씩 묻습니다.'},
+  {k:'note',t:'이전 접촉 이력이 있을 때만 “지난번”이라는 말을 씁니다. 이력이 없는데 말하면 신뢰를 잃습니다.'}
+ ],
+ compare:mkCompare('보장 범위, 보험료, 조건(갱신 여부·면책·감액)'),
+ close:mkClose('부족한 부분만 보완하는 쪽으로 이어서 진행해 볼까요, 아니면 정리본만 먼저 보내드릴까요?'),
+ spec:['uAgain','uOther']}
+];
+var AD_INTRO=[
+ {t:'여보세요, {고객} 안녕하세요. {컨셉} 광고에서 {광고내용} 내용 보시고 문의 남겨주셔서 연락드렸습니다.',cue:'센터 도입부 그대로입니다. 광고 컨셉과 광고에서 본 내용은 DB 정보와 정확히 맞춥니다.'},
+ {t:'저는 상담 도와드릴 어센틱금융 {나} 팀장이라고 하고요. {컨셉} 관련해서 상담드릴텐데, 보험료 외에 평소 많이 신경 쓰이셨거나 궁금하셨던 부분이 있으셨을까요?',cue:'궁금한 점을 한 번 열어서 묻습니다. 답을 메모해 두었다가 클로징에서 인용합니다.'},
+ {t:'그러시면 말씀하신 이 보장내용이 고객님께서 이미 가지고 계시거나 중복되어 있을 수 있거든요. 중복으로 보험료를 더 내실 필요는 없으시니까요, 제가 먼저 고객님 기존 보장부터 확인해드리고 말씀드리는게 어떠세요?',cue:'“중복으로 더 내실 필요 없다”는 이유로 기존 보장 확인에 동의를 받습니다.'}
+];
+var AD_BRIEF=['광고에서 본 내용 보고 문의 주셨다고 말하며 인사 + 팀장 소개','보험료 외에 궁금하셨던 부분이 있는지 질문','중복 가입을 막기 위해 기존 보장부터 확인해도 되는지 동의 받기'];
+function typeById(id){for(var i=0;i<TYPES.length;i++){if(TYPES[i].id===id)return TYPES[i];}return TYPES[0];}
+
+/* ---------- 반론 ---------- */
+var OBJ={
+already:{title:'이미 가입했어요',say:'“이미 가입했어요” · “보험 있어요”',
+ y:'아, 이미 챙겨두셨네요. 잘하셨어요.',
+ b:'새로 가입하시라는 게 아니라, 지금 가지고 계신 {주제} 쪽이 지금 기준에 맞는지만 확인하는 거예요. 가입하고 시간이 지나면 빠진 보장이나 겹치는 보장이 생길 수 있어서요.',
+ q:'가장 최근에 가입하신 보험이 어느 보험사 거예요?',
+ last:'확인해 보고 충분하면 “지금 그대로 두셔도 된다”고 솔직하게 말씀드릴게요.',
+ tip:'“이미 가입”은 거절이 아니라 증권 확인으로 가는 문입니다. 보험사 → 가입 시기 → 월 보험료 순서로 하나씩 묻습니다.',
+ follow:'보험사 이름까지 말해야 해요? 그냥 있다니까요.',
+ peer:'아 이미 있으시군요! 그럼 저는 새로 권하는 게 아니라 ‘지금 보험이 비어 있지 않나’ 그것만 봐드려요. 보험사 이름만 먼저 알려주세요.'},
+noneed:{title:'필요없어요 / 됐어요',say:'“필요없어요” · “됐어요” · “관심 없어요”',
+ y:'네, 갑자기 전화를 받으셨으니 그러실 수 있어요.',
+ b:'지금 가입하시라는 게 아니라 현재 조건만 확인해 두시라는 거예요. 이미 있으시면 겹치는 건 정리해 드리고요.',
+ q:'필요 없다고 하신 게, 이미 {주제} 쪽이 준비되어 있어서일까요, 아니면 지금은 생각이 없으셔서일까요?',
+ last:'알겠습니다. 불편하셨다면 죄송합니다. 필요하실 때 연락 주세요.',
+ tip:'첫 거절에 바로 접지 않습니다. ① 이유 묻기 → ② 이득 한 줄 + 쉬운 질문 하나 → ③ 그래도 거절이면 깔끔하게 마무리.',
+ follow:'진짜 필요 없다니까요. 끊을게요.',
+ peer:'필요 없으시군요. 그럼 한 가지만 여쭤볼게요. 지금 내시는 보험료가 월 얼마쯤이세요? 그것만 봐도 과한지 아닌지 바로 말씀드릴 수 있어요.'},
+busy:{title:'지금 바빠요',say:'“바빠요” · “운전 중이에요” · “나중에 전화해요”',
+ y:'바쁘신데 전화드려서 죄송합니다, {호칭}.',
+ b:'길게 설명드릴 게 아니라 핵심만 1분이면 돼요. 어려우시면 시간을 정해서 다시 연락드릴게요.',
+ q:'오늘 오후가 편하세요, 내일 오전이 편하세요?',
+ last:'그 시간에 맞춰 다시 연락드릴게요. 제 번호 저장해 두시면 편하게 받아주세요.',
+ tip:'콜백은 “언제 한번”이 아니라 시간까지 확정하고 바로 예약으로 기록합니다. 운전 중이면 길게 끌지 않습니다.',
+ follow:'지금은 안 돼요. 언제 전화할 건데요?',
+ peer:'바쁘신 시간에 죄송해요. 30초만 드리면 되는데, 안 되시면 5시쯤 다시 드릴까요, 내일 아침이 나을까요?'},
+forgot:{title:'기억이 안 나요 / 신청한 적 없어요',say:'“그런 거 신청한 적 없는데?” · “기억이 안 나요” · “잘못 눌렀어요”',
+ y:'그러실 수 있어요. 광고 보다가 잘못 누르기도 하고, 시간이 지나면 기억이 안 나기도 해요.',
+ b:'문의가 접수된 건 확인돼서 연락드렸어요. 기억이 안 나셔도 괜찮고, 지금 가입하신 보험에 {주제} 쪽으로 해당되는 게 있는지만 간단히 확인해 드릴게요.',
+ q:'가입하신 보험사가 어디어디세요?',
+ last:'연락을 원치 않으시면 바로 반영해 드리겠습니다.',
+ tip:'“기억 안 남”은 거절이 아닙니다. 접점 단서 → 부담 낮추기 → 가치 한 줄. 단, “신청한 적 없다 / 연락하지 말라”는 분명한 거부는 설득하지 않고 수신거부로 처리합니다.',
+ follow:'나는 신청한 적 없다니까요?'},
+later:{title:'나중에 할게요 / 생각해볼게요',say:'“나중에 할게요” · “생각해볼게요” · “필요하면 연락할게요”',
+ y:'네, 충분히 생각해 보셔도 돼요.',
+ b:'다만 나중에 필요하다고 느끼실 때는 연령이나 건강 상태가 달라져서 가입 조건이 바뀌는 경우가 있어요. 그래서 지금 조건만 먼저 확인해 두시는 분들이 있어요.',
+ q:'생각해 보신다고 하셨는데, 어떤 부분이 마음에 걸리세요?',
+ last:'언제쯤 다시 연락드리면 좋을까요?',
+ tip:'“생각해볼게요”는 걸리는 부분이 있다는 신호입니다. 이유를 한 번 묻고, 콜백 시간을 확정합니다.',
+ follow:'아니 그냥 생각해 본다니까요.',
+ peer:'네 천천히 보세요. 그런데 어느 부분이 마음에 걸리세요? 그 부분만 정리해서 문자로 드릴게요.'},
+source:{title:'누구세요? / 번호 어떻게 알았어요?',say:'“누구세요?” · “번호 어떻게 알았어요?” · “보이스피싱 아니에요?”',
+ y:'걱정되시는 거 충분히 이해해요.',
+ b:'남겨주신 상담 신청 내용에 따라 연락드린 어센틱금융 담당자예요. 바로 카카오톡으로 명함이랑 소속 자료 보내드릴게요.',
+ q:'확인해 보시고 편하게 말씀 주시겠어요?',
+ last:'그래도 연락받기 원치 않으시면 지금 바로 연락 중단 처리해 드리겠습니다.',
+ tip:'서두르지 말고 확인 수단(명함·소속)을 먼저 보냅니다. 출처와 동의 경위는 정직하게 설명합니다.',
+ follow:'그럼 지금 당장 삭제해 주세요.'},
+price:{title:'보험료가 부담돼요',say:'“돈이 없어요” · “보험료가 부담돼요”',
+ y:'네, 요즘 보험료는 가장 현실적인 고민이에요.',
+ b:'그래서 오히려 기존 보험에서 겹치거나 꼭 필요하지 않은 부분이 없는지 먼저 보는 거예요. 기존 보험을 해지하거나 바꾸면 환급금 손실이나 보장 공백 같은 불이익이 생길 수 있어서, 그런 부분은 제가 먼저 정확히 설명드릴게요.',
+ q:'한 달에 어느 정도까지가 편안하세요? 그 범위 안에서 우선순위부터 말씀드릴게요.',
+ tip:'“보험료가 줄어든다”고 단정하지 않습니다. 줄일 수 있는지 “확인”이 약속의 범위입니다.',
+ follow:'있는 보험도 부담인데 뭘 더 하라는 거예요?'},
+family:{title:'가족과 상의해볼게요',say:'“남편(아내)한테 물어봐야 해요” · “애들한테 물어볼게요”',
+ y:'네, 중요한 건 같이 보셔야죠.',
+ b:'그래서 가족분과 같이 보시기 편하게, 지금 보험 현황과 비교 내용을 정리해서 보내드리면 판단하시기 훨씬 수월해요.',
+ q:'상의하실 때 가장 걸리실 것 같은 부분이 어떤 건가요?',
+ last:'가족분 계실 때 같이 통화하는 방법도 있으니 편하신 시간을 알려주세요.',
+ tip:'상의는 존중하고, 현황 확인은 본인 정보로 먼저 진행할 수 있다고 제안합니다. 걸리는 부분을 묻는 게 핵심입니다. 어르신은 자녀 동석 통화를 제안합니다.',
+ follow:'남편이 하지 말래요.'},
+text:{title:'문자·카톡으로 보내주세요',say:'“문자로 보내주세요” · “카톡으로 보내요”',
+ y:'네, 보내드릴 수 있어요.',
+ b:'다만 고객님마다 가입하신 보험이 달라서 문자만으로는 해당되는 내용을 알 수가 없어요. 1분만 가입 내용을 확인하고 거기에 맞춰 정확히 보내드릴게요.',
+ q:'가입하신 보험사가 어디세요?',
+ last:'그럼 먼저 문자로 인사드리고, 오늘 오후와 내일 오전 중 편하신 시간에 다시 연락드릴게요.',
+ tip:'완곡한 거절일 수 있습니다. 지금 확인할 수 있는 질문 하나를 먼저 시도하고, 안 되면 콜백 시간을 확정합니다.',
+ follow:'그냥 보내주세요. 보고 연락할게요.'},
+planner:{title:'아는 설계사가 있어요',say:'“담당 설계사 있어요” · “아는 사람이 해줬어요”',
+ y:'아, 관리해 주시는 분이 계시군요. 든든하시겠어요.',
+ b:'그분을 바꾸시라는 게 아니라, 같은 보험을 한 번 더 점검해 보는 두 번째 의견이에요.',
+ q:'그분이 최근에 보험 점검을 해 주신 적 있으세요?',
+ tip:'그 설계사를 깎아내리지 않습니다. “두 번째 의견”이라는 포지션을 지키고, 최근 점검 여부를 질문으로 확인합니다.',
+ follow:'그분한테 다 맡겼어요.'},
+stop:{title:'연락 그만하세요 / 수신거부',say:'“전화하지 마세요” · “수신거부 해주세요”',
+ y:'네, 알겠습니다. 불편하게 해드려 죄송합니다.',
+ b:'바로 연락 중단 처리해 드리겠습니다. 안녕히 계세요.',
+ tip:'설득하지 않습니다. 통화 후 해당 DB에 수신거부(연락중단)를 기록하고 다시 접촉하지 않습니다.'},
+
+tvtrap:{title:'점검해준다더니 결국 가입시키려는 거죠?',say:'“또 가입하라는 거죠?” · “점검이라더니…”',
+ y:'그렇게 느끼실 수 있어요. 이런 전화를 많이 받으셨을 테니까요.',
+ b:'오늘은 가입을 권해드리는 게 아니라, 지금 가입하신 보험의 보장 내용과 보험료를 확인하는 거예요. 확인해 보고 괜찮으면 “그대로 두셔도 된다”고 말씀드릴게요.',
+ q:'가입하신 보험이 어느 보험사 것들인지만 먼저 알려주시겠어요?',
+ tip:'점검이라는 약속을 지킵니다. 설계 제안은 점검 결과를 말한 뒤 필요할 때만 합니다.',
+ follow:'점검 끝나면 어차피 뭐 하나 들라고 하겠지.'},
+tvforget:{title:'방송 본 기억이 없는데요',say:'“TV에서 본 적 없는데?”',
+ y:'그러실 수 있어요. TV 보다가 화면에서 번호나 링크로 잠깐 남기는 경우가 많아서 기억이 안 나시는 게 자연스러워요.',
+ b:'혹시 보험 점검 얘기가 나오는 광고를 한 번 보신 기억은 있으세요? 기억이 안 나셔도 괜찮고, 점검은 지금 가입하신 보험 확인만 해드리는 거예요.',
+ q:'가입하신 보험사가 어디어디세요?',
+ tip:'접점을 억지로 확인시키지 않고, 부담을 낮춘 채 보험 확인으로 넘어갑니다.',
+ follow:'본 적 없다니까요.'},
+
+permagain:{title:'괜찮다고 했는데 또 전화했네요?',say:'“괜찮다고 했잖아요” · “또 전화예요?”',
+ y:'불편하게 해드렸다면 정말 죄송합니다, {호칭}.',
+ b:'최근 보험료 점검에 동의해 주신 이력이 확인돼서 안내 차원에서 연락드렸어요.',
+ q:'원치 않으시면 바로 반영하겠습니다. 다만 5분 정도면 끝나는데, 간단히만 확인해도 될까요?',
+ last:'재차 거절하시면 정중히 마무리하고 DB에 “상담거절”로 기록합니다.',
+ tip:'사과를 먼저 하고, 동의 이력이라는 사실을 말한 뒤 선택권을 돌려줍니다.',
+ follow:'안 한다니까요. 끊을게요.'},
+permwhy:{title:'왜 이렇게 해주는 거예요?',say:'“왜 공짜로 해줘요?” · “뭐가 남아요?”',
+ y:'충분히 궁금하실 수 있어요.',
+ b:'솔직하게 말씀드리면 저희는 보험 상담을 하는 회사라서, 점검해 드리다 보면 보장 보완이 필요한 분은 상담을 이어가시고 점검만 받고 끝내시는 분도 많아요. 선택은 {호칭}이 하시는 거예요.',
+ q:'필요 없으시면 “지금 그대로 괜찮다”고 정리해 드리고 끝낼게요. 간단히 확인해 볼까요?',
+ tip:'숨기지 말고 솔직하게 말합니다. 선택은 고객이 한다는 점을 분명히 합니다.',
+ follow:'결국 보험 팔려는 거잖아요.'},
+permid:{title:'주민번호는 말하기 싫어요',say:'“주민번호는 왜 물어봐요?”',
+ y:'걱정되시는 거 충분히 이해합니다.',
+ b:'보험도 금융상품이라 가입하신 보험을 확인하려면 본인 확인이 필요해요. 확인용으로만 쓰이고, 이걸로 확인되는 건 보험 가입 정보뿐이에요.',
+ q:'걱정되시면 제가 본인확인 알림톡이랑 명함을 먼저 보내드릴 테니, 확인해 보시고 이어서 말씀해 주시겠어요?',
+ tip:'어르신께는 알림톡 대신 천천히 설명하고 명함을 먼저 보냅니다. 끝까지 거부하면 무리하지 않습니다.',
+ follow:'그래도 알려주기는 싫은데요.'},
+
+cHave:{title:'암보험 이미 있어요 / 진단비 넉넉해요',say:'“암보험 있어요” · “진단비 충분해요”',
+ y:'네, 암 보장 챙겨두셨네요.',
+ b:'암은 진단비 한 가지만 보는 게 아니라, 어떤 암까지 보장되는지, 수술·항암·비급여 치료비 보장이 따로 있는지에 따라 차이가 나서 그 부분만 확인해 드릴게요.',
+ q:'가입하신 보험사랑 언제쯤 가입하셨는지 알려주시겠어요?',
+ last:'보시고 충분하면 “그대로 두셔도 된다”고 말씀드릴게요.',
+ tip:'“이미 있다”는 확인할 항목이 생겼다는 뜻입니다. 진단비 → 보장 암 범위 → 치료비 구성 순으로 확인합니다.',
+ follow:'진단비 5천 있으니까 됐어요.'},
+cJust:{title:'그냥 봤어요 / 관심 없어요',say:'“그냥 봤어요” · “그냥 눌러본 거예요”',
+ y:'아, 그러셨어요. 광고 보다 보면 그냥 보게 되죠.',
+ b:'암 진단자금이나 치료비 관련해서 확인 요청을 남겨주셔서 연락드렸는데요,',
+ q:'지금 암 진단자금은 어느 정도 갖고 계세요?',
+ tip:'무관심한 반응을 “그럼 끊겠다”로 받지 않고, 더 구체적이고 답하기 쉬운 질문으로 좁혀서 다시 끌어옵니다.',
+ follow:'몰라요. 그런 거 신경 안 써요.'},
+cHealthy:{title:'건강해서 괜찮아요',say:'“건강해서 괜찮아요” · “아직 젊어요”',
+ y:'건강하시다니 정말 다행이에요.',
+ b:'보험은 건강 상태에 따라 가입 조건이 달라질 수 있어서, 지금 가입하시라는 게 아니라 지금 조건이 어떤지만 알아두시라는 거예요.',
+ q:'기존 보험에 암 쪽이 어떻게 되어 있는지만 확인해 드려도 될까요?',
+ tip:'겁을 주거나 통계를 들이대지 않습니다. “조건 확인”이라는 가벼운 목적을 강조합니다.',
+ follow:'가족 중에 암 걸린 사람도 없어요.'},
+cHist:{title:'병력이 있어서 안 될 것 같아요',say:'“약 먹고 있어서 안 될걸요” · “수술한 적 있어요”',
+ y:'치료받으신 이력이 있으면 걱정되실 수 있어요.',
+ b:'이력 범위를 좁게 묻는 간편심사 유형이 있어서 가능한 경우가 있어요. 실제 가능 여부는 병력 내용에 따라 달라서 확인이 필요해요.',
+ q:'최근 3개월 안 진료나 검사, 복용 중인 약, 최근 5년 안 입원·수술이 있으신지 기억나는 범위만 말씀해 주시겠어요?',
+ tip:'가능 여부는 인수기준 검색으로 확인한 뒤에 안내합니다. “가입 가능하다”고 단정하지 않습니다.',
+ follow:'전에 거절당한 적도 있어요.'},
+
+mLong:{title:'나라에서 장기요양 해준다던데요',say:'“장기요양 있잖아요” · “나라에서 해주지 않아요?”',
+ y:'맞아요, 국가에서 운영하는 노인장기요양보험이 있어서 든든한 부분이에요.',
+ b:'다만 장기요양은 등급 판정을 받아야 이용할 수 있고 본인 부담이 생길 수 있어서, 그 이후 비용을 어떻게 준비할지는 따로 생각해 보시는 분들이 많아요.',
+ q:'그 부분을 지금 보험으로 어떻게 대비해 두셨는지만 확인해 드려도 될까요?',
+ tip:'공적 제도를 부정하지 않고 사실만 짚습니다. 구체적인 금액·비율은 최신 자료를 확인하고 말합니다.',
+ follow:'그럼 그걸로 충분하겠네요.'},
+mYoung:{title:'아직 젊은데요 / 아직 이른 것 같아요',say:'“아직 젊어요” · “그건 나중에요”',
+ y:'그렇게 느끼실 수 있어요.',
+ b:'간병은 나이 때문에만 준비하는 게 아니라, 언제 어떤 질병이나 사고가 생길지 몰라서 준비하시는 거라서요. 지금 가입하시라는 게 아니라 현재 조건만 알아두시라는 거예요.',
+ q:'지금 가입하신 보험에 간병 쪽 보장이 있는지만 확인해 드려도 될까요?',
+ tip:'불안을 자극하지 않습니다. “조건 확인”을 중심으로 말합니다.',
+ follow:'그런 건 늙어서 생각할래요.'},
+mKids:{title:'자식들이 알아서 해주겠죠',say:'“애들이 해주겠죠” · “자식들 있잖아요”',
+ y:'자녀분들 마음이 든든하시겠어요.',
+ b:'다만 자녀분들도 직장과 생활이 있어서 오랜 간병을 직접 맡기는 건 현실적으로 쉽지 않다 보니, 간병비를 미리 따로 준비해 두시는 분들이 있어요. 자녀분들께 부담을 남기지 않으려고요.',
+ q:'혹시 간병이 필요해지면 비용은 어떻게 마련하실 생각이세요?',
+ tip:'단정하거나 자극적인 표현을 쓰지 않습니다. 고객의 반응을 보며 강도를 조절합니다.',
+ follow:'애들한테 부담 줄 일 없어요.'},
+mDiff:{title:'치매보험이랑 간병보험이 뭐가 달라요?',say:'“뭐가 다른 거예요?”',
+ y:'많이 헷갈리세요. 좋은 질문이에요.',
+ b:'간병보험은 간병인을 썼을 때 받는 사용일당 쪽이고, 치매보험은 치매 진단이나 치료·요양 생활비 쪽이에요.',
+ q:'고객님은 어느 쪽이 더 걱정되세요?',
+ tip:'두 개념을 한두 문장으로만 구분하고 질문으로 되돌립니다.',
+ follow:'둘 다 필요한 거 아니에요?'},
+
+dLoss:{title:'치아보험은 손해 아니에요? / 어차피 안 나오잖아요',say:'“치아보험은 보험료만 내고 못 받던데요”',
+ y:'맞아요, 그런 걱정이 드실 수 있어요.',
+ b:'치아보험은 면책기간과 감액기간이 있는 상품이 많고, 상품마다 기간과 지급 비율이 달라요. 그래서 낸 보험료와 받는 보험금을 단정해서 비교하기는 어렵고, 비교표로 조건을 나란히 보여드리는 거예요.',
+ q:'치과 치료가 필요하신 시기가 가까우세요, 아니면 미리 준비하시는 쪽이세요?',
+ tip:'“손해 없다 / 이득이다”라고 단정하지 않습니다. 면책·감액·갱신 조건을 같이 말합니다.',
+ follow:'그래서 결국 뭐가 다른데요?'},
+dHave:{title:'치료받을 치아가 있어요',say:'“충치 치료해야 한다고 들었어요”',
+ y:'미리 말씀해 주셔서 감사해요.',
+ b:'이미 치료 권유를 받은 치아는 상품에 따라 보장이 제한되거나 가입이 어려울 수 있어서, 가입 전에 정확하게 확인하는 게 중요해요.',
+ q:'어떤 치아를 언제쯤 치료받으라고 들으셨는지 기억나는 범위만 말씀해 주시겠어요?',
+ tip:'고지는 정확히 받습니다. 보장 가능하다고 단정하지 않습니다.',
+ follow:'그럼 지금은 못 드는 거예요?'},
+
+rAuto:{title:'자동차보험 있어요',say:'“자동차보험 들었는데요”',
+ y:'네, 자동차보험은 필수라 다들 가입하셨죠.',
+ b:'그런데 자동차보험은 상대방 피해 보상이 중심이고, 운전자보험은 사고 났을 때 형사합의금·변호사 비용·벌금 같은 운전자 본인 쪽 부담을 대비하는 거라 역할이 달라요. 다만 자동차보험에 일부 담보가 들어 있는 경우도 있어서 지금 어떻게 되어 있는지 확인해 드릴게요.',
+ q:'자동차보험은 어느 보험사세요?',
+ tip:'자동차보험과 운전자보험의 차이는 한두 문장으로만. 자동차보험 특약 여부는 증권으로 확인합니다.',
+ follow:'그걸로 다 되는 거 아니에요?'},
+rNodrive:{title:'운전 거의 안 해요 / 차가 없어요',say:'“차 거의 안 몰아요”',
+ y:'자주 운전하지 않으셔도 가끔 운전하시거나 가족·지인 차를 운전하실 때가 있잖아요.',
+ b:'상품에 따라 본인 차량이 아니어도 보장되는 경우가 있어서 확인이 필요해요.',
+ q:'최근 1년 정도 운전하실 일이 어느 정도 있으세요?',
+ tip:'상품별 보장 범위가 다르므로 약관을 확인하고 안내합니다. 단정하지 않습니다.',
+ follow:'거의 안 한다니까요.'},
+rSafe:{title:'저는 안전운전해서 사고 안 나요',say:'“사고 안 내요”',
+ y:'안전운전 잘하시는 게 제일 중요하죠.',
+ b:'다만 사고는 상대방 과실이나 예상 못 한 상황에서도 생길 수 있어서, 사고가 났을 때 비용 부담을 어떻게 나눌지 준비해 두시는 분들이 있어요.',
+ q:'지금 준비해 두신 게 있는지만 확인해 드려도 될까요?',
+ tip:'운전 습관을 평가하지 않고, 인정한 뒤 “준비 여부 확인”으로 전환합니다.',
+ follow:'사고 나면 그때 생각할래요.'},
+
+
+hBrain:{title:'암만 할래요 / 뇌·심장은 괜찮아요',say:'“암보험만 할게요” · “뇌·심장은 아직 걱정 없어요”',
+ y:'네, 암이 제일 먼저 걱정되시죠.',
+ b:'뇌·심혈관은 암 다음으로 진단·치료 비용이 크게 드는 쪽이라 같이 보시는 분이 많아요. 다만 한 번에 다 하실 필요는 없고, 두 개 중에서 먼저 하실 걸 고르시면 돼요.',
+ q:'지금 가장 비어 있는 쪽이 암이세요, 뇌·심혈관이세요?',
+ tip:'확장은 “둘 다”가 아니라 “두 개 중 선택”으로, 나머지는 나중에 따로 할 수 있다고 열어 둡니다.',
+ follow:'암 하나면 됐어요.'},
+hCover:{title:'실비 있어서 수술비는 필요 없어요',say:'“실비로 다 되잖아요” · “수술비는 실손으로 나오죠?”',
+ y:'네, 실손보험 챙겨두셨네요.',
+ b:'실손은 병원비로 실제 쓴 돈을 보장하고, 수술비는 수술을 받았을 때 정해진 금액을 받는 정액 담보라서 쓰임이 달라요. 실손 조건도 상품마다 달라서 같이 확인해 드릴게요.',
+ q:'실손은 언제쯤 가입하셨는지 기억나세요?',
+ tip:'실손을 바꾸라는 말은 하지 않습니다. 정액 수술비와 쓰임이 다르다는 점만 짚습니다.',
+ follow:'그래도 실비 있으니까요.'},
+rival:{title:'타사가 더 좋다던데요',say:'“다른 데는 더 싸다던데요” · “그 회사는 별로라던데요”',
+ y:'네, 다른 곳 얘기도 들으셨군요. 비교해 보시는 게 맞아요.',
+ b:'그래서 전체를 다 비교하기보다 한 가지 담보 가격만 먼저 나란히 놓고 볼게요. 갱신·감액·면책 같은 조건까지 같은 기준으로 봐야 정확해서요.',
+ q:'그곳은 어떤 점이 더 좋다고 들으셨어요?',
+ tip:'고객이나 다른 설계사가 타사를 낮춰 말하는 경우가 많습니다. 반박하지 말고 이유를 묻고, 같은 기준으로 한 가지만 비교해 보여줍니다.',
+ follow:'그 회사가 훨씬 낫다고 하던데요.'},
+proof:{title:'그 말 근거 있어요?',say:'“그 수치 어디서 나온 거예요?” · “진짜예요?”',
+ y:'네, 확인해 보시는 게 맞아요.',
+ b:'지금 말씀드린 건 설계안과 약관에 나오는 조건 기준이에요. 제안서에 항목별로 표시해서 보내드릴게요.',
+ q:'특히 어느 부분이 제일 확인되고 싶으세요?',
+ tip:'출처를 물으면 방어하지 말고 제안서·약관 페이지로 바로 연결합니다. 확인하지 않은 수치는 말하지 않습니다.',
+ follow:'그래도 못 믿겠는데요.'},
+sunk:{title:'낸 돈이 아까워서 못 바꿔요',say:'“그동안 낸 게 얼만데요” · “이제 와서 해지하면 손해잖아요”',
+ y:'네, 지금까지 낸 보험료가 아까우신 건 당연해요.',
+ b:'꼭 해지하셔야 하는 건 아니에요. 새로 가입해서 감액기간이 지난 뒤 치료를 받으시고, 보험금을 받은 다음에 유지할지 정리할지 그때 정하시는 분들도 있어요. 두 회사에 가입하면 각각 정액으로 지급되는 담보를 받을 수도 있고요. 상품별 조건은 설계안으로 확인해 드릴게요.',
+ q:'지금 가입하신 건 어느 보험사고 언제쯤 가입하셨어요?',
+ tip:'치료가 필요하다는 이야기를 들은 치아가 있는지는 반드시 먼저 확인합니다. 지급 가능 여부와 금액은 단정하지 않고 설계안과 약관으로 말합니다.',
+ follow:'그래도 아깝긴 아깝죠.'},
+
+uAgain:{title:'전에도 전화 왔었어요 / 또 전화예요?',say:'“전에도 전화 왔었는데?”',
+ y:'네, 앞서 저희 쪽에서 한 번 연락드린 걸로 확인돼요. 번거롭게 해드려 죄송합니다.',
+ b:'이번에는 담당이 새로 바뀌었고, 필요한 것만 짧게 확인해 드릴게요.',
+ q:'지난번에는 어떤 점이 불편하셨어요?',
+ tip:'이전 접촉 이력이 있을 때만 씁니다. 지난번 불편했던 점을 물으면 반감이 줄어듭니다.',
+ follow:'다 얘기했는데 왜 또 해요.'},
+uOther:{title:'그때 다른 분이 다 했어요 / 이미 끝났어요',say:'“그때 다 얘기했어요”',
+ y:'네, 다른 분이 연락드렸을 수 있어요.',
+ b:'그때 상담이 끝까지 진행되지 않은 것으로 확인돼서, 안내받지 못한 부분만 이어서 확인해 드리려는 거예요.',
+ q:'지난번 통화에서 궁금했는데 답을 못 들으신 게 있으세요?',
+ tip:'지난 상담을 부정하지 않고, 남은 부분만 이어서 한다는 점을 말합니다.',
+ follow:'그때 거절했는데요.'}
+};
+OBJ.adprice={title:'그냥 보험료만 확인해보려고 했어요',say:'“보험료만 알려주세요” · “그냥 보험료만 확인해보려고요”',
+ y:'네 {호칭}, 보험료가 가장 궁금하셨던 거 맞아요. 보험료는 제가 바로 안내해드릴게요.',
+ b:'다만 이 보장이 이미 가입하신 내용과 겹치면 같은 보장에 보험료를 두 번 내시게 될 수 있어요. 그래서 기존 보장을 1~2분만 먼저 보고, 꼭 필요한 부분만 정확한 보험료로 말씀드리는 게 {호칭}께 이득이에요.',
+ q:'지금 가입해 두신 보험 중에 {컨셉}과 비슷한 보장이 있으신지만 먼저 여쭤볼게요.',
+ tip:'센터 상품광고 반론 멘트 그대로입니다. 보험료를 피하지 않고 “바로 안내하겠다”고 받은 뒤 기존 보장 확인으로 연결합니다.',
+ follow:'그냥 가격만 말해 주면 되잖아요.'};
+function adv(id,o){var b=OBJ[id],c={},k;for(k in b)c[k]=b[k];for(k in o)c[k]=o[k];return c;}
+var OBJ_AD={
+ noneed:adv('noneed',{y:'필요 없다고 느끼실 수 있어요. 광고만 봐서는 내 보험에 도움이 되는지 알기 어려우니까요.',
+  b:'(이미 있다고 하시면) 그럼 더 잘됐어요. 그 보장이 충분한지만 확인해드리고 겹치는 건 정리해드릴게요. (생각이 없다고 하시면) 지금 당장 가입하시라는 게 아니라, 연령이 올라가면 가입 조건이나 보험료가 달라질 수 있어서 현재 조건만 알아두시라는 거예요.',
+  q:'혹시 이미 비슷한 보험이 있으셔서 그러신 건가요, 아니면 지금은 생각이 없으셔서일까요?',last:'알겠습니다. 불편하셨다면 죄송합니다. 필요하실 때 연락 주세요.'}),
+ busy:adv('busy',{y:'아이고 바쁘실 때 연락드렸네요, 죄송합니다 {호칭}.',b:'5분 안에 끝나게 정리해서 다시 연락드릴게요.',q:'오늘 오후와 내일 오전 중에 언제가 편하세요?',last:'(시간이 확정되면 DB관리에 “예약”으로 시간을 기록합니다)'}),
+ family:adv('family',{y:'네 {호칭}, 가족과 상의하시는 게 맞아요. 상의하실 때 비교할 자료가 있으면 훨씬 수월하세요.',
+  b:'보장 내용과 보험료를 정리해서 문자로 보내드릴게요. 가족분과 함께 통화 가능한 시간도 알려주시면 그때 맞춰서 다시 연락드릴게요.',
+  q:'혹시 상의하실 때 가장 걸리실 것 같은 부분이 어떤 건가요? 그 부분을 미리 말씀해주시면 같이 정리해서 보내드릴게요.',last:undefined}),
+ price:adv('price',{y:'네 {호칭}, 보험료는 가장 현실적인 고민이에요.',
+  b:'그래서 오히려 기존 보험에서 겹치거나 꼭 필요하지 않은 부분을 먼저 정리해보면, 보험료를 더 늘리지 않고 조정할 수 있는지 볼 수 있어요.',
+  q:'한 달에 어느 정도까지가 편안하신지 말씀해주시면, 그 범위 안에서 우선순위 높은 보장부터 말씀드릴게요.'}),
+ later:adv('later',{y:'네, 그렇게 하셔도 돼요.',
+  b:'다만 나중에 필요하다고 느끼실 때는 건강 상태가 달라져서 가입 조건이 달라지는 경우가 있어요. 그래서 지금 기존 보장만 가볍게 확인해두시는 분들이 많아요.',
+  q:'5분이면 되는데 지금 간단히 확인해볼까요?',last:'지금이 어려우시면 제 번호를 문자로 남겨드릴게요. 언제쯤 다시 연락드리면 좋을까요?'})
+};
+function O(id){var t=typeById(S.type);if(t.grp==='ad'&&OBJ_AD[id])return OBJ_AD[id];return OBJ[id];}
+var MAIN_OBJ=['already','noneed','busy','forgot','later'];
+var OTHER_OBJ=['source','price','family','text','planner','proof','stop'];
+
+/* ---------- 상태 ---------- */
+var S={type:'tv',level:'new',mode:'live',step:0,obj:null,big:true,pt:null,screen:'home',sheet:false,
+ cust:'',honor:store.honor||'auto',me:store.me||'',prem:'',birth:'',
+ pr:{obj:null,profile:null,answer:'',revealed:false,checks:[false,false,false,false],follow:false,saved:false}};
+
+var PROFILES=[{a:'30대',g:'남성'},{a:'40대',g:'여성'},{a:'50대',g:'남성'},{a:'50대',g:'여성'},{a:'60대',g:'여성'},{a:'60대',g:'남성'},{a:'70대',g:'여성'}];
+var TONES={'30대':'빠르고 간결하게. 핵심 먼저.','40대':'업무 중일 수 있으니 1분 압축형으로.','50대':'정중하고 차분하게. 선생님 호칭.','60대':'천천히 또박또박. 질문은 한 번에 하나.','70대':'더 천천히, 짧은 문장으로. 핵심은 반복 확인.'};
+var PRINCIPLES=['고객 말을 부정하지 않고 먼저 받아줬다','왜 그렇게 말씀하시는지 이유·상황을 물었다','과장이나 단정 없이 고객에게 이득이 되는 점을 한 줄로 말했다','질문 하나로 마무리해서 대화를 이어갔다'];
+
+/* ---------- 유틸 ---------- */
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+var COPY=[];
+function reg(t){COPY.push(t);return COPY.length-1;}
+function honorFor(profile){
+ if(S.honor&&S.honor!=='auto')return S.honor;
+ if(profile){var n=parseInt(profile.a,10);return n>=50?'선생님':'고객님';}
+ return '선생님';
+}
+function ctxTokens(profile){
+ var h=honorFor(profile);
+ var T={};
+ T['고객']=S.cust?('V:'+S.cust+' '+h):('P:OOO '+h);
+ T['고객 이름']=S.cust?('V:'+S.cust):'P:OOO';
+ T['호칭']='V:'+h;
+ T['나']=S.me?('V:'+S.me):'P:OOO';
+ T['월보험료']=S.prem?('V:'+S.prem):'P:OO만 원';
+ var b=S.birth.replace(/[^0-9]/g,'');
+ T['생년']=(b.length===6)?('V:'+b):'P:OOOOOO';
+ T['시간선택']='V:오늘 오후가 편하세요, 내일 오전이 편하세요?';
+ T['채널']='P:채널(유튜브·SNS 등)';
+ T['주제']='V:'+typeById(S.type).topic;
+ var tk=typeById(S.type).kw;
+ if(tk){T['핵심1']='V:'+tk.a;T['핵심2']='V:'+tk.b;T['선택A']='V:'+tk.A;T['선택B']='V:'+tk.B;T['프레임']='V:'+tk.frame;T['확장']='V:'+tk.ext;T['건강질문']='V:'+tk.ask;T['고객답']='V:'+tk.ans;}
+ else{T['핵심1']='P:핵심 보장 1';T['핵심2']='P:핵심 보장 2';T['선택A']='P:선택 A';T['선택B']='P:선택 B';T['프레임']='P:비교 프레임 한 줄';T['확장']='P:다른 보장';T['건강질문']='P:건강 질문';T['고객답']='P:고객 답변';}
+ T['고객답2']='V:다른 보장도 같이 볼 수 있을까요?';
+ T['광고내용']=(tk&&tk.ad)?('V:'+tk.ad):'P:광고에서 본 내용';
+ T['컨셉']=(tk&&tk.plan)?('V:'+tk.plan):'P:광고 컨셉(플랜) 이름';
+ return T;
+}
+/* 반환: {html, plain} */
+function fill(text,profile){
+ var T=ctxTokens(profile),html='',plain='',last=0,m,re=/\{([^}]+)\}/g;
+ while((m=re.exec(text))!==null){
+  var pre=text.slice(last,m.index);
+  html+=esc(pre);plain+=pre;
+  var v=T[m[1]];
+  if(v===undefined){html+='<mark class="ph">'+esc(m[1])+'</mark>';plain+=m[1];}
+  else if(v.charAt(0)==='V'){html+='<b class="v">'+esc(v.slice(2))+'</b>';plain+=v.slice(2);}
+  else{html+='<mark class="ph">'+esc(v.slice(2))+'</mark>';plain+=v.slice(2);}
+  last=m.index+m[0].length;
+ }
+ var rest=text.slice(last);
+ html+=esc(rest);plain+=rest;
+ return {html:html,plain:plain};
+}
+function cpBtn(plain){return '<button class="cp" data-act="copy" data-i="'+reg(plain)+'">복사</button>';}
+function lineHTML(it,idx,showCue,profile){
+ var f=fill(it.t,profile);
+ var n=(idx===null)?'':'<div class="n">'+(idx+1)+'</div>';
+ var cue='';
+ if(showCue&&it.cue)cue='<div class="cue">'+esc(it.cue)+'</div>';
+ if(it.warn)cue+='<div class="cue w">'+esc(it.warn)+'</div>';
+ return '<div class="line">'+n+'<div class="b"><div class="ltxt">'+f.html+'</div>'+cue+'</div>'+cpBtn(f.plain)+'</div>';
+}
+
+/* ---------- 선택 목록 ---------- */
+var AD_SUB=[['cancer','암','암 진단비·치료비'],['care','치매·간병','간병인 사용일당·치매 진단'],['dental','치아','충전·크라운·임플란트'],['driver','운전자','변호사선임비용·교통사고처리지원금'],['health','건강(뇌·심혈관·수술비)','뇌·심혈관 진단비·수술비']];
+var HOME=[['tv','TV광고','TV에서 보험 점검 광고를 보고 신청하신 분'],['perm','퍼미션','보험료 점검·놓친 보험금 확인에 동의해 주신 분'],['ad','상품광고','암·치아·운전자 같은 상품 광고를 보고 문의하신 분'],['unclosed','미체결DB','이전 상담이 끝까지 진행되지 않은 분']];
+var lastAd='cancer';
+['cancer','care','dental','driver','health'].forEach(function(id){var t=typeById(id);t.intro=AD_INTRO;t.brief=AD_BRIEF;});
+
+/* ---------- 실전 ---------- */
+function stepsFor(){
+ return S.level==='exp'
+  ?[{k:'intro',n:'도입부'},{k:'talk',n:'소통·질문'},{k:'close',n:'클로징'}]
+  :[{k:'intro',n:'도입부'},{k:'talk',n:'소통·질문'},{k:'compare',n:'설계 후 비교·추천이유'},{k:'close',n:'클로징'}];
+}
+function renderLive(){
+ var t=typeById(S.type),steps=stepsFor();
+ if(S.step>=steps.length)S.step=steps.length-1;
+ var st=steps[S.step];
+ var h='<div class="cols"><div>';
+ h+='<div class="flow">';
+ steps.forEach(function(s,i){h+='<button class="'+(i===S.step?'on':(i<S.step?'done':''))+'" data-act="step" data-v="'+i+'">'+(i+1)+'. '+esc(s.n)+'</button>';});
+ h+='</div><div class="card">';
+ h+=stepBody(t,st);
+ h+='<div class="nav"><button class="btn sec" data-act="prev" '+(S.step===0?'disabled':'')+'>← 이전</button><button class="btn" data-act="next" '+(S.step===steps.length-1?'disabled':'')+'>다음 →</button></div>';
+ h+='</div></div>';
+ h+='<div class="card side" id="side">'+objPanel(t)+'</div></div>';
+ $('main').innerHTML=h;
+}
+function stepBody(t,st){
+ var exp=(S.level==='exp'),h='';
+ if(st.k==='intro'){
+  h+='<div class="stt">도입부<small>'+(exp?'핵심 흐름만 보고 말하세요. 필요하면 전체 멘트를 펼치세요.':'아래 문장을 순서대로 말하세요.')+'</small></div>';
+  if(exp){
+   h+='<ol class="brief">'+t.brief.map(function(b){return '<li>'+esc(b)+'</li>';}).join('')+'</ol>';
+   h+='<details class="more"><summary>전체 멘트 보기</summary><div class="in">'+t.intro.map(function(it,i){return lineHTML(it,i,false);}).join('')+'</div></details>';
+  }else{
+   h+=t.intro.map(function(it,i){return lineHTML(it,i,true);}).join('');
+  }
+ }else if(st.k==='talk'){
+  h+='<div class="stt">소통·질문<small>'+(exp?'필요한 것만 골라 쓰세요.':'고객 답을 들으며 하나씩 물어보세요.')+'</small></div>';
+  t.talk.forEach(function(q){
+   var f=fill(q.t);
+   var tag=q.k==='q'?'질문':(q.k==='note'?'알아두기':'주의');
+   h+='<div class="qcard '+(q.k==='q'?'':q.k)+'"><div class="tag">'+tag+'</div><div style="display:flex;gap:8px;align-items:flex-start"><div class="ltxt" style="flex:1">'+f.html+'</div>'+(q.k==='q'?cpBtn(f.plain):'')+'</div>'+((!exp&&q.why)?'<div class="cue">'+esc(q.why)+'</div>':'')+'</div>';
+  });
+  h+='<details class="more" '+(exp?'':'open')+'><summary>정보확인 3번 “네” 받기</summary><div class="in">'+INFO.map(function(it){return lineHTML(it,null,!exp);}).join('')+'</div></details>';
+  h+='<details class="more" '+(exp?'':'open')+'><summary>병력·직업 확인</summary><div class="in">'+HEALTH.map(function(it){return lineHTML(it,null,!exp);}).join('')+'</div></details>';
+ }else if(st.k==='compare'){
+  h+='<div class="stt">설계 후 비교·추천이유<small>설계안이 나온 뒤 타사와 비교하고 추천 이유를 설명합니다. 노란 부분은 직접 채워 말하세요.</small></div>';
+  h+=t.compare.map(function(it,i){return lineHTML(it,i,true);}).join('');
+ }else{
+  h+='<div class="stt">클로징<small>'+(exp?'걱정 인용 → A·B 선택 → 시간 확정':'세 문장을 순서대로 말하세요.')+'</small></div>';
+  h+=t.close.map(function(it,i){return lineHTML(it,i,true);}).join('');
+ }
+ return h;
+}
+function objList(ids,cls,sel){
+ return '<div class="obtns '+cls+'">'+ids.map(function(id){return '<button class="'+(sel===id?'on':'')+'" data-act="obj" data-v="'+id+'">'+esc(O(id).title)+'</button>';}).join('')+'</div>';
+}
+function objPanel(t){
+ var h='<h3>💬 고객이 이렇게 말하면</h3><div class="note" style="margin:0 0 4px">버튼을 누르면 바로 말할 문장이 나옵니다.</div>';
+ h+='<div class="ogrp">자주 나오는 반론</div>'+objList(MAIN_OBJ,'main',S.obj);
+ h+='<div class="ogrp">이 DB에서 자주 나오는 반론</div>'+objList(t.spec,'',S.obj);
+ h+='<div class="ogrp">그 외</div>'+objList(OTHER_OBJ,'',S.obj);
+ if(S.obj&&O(S.obj))h+=objDetail(S.obj);
+ return h;
+}
+function objDetail(id){
+ var o=O(id),h='<div class="odet"><h4>'+esc(o.title)+'</h4><div class="say">고객: '+esc(o.say)+'</div>';
+ function row(lbl,cls,text){var f=fill(text);return '<div class="line"><div class="b"><span class="lbl '+cls+'">'+lbl+'</span><span class="ltxt">'+f.html+'</span></div>'+cpBtn(f.plain)+'</div>';}
+ h+=row('① 받아주기','','' +o.y);
+ h+=row('② 이유·이득 한 줄','b2',o.b);
+ if(o.q)h+=row('③ 질문 하나','b3',o.q);
+ if(o.last)h+=row('그래도 거절하면','b4',o.last);
+ if(o.tip&&S.level==='new')h+='<div class="tip">'+esc(o.tip)+'</div>';
+ var mine=store.mine[id];
+ h+='<div class="peer"><div class="t">내 멘트</div>';
+ h+='<textarea id="mine_'+id+'" rows="2" placeholder="내가 쓰는 멘트를 적어 두면 다음에 여기 나옵니다.">'+esc(mine||'')+'</textarea>';
+ h+='<div style="margin-top:6px"><button class="cp" data-act="savemine" data-v="'+id+'">저장</button></div></div>';
+ h+='</div>';
+ return h;
+}
+
+/* ---------- 연습 ---------- */
+function pool(){
+ var t=typeById(S.type);
+ return MAIN_OBJ.concat(t.spec,OTHER_OBJ).filter(function(id){return O(id)&&O(id).say&&id!=='stop';});
+}
+function newQuestion(){
+ var p=pool(),prev=S.pr.obj,id=p[Math.floor(Math.random()*p.length)];
+ if(p.length>1){var guard=0;while(id===prev&&guard<20){id=p[Math.floor(Math.random()*p.length)];guard++;}}
+ S.pr={obj:id,profile:PROFILES[Math.floor(Math.random()*PROFILES.length)],answer:'',revealed:false,checks:[false,false,false,false],follow:false,saved:false};
+}
+function todayStr(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+function statsHTML(){
+ var td=todayStr(),recs=store.recs||[];
+ var today=recs.filter(function(r){return r.d===td;});
+ var avg=today.length?(today.reduce(function(a,r){return a+r.s;},0)/today.length):0;
+ var recent=recs.slice(-5).reverse().map(function(r){var o=OBJ[r.o];return '<li>'+esc(r.d)+' · '+esc(typeById(r.t).name)+' · '+esc(o?o.title:r.o)+' · '+r.s+'/4</li>';}).join('');
+ return '<div class="stat"><div>오늘 연습 <b>'+today.length+'</b>문제</div><div>오늘 평균 <b>'+(today.length?avg.toFixed(1):'-')+'</b> / 4</div><div>누적 <b>'+recs.length+'</b>문제</div></div>'+(recent?'<ul class="brief" style="margin-top:8px;font-size:13px;color:var(--muted)">'+recent+'</ul>':'');
+}
+function renderPractice(){
+ if(!S.pr.obj)newQuestion();
+ var t=typeById(S.type),p=S.pr,o=O(p.obj),prof=p.profile;
+ var h='<div class="cols"><div class="card">';
+ h+='<div class="stt">반론 연습<small>소리 내어 말해 보고, 모범 멘트와 비교하세요.</small></div>';
+ h+='<div class="pmeta"><span class="chip">'+esc(t.name)+'</span><span class="chip g">고객 '+esc(prof.a)+' '+esc(prof.g)+'</span><span class="chip g">'+esc(TONES[prof.a])+'</span></div>';
+ h+='<div class="pbub">“'+esc(o.say.replace(/[“”]/g,'').split(' · ')[0])+'”</div>';
+ h+='<div class="lab" style="margin-top:12px">나라면 이렇게 대응한다</div><textarea id="pr_ans" rows="3" placeholder="먼저 소리 내어 말해 보고, 여기에 적어도 됩니다.">'+esc(p.answer)+'</textarea>';
+ if(!p.revealed){
+  h+='<div class="nav"><button class="btn sec" data-act="newq">다른 반론으로</button><button class="btn" data-act="reveal">모범 멘트 보기</button></div>';
+ }else{
+  h+='<div class="odet">';
+  var fy=fill(o.y,prof),fb=fill(o.b,prof),fq=o.q?fill(o.q,prof):null;
+  h+='<div class="line"><div class="b"><span class="lbl">① 받아주기</span><span class="ltxt">'+fy.html+'</span></div></div>';
+  h+='<div class="line"><div class="b"><span class="lbl b2">② 이유·이득 한 줄</span><span class="ltxt">'+fb.html+'</span></div></div>';
+  if(fq)h+='<div class="line"><div class="b"><span class="lbl b3">③ 질문 하나</span><span class="ltxt">'+fq.html+'</span></div></div>';
+  if(o.tip)h+='<div class="tip">'+esc(o.tip)+'</div>';
+  h+='<div class="lab" style="margin-top:12px">센터 상담 원칙으로 스스로 체크</div>';
+  PRINCIPLES.forEach(function(pt,i){h+='<label class="chk"><input type="checkbox" data-act="chk" data-v="'+i+'" '+(p.checks[i]?'checked':'')+'><span>'+esc(pt)+'</span></label>';});
+  var score=p.checks.filter(function(x){return x;}).length;
+  h+='<div class="nav"><button class="btn sec" data-act="savemy" '+(p.answer.trim()?'':'disabled')+'>'+(p.saved?'저장됨 ✓':'내 답변을 내 멘트로 저장')+'</button>';
+  if(o.follow&&!p.follow)h+='<button class="btn sec" data-act="follow">고객이 한 번 더 말하면?</button>';
+  h+='<button class="btn" data-act="done">기록하고 다음 반론 → ('+score+'/4)</button></div>';
+  if(p.follow&&o.follow)h+='<div class="pbub" style="margin-top:10px;font-size:16px">고객 재반응: “'+esc(o.follow)+'”<div class="note">이 말에는 위 ① → ② → ③ 순서를 한 번 더 써서 답해 보세요.</div></div>';
+  h+='</div>';
+ }
+ h+='</div><div class="card side"><h3>내 연습 기록</h3>'+statsHTML()+'<div class="note" style="margin-top:10px">기록은 이 PC 브라우저에만 저장됩니다. 통합전산에서는 팀장 본인만 볼 수 있게 두고, 센터 평균 같은 비교는 보여주지 않습니다.</div><div style="margin-top:8px"><button class="cp" data-act="resetrec">기록 지우기</button></div></div></div>';
+ $('main').innerHTML=h;
+}
+
+/* ---------- 체결 콜 패턴 (실제 체결 통화의 흐름을 이름·개인정보 없이 재구성) ---------- */
+var CLOSE_REAL_SIGN='서명은 보험사가 보내는 전자서명 링크에서 고객 본인이 직접 합니다. 대신 서명하거나 서명 사진을 붙이는 방식은 쓰지 않습니다.';
+var PAT={
+tv:[
+{id:'tv1',title:'예약해 둔 고객 · 점검 후 하나만 보완',who:'TV광고 · 점검을 기대하고 예약한 고객',
+ flow:'경로·사과 → 점검이라는 약속 → 본인확인 → 대기 중 라포·병력 → 현황(건수·금액) → 칭찬 먼저·문제 한 가지·숫자 → 하나만 선택 → 카톡 발송·재통화 → 이체일 선택 → 전자서명·청약 녹취',
+ turns:[
+ {st:'intro',c:'(전화를 받습니다) 여보세요? 오늘 전화 준다더니 왜 이제 해요?',g:'먼저 사과 + 사정 설명 + 통화 가능 확인',
+  o:[['b','{고객} 선생님 안녕하세요. 기다리셨죠, 죄송해요. 예약해 주신 분들이 많아서 시간을 딱 맞춰 연락드리기가 어려웠어요. 혹시 지금은 통화가 괜찮으세요?','사과를 먼저 하고 이유를 짧게 말한 뒤 통화 가능 여부를 물었습니다.'],
+     ['a','{고객} 선생님 안녕하세요. 예약이 많아서 시간이 늦었어요. 지금 통화 되세요?','이유는 말했지만 사과가 빠졌습니다. 기다린 고객에게는 사과가 먼저입니다.'],
+     ['x','예약 시간까지 맞춰드리기는 어려워요. 일단 설명부터 드릴게요.','기다린 고객에게 변명처럼 들려서 바로 방어합니다.']],
+  real:'체결된 통화는 약속 시간에 늦었다는 말이 나오면 변명하지 않고 먼저 사과한 뒤 통화 가능 여부부터 물었습니다.'},
+ {st:'intro',c:'아, 그래요. 근데 그게 뭐 하는 거예요?',g:'고객님들 상담 내용 예시 + 열린 질문 한 번',
+  o:[['b','고객님들마다 상담 내용이 달라서요. 보험료가 많이 나가니까 줄여 달라고 하시는 분도 있고, 보장이 어떻게 되는지 확인해 달라고 하시는 분도 계세요. 우리 {고객} 선생님께는 제가 어떤 걸 도와드릴까요?','예시를 두세 가지 들어서 고객이 쉽게 고르게 한 열린 질문입니다. 이 답이 클로징 때 쓰는 재료가 됩니다.'],
+     ['a','보험 점검이요. 지금 보험 몇 개 가지고 계세요?','바로 현황으로 가면 고객의 궁금증을 놓칩니다. 궁금한 점을 먼저 들으세요.'],
+     ['x','저희가 좋은 보험을 비교해서 추천해 드려요. 먼저 설계부터 해볼까요?','점검을 기대한 고객에게 설계부터 꺼내면 방어합니다.']],
+  real:'열린 질문은 “다른 분들은 이런 걸 물어보세요”라는 예시와 함께 이 한 번만 했고, 이후는 짧게 확인하는 질문으로 이어갔습니다.'},
+ {st:'talk',c:'내 보험이 괜찮은지 궁금해서요. 근데 주민번호 뒷자리까지는 왜 말해야 해요?',g:'본인확인 거부 → 이유·범위·이득으로 설득',
+  o:[['b','보험도 금융상품이라 본인 확인이 꼭 필요해요. 확인하는 용도로만 쓰이고, 확인되는 건 가입하신 보험 정보뿐이에요. 분석 끝나면 정리해서 카톡으로 보내드릴게요. 뒷자리까지 말씀해 주시겠어요?','이유 + 범위 + 받으실 결과를 순서대로 말했습니다.'],
+     ['a','확인용이니까 괜찮아요. 말씀해 주세요.','이유가 한 줄뿐이라 같은 거부가 반복되기 쉽습니다. 보내드릴 결과까지 말해 주세요.'],
+     ['x','안 알려주시면 분석이 안 돼요. 어떻게 하실래요?','압박처럼 들립니다. 이유를 설명하고 대안(본인확인 알림톡)을 같이 주세요.']],
+  real:'본인확인 거부가 나온 통화도 “이유 → 확인 범위 → 보내드릴 결과” 순서로 설명해서 확인을 받았습니다.'},
+ {st:'talk',c:'(조회가 진행되는 동안) 네, 기다리고 있어요.',g:'기다리는 시간에 라포 + 병력 질문',
+  o:[['b','네 감사합니다. 제가 얼른 체크할게요, 끊지 마시고 잠시만요. 혹시 혈압, 당뇨, 고지혈 약 드시는 거 있으세요? 그리고 10년 안에 다치셨거나 아파서 입원이나 수술하신 기억은 있으세요?','조회하는 동안 약과 10년 안 입원·수술을 짧은 질문 두 개로 확인했습니다.'],
+     ['a','날씨가 많이 쌀쌀한데 건강은 잘 챙기고 계세요?','라포는 좋지만 병력으로 이어지지 않았습니다. 질문을 구체적으로 좁히세요.'],
+     ['x','(말없이 화면만 보며 기다린다)','침묵이 길어지면 고객이 통화를 끊을 수 있습니다. 대기 시간이 라포를 쌓는 시간입니다.']],
+  real:'체결 콜은 조회 대기 시간마다 건강·가족 같은 가벼운 질문으로 대화를 이어 갔습니다.'},
+ {st:'talk',c:'혈압약은 먹어요. 보험은 여러 개 있는 것 같은데 정확히는 몰라요.',g:'공감 → 현황(건수·금액) → 가입 배경 질문',
+  o:[['b','혈압약 꾸준히 챙겨 드시네요, 관리 잘하고 계세요. 조회해 보니 보험이 {건수}건이고 월 {월보험료} 정도 내고 계세요. 이 보험들은 어떻게 가입하게 되셨어요?','공감 → 건수·금액 → 가입 배경 질문 순서가 자연스럽습니다.'],
+     ['a','보험이 여러 개네요. 한 건씩 보험사랑 금액을 쭉 읽어 드릴게요.','나열이 길어지면 고객이 놓칩니다. 건수와 총액으로 줄여 말하세요.'],
+     ['x','약 드시면 가입이 어려울 수 있어요. 지금 보험이나 잘 유지하세요.','가능 여부를 단정하면 대화가 닫힙니다. 확인한 뒤에 안내합니다.']],
+  real:'현황은 “몇 건, 월 얼마” 두 숫자로만 먼저 말하고, 바로 가입 배경을 물어 고객이 말하게 했습니다.'},
+ {st:'talk',c:'친구 소개로 가입했어요. 담당 설계사는 연락 끊긴 지 오래됐어요.',g:'칭찬 먼저 → 문제 한 가지 → 숫자',
+  o:[['b','친구분 소개로 잘 챙겨두셨어요. 큰 틀은 잘 되어 있는데, 한 가지만 짚으면 {문제 한 가지}예요. 그래서 월 {월보험료} 안에서 어느 부분이 몇 년 뒤 부담이 될지 같이 보시면 좋겠어요.','잘된 점을 먼저 인정하고, 문제는 한 가지만 숫자와 함께 말했습니다.'],
+     ['a','지금 보험은 오래돼서 갈아타시는 게 이득이에요.','이유와 숫자 없이 갈아타라는 말이 먼저 나오면 방어합니다. 근거를 붙이세요.'],
+     ['x','이 보험들은 별로예요. 보장이 너무 약하네요.','기존 보험을 깎아내리면 가입을 도와준 지인까지 부정하는 느낌이 듭니다.']],
+  real:'문제는 한꺼번에 말하지 않고 한 가지만, 반드시 칭찬을 먼저 한 뒤 숫자로 말했습니다.'},
+ {st:'compare',c:'그럼 어떻게 하면 되는데요?',g:'하나만 제안 + 비교 약속',
+  o:[['b','지금 보험은 그대로 두시고, 부족한 부분 한 가지만 채우는 안을 보여드릴게요. 보험사 세 곳을 나란히 놓고, 제가 추천하는 곳과 이유도 말씀드릴게요.','범위를 한 가지로 좁혀서 부담을 줄였습니다.'],
+     ['a','설계 먼저 보내드릴 테니 보시고 마음에 드시면 연락 주세요.','다음 약속(시간)이 없으면 연락이 끊깁니다.'],
+     ['x','새로 가입하시면 월 보험료도 줄어요.','근거 없는 단정입니다. 줄어드는지는 설계안 수치로 확인합니다.']],
+  real:'제안은 항상 “지금 것은 두고, 하나만”이라는 틀이었습니다.'},
+ {st:'compare',lv:'new',c:'다른 회사 거랑은 뭐가 달라요?',g:'비교 설명 + 추천 이유 + 단점 한 가지',
+  o:[['b','같은 보장도 보험사마다 조건이 달라서 세 곳을 나란히 보여드릴게요. 그중 {추천 보험사}를 먼저 말씀드리는 이유는 {이유}예요. 다만 {단점}은 감안하셔야 해요.','추천 이유를 고객이 한 말과 연결하고 단점까지 말해서 신뢰를 높였습니다.'],
+     ['a','세 곳 다 괜찮은데 {추천 보험사}가 제일 좋아요.','이유가 없으면 설득이 안 됩니다. 이유 두 가지와 단점 한 가지를 붙이세요.'],
+     ['x','다른 곳은 보험금 잘 안 줘요. 여기가 제일 확실해요.','근거 없는 비방은 고객이 확인하는 순간 신뢰를 잃습니다. 조건 차이로 말하세요.']],
+  real:'비교는 한 가지 담보의 가격과 조건을 나란히 놓고 보여주는 방식이었습니다.'},
+ {st:'close',c:'괜찮네요. 근데 한꺼번에 다 하기엔 부담돼요.',g:'하나만 고르게 한다',
+  o:[['b','한꺼번에 다 하실 필요 없어요. 하나만 고르시면 돼요. 먼저 잡을 부분 하나만 정해 보실래요? 나머지는 나중에 따로 하셔도 괜찮아요.','부담을 인정하고 “하나만” 선택으로 줄였습니다.'],
+     ['a','부담되시면 생각해 보시고 연락 주세요.','고객이 연락하지 않으면 끝납니다. 선택지를 좁혀서 지금 고르게 하세요.'],
+     ['x','다 같이 하시면 더 유리해요. 한꺼번에 하세요.','부담을 말한 고객에게 범위를 넓히면 거절이 나옵니다.']],
+  real:'하나만 고르게 하거나 2~3분류로 나눠 선택하게 했고, 나머지는 “나중에”로 열어 두었습니다.'},
+ {st:'close',c:'그럼 하나로 할게요. 근데 지금 일하는 중이에요.',g:'카톡 발송 + 재통화 시간 확정',
+  o:[['b','정리된 내용은 지금 카톡으로 바로 보내드릴게요. {시간선택} 그 시간에 다시 연락드려서 같이 확인하고 마무리할게요.','발송과 시간 확정을 한 번에 했습니다.'],
+     ['a','그럼 편하실 때 전화 주세요.','시간이 정해지지 않으면 재통화가 안 됩니다.'],
+     ['x','3분이면 끝나니까 지금 그냥 하시죠.','일하는 중인 고객을 붙잡으면 신뢰를 잃습니다.']],
+  real:'체결 직전 통화는 대부분 “카톡 발송 → 시간 확정 → 재통화”로 이어졌습니다.'},
+ {st:'close',c:'(재통화) 네, 카톡으로 보내주신 거 봤어요.',g:'이체일을 선택형으로 묻는다',
+  o:[['b','네 감사합니다. 보내드린 내용 다시 한 번만 같이 보고요, 보험료 나가는 날은 월급일 직후가 편하세요, 지금 쓰시는 날짜 그대로가 편하세요?','가입 여부를 묻지 않고 이체일 선택으로 한 단계 앞서갔습니다.'],
+     ['a','네, 보시니까 어떠세요? 가입하실 거예요?','“할래요/안 할래요”로 묻으면 거절이 나오기 쉽습니다.'],
+     ['x','그럼 바로 가입 진행하겠습니다. 계좌번호 불러주세요.','내용 확인 없이 결제 정보부터 받으면 부담을 줍니다.']],
+  real:'체결된 통화는 “가입하실래요?”가 아니라 “이체일은 언제가 편하세요?”로 물었습니다.'},
+ {st:'close',c:'서명은 어떻게 하는 거예요?',g:'전자서명·청약 녹취 안내 (본인이 직접)',
+  o:[['b','문자로 전자서명 링크가 가요. {호칭} 본인이 직접 휴대폰으로 내용 보시고 서명하시면 되고, 이어서 보험사에서 청약 확인 녹취가 한 번 나와요. 모르시는 부분은 제가 같이 보면서 안내드릴게요.','본인이 직접 한다는 점과 다음 절차(녹취)를 미리 알렸습니다.'],
+     ['a','문자 링크 눌러서 서명하세요.','절차가 더 있다는 걸 알려야 녹취에서 당황하지 않습니다.'],
+     ['x','서명은 제가 대신 해드릴게요. 번호만 알려주세요.','대리 서명은 안 됩니다. 고객 본인이 직접 해야 합니다.']],
+  real:'서명은 모두 고객 본인의 전자서명으로 진행했고, 청약 녹취가 있다는 안내를 미리 했습니다. ',
+  n:CLOSE_REAL_SIGN}
+ ]}
+],
+
+perm:[
+{id:'perm1',title:'현황형 · 점검 동의 고객',who:'퍼미션 · 점검 동의 후 “또 전화?” 반감이 있는 고객',
+ flow:'경로 → 통화 가능 확인 → 초반 거절 3단 대응 → 본인확인 → 대기 중 라포·병력 → 건수·총액·또래 비교 → 가입 이유 → 문제 제시 → “더 내라가 아니라 빼서 옮기자” → 박스 선택형·금액 3단 → 결제·시간 확정 → 전자서명 → 청약 녹취 → 다음 날 사후 확인',
+ turns:[
+ {st:'intro',c:'(전화를 받습니다) 네, 여보세요.',g:'동의 이력 말하기 + 통화 가능 확인',
+  o:[['b','여보세요, {고객} 안녕하세요. 일전에 상담원을 통해서 가지고 계신 보험 중에 불필요하게 내고 계신 게 있는지 점검해 드리고 맞춤 설계해 드린다고 말씀드렸던 담당자 {나}예요. 혹시 잠깐 통화 괜찮으세요?','상담원이 말씀드렸던 내용을 그대로 이어 말해서 연락 이유가 분명합니다.'],
+     ['a','안녕하세요, 어센틱금융 {나}입니다. 보험 관련해서 연락드렸어요.','동의 이력이 빠지면 “무슨 일이냐”로 방어합니다.'],
+     ['x','안녕하세요, 고객님 보험 하나 소개해 드리려고 전화드렸어요.','점검에 동의한 고객에게 소개로 시작하면 바로 끊깁니다.']],
+  real:'퍼미션 체결 콜은 모두 “동의해 주신 점검 건”이라는 말로 시작했습니다.'},
+ {st:'intro',c:'아 그거 괜찮다고 했는데요. 안 해요.',g:'초반 거절 3단: 사과 → 동의 이력 → 선택권',
+  o:[['b','많이 바쁘시죠, 불편하게 해드렸다면 죄송해요. 동의해 주신 이력이 확인돼서 연락드렸고요, 제가 간단하게 안내해 드리고 종결해 드릴게요. 편하신 시간이 따로 있으면 그 시간으로 다시 맞춰드릴 수도 있어요. 고객님 보험을 정리해서 한 장으로 볼 수 있게 해 드릴 건데, 괜찮으시겠어요?','사과 → 사실 → “간단히, 종결해 드린다” → 편한 시간 선택권 → 한 장 정리라는 결과물 순서입니다.'],
+     ['a','동의하셨으니까 잠깐이면 돼요. 한 번만 들어주세요.','사실은 있지만 사과와 선택권이 없어서 압박처럼 들립니다.'],
+     ['x','네 알겠습니다. 안녕히 계세요.','첫 거절에 바로 접으면 대화가 시작되지 않습니다. 이유를 한 번은 묻습니다.']],
+  real:'초반에 거절이 나온 통화도 사과 후 한 번 더 부드럽게 요청해서 대화로 이어졌습니다.'},
+ {st:'talk',c:'주민번호는 왜 물어봐요? 말하기 싫은데.',g:'본인확인 설득 (이유·범위·대안)',
+  o:[['b','걱정되시는 거 충분히 이해합니다. 보험도 금융상품이라 가입 내용을 확인하려면 본인 확인이 필요해요. 확인용으로만 쓰이고 확인되는 건 가입 정보뿐이에요. 걱정되시면 제가 본인확인 알림톡이랑 명함을 먼저 보내드릴게요.','공감 → 이유·범위 → 대안(알림톡·명함) 순서입니다.'],
+     ['a','확인용이니까 그냥 말씀해 주세요.','이유가 짧고 대안이 없어서 같은 거부가 반복됩니다.'],
+     ['x','그럼 점검은 못 해드립니다.','압박은 신뢰를 잃게 합니다. 대안을 먼저 제시하세요.']],
+  real:'본인확인 거부는 “이유 → 알림톡·명함” 안내로 풀렸고, 끝까지 거부하면 무리하지 않았습니다.'},
+ {st:'talk',c:'(조회하는 동안) 네, 기다릴게요.',g:'대기 중 라포 + 병력 질문',
+  o:[['b','제가 조회하는 동안 잠깐 여쭐게요. 어떤 일 하세요? ……선생님 음성이 굉장히 건강하게 들려요. 혈압, 당뇨, 고지혈 약 드시는 것 없으시죠? 혹시 다치시거나 아파서 입원이나 수술하신 적은 있으세요?','일 얘기로 분위기를 풀고, 건강하게 들린다는 말로 병력을 자연스럽게 물었습니다.'],
+     ['a','건강하시죠? 요즘 날씨가 많이 추워졌는데요.','안부만으로는 병력을 알 수 없습니다. 구체적인 질문을 넣으세요.'],
+     ['x','잠시만요… (조회가 끝날 때까지 말없이 있는다)','대기 침묵은 이탈을 부릅니다.']],
+  real:'조회 대기 시간은 거의 모든 통화에서 라포·병력 질문 시간으로 썼습니다.'},
+ {st:'talk',c:'병원은 가끔 다니는 정도예요. 보험은 몇 개나 되는데요?',g:'건수·총액 현황 + 또래 비교 + 가입 이유',
+  o:[['b','확인해 보니 지금 가지고 계신 보험이 총 {건수}건에 월 {월보험료}이세요. 같은 연령대 평균과 비교하면 {비교 결과}예요. 주로 {보험사} 쪽에 준비하셨는데, 그쪽으로 가입하신 건 특별한 이유가 있으세요?','건수·금액 → 또래 비교 → “특별한 이유 있으세요?” 순서입니다.'],
+     ['a','보험이 꽤 많으세요. 보험사별로 하나씩 말씀드릴까요?','나열은 길어집니다. 건수와 총액부터 말하세요.'],
+     ['x','다른 분들보다 보험이 부족하세요. 많이 비어 있어요.','근거 없이 부족하다고 단정하면 방어합니다.']],
+  real:'비교는 “또래 평균과 어느 정도 차이”처럼 한 줄로, 고객 자존심을 건드리지 않게 말했습니다.'},
+ {st:'talk',c:'예전에 아는 사람이 권해서 가입했어요.',g:'문제 제시 → “돈 더 내라가 아니라 빼서 옮기자”',
+  o:[['b','지금 {나이}세신데 이 보험료를 앞으로 {납입기간}년 내시면 힘들지 않으실까요? 건강하신 지금이 가장 건강하고 보험료도 제일 싸요. 제가 가족이라면 {짧은 납입기간}만 내고 100세까지 보장받는 걸로 해 드리고 싶어요. 그래서 돈을 더 쓰시라는 게 아니라, 지금 내시는 돈에서 빼서 옮겨 드리는 거예요.','“만약 내 가족이라면” 화법과 납입기간 문제, “더 내라가 아니라 옮기자”가 한 흐름입니다.'],
+     ['a','문제가 좀 있어서 새로 가입하시는 게 좋겠어요.','“새로 가입”이 먼저 나오면 추가 부담으로 들립니다.'],
+     ['x','지금 보험은 해지하시고 새로 하세요.','이유 없이 해지부터 말하면 방어합니다. 이동 설계를 먼저 보여주세요.']],
+  real:'모든 체결 콜에서 “더 내시라는 게 아니라 빼서 옮기자”는 말이 한 번은 나왔습니다.'},
+ {st:'compare',c:'그럼 뭘 어떻게 옮긴다는 거예요?',g:'박스 선택형으로 보여주기',
+  o:[['b','제가 박스로 정리해 봤어요. 빨간 박스는 암, 초록 박스는 뇌·심장, 파란 박스는 수술·입원이에요. 필요 없다 싶으시면 박스째 빼셔도 되고, 빼면 보험료도 그만큼 내려가요. 일단 가장 비어 있는 박스부터 같이 볼까요?','박스 3개 + “빼셔도 된다”는 말로 부담을 낮췄습니다.'],
+     ['a','암, 뇌, 심장, 수술, 입원 순서로 보장 내용을 쭉 설명드릴게요.','항목이 많으면 고객이 못 따라옵니다. 3분류로 줄이세요.'],
+     ['x','다 필요하니까 전부 넣어서 설계해 드릴게요.','범위를 넓히면 보험료 부담으로 거절이 나옵니다.']],
+  real:'설명은 박스(암·뇌심장·수술) 3분류로, 선택은 “하나만 먼저”로 했습니다.'},
+ {st:'compare',c:'그래서 한 달에 얼마나 드는데요?',g:'금액 3단 제안',
+  o:[['b','지금 내시는 보험료 안에서 되는 안, 조금 보완하는 안, 충분히 채우는 안 세 가지로 보여드릴게요. 어느 쪽이 더 편하세요?','3단 선택지로 고객이 자기 수준을 고르게 했습니다.'],
+     ['a','한 달에 얼마까지 가능하세요?','질문 자체는 필요하지만 고객이 부담스러워합니다. 선택지를 먼저 주세요.'],
+     ['x','가장 좋은 걸로 하세요. 비싸도 그게 맞아요.','부담을 키우는 말입니다. 현재 보험료 안에서 가능한 안을 먼저 보여주세요.']],
+  real:'금액은 “현재 범위 안 / 조금 보완 / 충분히”의 3단으로 제시했습니다.'},
+ {st:'close',c:'그럼 가운데 걸로 할게요. 어떻게 하면 돼요?',g:'결제 정보 + 시간 확정',
+  o:[['b','제가 정리한 걸 카톡으로 한 장 보내드릴게요. 눈으로 보시고 정말 더 좋아졌다 싶으시면 그때 진행해 드릴게요. 보험료는 {호칭} 본인 명의로만 진행되고요, 이체일은 월급일 직후가 편하세요, 지금 쓰시는 날짜가 편하세요? 오늘 몇 시쯤 일 끝나세요? {시간선택}','눈으로 확인하고 결정하게 한 뒤, 본인 명의·이체일·재통화 시간까지 한 번에 정했습니다.'],
+     ['a','계좌번호 불러주시면 바로 진행할게요.','결제 정보부터 받으면 부담을 줍니다. 절차를 먼저 안내하세요.'],
+     ['x','가족 분 명의 계좌로 하셔도 돼요.','계약자·납입자는 본인이어야 합니다. 타인 명의 결제는 안내하지 않습니다.']],
+  real:'체결 콜은 결제 정보를 받기 전에 이체일을 선택하게 했고, 본인 명의로만 진행했습니다.'},
+ {st:'close',c:'서명이랑 녹취는 어떻게 하는 거예요?',g:'전자서명 + 청약 녹취 + 다음 날 사후 확인',
+  o:[['b','문자로 전자서명 링크가 가요. {호칭} 본인이 직접 내용 보시고 서명하시면 되고, 이어서 보험사에서 청약 확인 녹취가 한 번 나와요. 질문에 “네”로 답하시면 되고 모르시는 건 중간에 물어보세요. 내일 제가 접수가 잘 됐는지 한 번 더 확인드릴게요.','서명 → 녹취 → 사후 확인까지 한 번에 안내했습니다.'],
+     ['a','링크 오면 서명하시고 녹취는 보험사에서 연락 옵니다.','다음 절차를 모르면 녹취에서 당황합니다. 단계를 미리 말해 주세요.'],
+     ['x','서명은 제가 대신 해드릴게요. 번호만 알려주세요.','대리 서명은 안 됩니다. 고객 본인이 직접 해야 합니다.']],
+  real:'체결 다음 날 “접수 잘 됐는지 확인차” 연락하는 것까지가 하나의 패턴이었습니다.',
+  n:CLOSE_REAL_SIGN}
+ ]},
+
+{id:'perm2',title:'병력·가족 동석 · 인수가 막힌 고객',who:'퍼미션 · 병력이 있고 가족이 옆에서 말리는 고객',
+ flow:'경로 → 초반 거절 3단 → 가족 동석(이유부터) → 반론 사전 차단 → 병력 파고들기 → 인수 막힘 “안 된다가 아니라 3개월 후” → 재약속 → 예외 인수 협의 → 같은 날 체결',
+ turns:[
+ {st:'intro',c:'(전화를 받고 낮은 목소리로) 네, 누구세요?',g:'동의 이력 + 통화 가능 확인',
+  o:[['b','{고객} 맞으시죠? 상담원을 통해 보험료 점검에 동의해 주셔서 연락드린 어센틱금융 {나} 팀장입니다. 지금 통화 괜찮으세요?','경로와 용건을 한 번에 말했습니다.'],
+     ['a','어센틱금융입니다. 보험 점검 건으로 전화드렸어요.','동의라는 단어가 빠져서 낯선 전화로 들립니다.'],
+     ['x','네, 고객님 혹시 보험 필요하세요?','필요 여부를 먼저 묻는 건 거절을 부릅니다.']],
+  real:'낮은 목소리·경계하는 말투의 고객에게도 경로와 용건을 같은 문장으로 말했습니다.'},
+ {st:'intro',c:'괜찮다고 했는데 또 전화예요? 안 한다니까요.',g:'3단 대응',
+  o:[['b','불편하게 해드렸다면 죄송합니다. 동의해 주신 이력이 확인돼서 안내 차원에서 연락드렸어요. 원치 않으시면 바로 반영할게요. 다만 5분이면 되는데 간단히만 확인해도 될까요?','사과 → 사실 → 선택권을 모두 넣었습니다.'],
+     ['a','동의하셨으니까 한 번만 확인할게요.','사과와 선택권이 없어서 압박처럼 들립니다.'],
+     ['x','알겠습니다. 끊겠습니다.','한 번도 설득하지 않고 접으면 기회가 사라집니다.']],
+  real:'두 번째 거절이 나와도 한 번은 정중하게 이유를 묻고 이어 갔습니다.'},
+ {st:'talk',c:'(옆에서 가족이) 또 뭘 가입시키려는 거야, 그냥 끊어.',g:'가족 동석: 이유부터 묻고 같이 듣게',
+  o:[['b','걱정되실 만해요. 어떤 점이 제일 마음에 걸리세요? 괜찮으시면 스피커폰으로 같이 들으시고 궁금한 건 바로 물어보세요. 가입시키는 게 아니라 지금 보험이 괜찮은지 확인하는 거예요.','이유를 먼저 묻고, 가족이 함께 듣게 해서 오해를 풀었습니다.'],
+     ['a','가족분 바꿔 주시면 제가 설명드릴게요.','좋은 방법이지만 먼저 이유를 물어 주세요. 바로 바꾸면 방어합니다.'],
+     ['x','본인 보험이니 본인이 결정하시면 되죠. 계속 진행할게요.','가족의 반대를 무시하면 통화가 끝납니다.']],
+  real:'가족이 반대하는 통화도 “이유 묻기 → 스피커폰으로 같이 듣기”로 풀었고, 필요하면 보험사 고객센터를 함께 연결해 확인시켜 드렸습니다.'},
+ {st:'talk',c:'실손은 안 바꿀 거예요. 4세대로 갈아타라는 거죠?',g:'반론 사전 차단',
+  o:[['b','아니에요, 실손은 그대로 두셔도 돼요. 오늘은 실손 얘기가 아니라 진단비·수술비 쪽만 봐드려요.','고객이 막고 싶어 하는 주제를 먼저 치워서 방어가 풀렸습니다.'],
+     ['a','실손 얘기는 나중에 하고 먼저 다른 것부터 볼게요.','“나중에”는 여지를 남겨서 불안이 이어집니다. 안 한다고 분명히 말해 주세요.'],
+     ['x','실손은 4세대로 바꾸시는 게 더 유리해요.','고객이 거부한 주제를 꺼내면 거절이 굳어집니다.']],
+  real:'고객이 걱정하는 주제(실손 전환, 해지)는 “이번엔 안 한다”고 먼저 말해서 막았습니다.'},
+ {st:'talk',c:'작년에 수술을 했고 지금도 약 먹고 있어요.',g:'병력 파고들기 (병명·시기·치료·부위)',
+  o:[['b','말씀해 주셔서 감사해요. 병명이랑 치료 시기, 약 드시는 기간, 수술 부위만 기억나는 범위로 알려주시겠어요?','공감 후 항목을 구체적으로 물었습니다.'],
+     ['a','그럼 가입이 어려울 수 있어요. 자세히 말씀해 주세요.','어렵다는 말이 먼저 나오면 고객이 말을 줄입니다.'],
+     ['x','수술하셨으면 보험 가입은 힘들어요.','가능 여부를 확인 전에 단정하면 안 됩니다.']],
+  real:'병력은 병명·시기·기간·부위 순으로 한 번에 하나씩 물었고, 답마다 호응했습니다.'},
+ {st:'talk',c:'(조회 결과 인수가 어렵다는 안내 후) 그럼 못 하는 거예요?',g:'“안 된다”가 아니라 “3개월 후”',
+  o:[['b','지금 바로는 어렵지만 안 된다는 게 아니에요. 치료 후 경과 기간이 지나면 가입 가능한 경우가 있어서 3개월 뒤쯤 다시 확인해 보는 방법이 있어요. 그때로 시간 약속 먼저 잡아도 될까요?','불가를 시기 문제로 바꾸고 재약속으로 이어갔습니다.'],
+     ['a','지금은 어렵고 나중에 연락드릴게요.','시기와 날짜가 없어서 재연락이 약해집니다.'],
+     ['x','안 됩니다. 죄송하지만 어려워요.','대화가 끝납니다. 방법이 있는지 확인하고 말하세요.']],
+  real:'인수가 막힌 통화에서도 “안 된다”로 끝내지 않고 시기와 재약속으로 이어 갔습니다.'},
+ {st:'talk',c:'3개월 뒤요? 그때 정말 전화 올 거예요?',g:'날짜를 정해 재약속',
+  o:[['b','네, 날짜를 지금 적어둘게요. 3개월 뒤 이 날짜 오전에 연락드릴게요. 그 사이 건강 상태나 치료가 달라진 게 있으면 그때 말씀 주세요.','날짜를 확정하고 확인할 내용도 알려줬습니다.'],
+     ['a','네, 그때쯤 연락드리겠습니다.','“그때쯤”은 약속이 아닙니다. 날짜와 시간대를 정하세요.'],
+     ['x','그건 확정이 어려워요. 고객님이 연락 주세요.','고객이 연락할 가능성은 매우 낮습니다.']],
+  real:'재약속은 날짜와 시간대까지 정해서 기록했습니다.'},
+ {st:'compare',c:'(보험사와 예외 인수를 협의한 뒤) 가능하다고요? 그럼 어떻게 되는 건데요?',g:'박스 선택형 + 금액 3단',
+  o:[['b','네, 보험사와 협의해서 가능하게 됐어요. 박스 세 개 중 하나만 먼저 정하세요. 빨강은 암, 초록은 뇌·심장, 파랑은 수술이에요. 금액은 지금 안, 조금 보완, 충분히 채우는 안 세 가지로 보여드릴게요.','병력 고객에게는 범위를 좁히고 선택지를 단순하게 줬습니다.'],
+     ['a','가능하세요. 보험료 안내해 드릴게요.','선택지 없이 가격만 말하면 비교가 안 됩니다.'],
+     ['x','다 가능하니까 가장 큰 걸로 하세요.','병력 고객의 부담을 키웁니다.']],
+  real:'예외 인수는 보험사와 협의한 결과가 나온 경우에만 말했고, 확정되지 않은 가능 여부는 말하지 않았습니다.',
+  n:'실제로 협의 결과 가능해진 경우에만 이렇게 말합니다.'},
+ {st:'close',c:'(결정) 그럼 그걸로 할게요.',g:'서명 · 녹취 안내 (본인 직접)',
+  o:[['b','감사합니다. 문자로 전자서명 링크가 가요. {호칭} 본인이 직접 내용 보시고 서명하시면 되고, 이어서 청약 확인 녹취가 나와요. 병력 관련 질문이 나올 수 있으니 알고 계신 대로 말씀해 주세요.','병력 고지가 중요하다는 점을 녹취 전에 미리 알렸습니다.'],
+     ['a','링크 오면 서명해 주세요. 나머지는 보험사에서 안내해요.','병력 고지는 정확해야 합니다. 미리 말해 주세요.'],
+     ['x','녹취에서 병력 얘기는 안 하셔도 돼요.','고지를 빠뜨리게 하는 말은 절대 하지 않습니다.']],
+  real:'병력이 있는 고객일수록 청약 녹취 전에 “알고 계신 대로 말씀해 달라”고 미리 안내했습니다.',
+  n:CLOSE_REAL_SIGN}
+ ]}
+],
+
+ad:[
+{id:'ad1',title:'문의 고객 · 가격을 일찍 보여주는 흐름',who:'상품광고 · 상품 하나로 문의한 고객 (위 상품 버튼에 따라 내용이 바뀝니다)',
+ flow:'광고 보고 문의 경로·팀장 소개 → 궁금한 점 → 기존 보장부터 확인 제안 → 생년·보험나이·관심 항목 → 건강조건 → “할인 많이 받으세요” → 기존 보험 한 질문 → 필요성 질문 → 가격 일찍 제시(2안) → 바쁘면 카톡 발송+시간 확정 → 재통화 → 진단비 vs 치료비 프레임 → 보험료 부담 시 대안 → 두 개 중 선택 → 청구 도움 약속 → 클로징',
+ turns:[
+ {st:'intro',c:'(전화를 받습니다) 여보세요?',g:'광고 보고 문의했다는 경로 + 팀장 소개',
+  o:[['b','여보세요, {고객} 안녕하세요. {컨셉} 광고에서 {광고내용} 내용 보시고 문의 남겨주셔서 연락드렸습니다. 저는 상담 도와드릴 어센틱금융 {나} 팀장이라고 하고요.','센터 도입부 형식입니다. 광고에서 본 내용과 문의 경로를 먼저 말했습니다.'],
+     ['a','안녕하세요, 어센틱금융입니다. 보험 문의 남기셔서 연락드렸어요.','주제가 빠져서 “무슨 문의요?”로 되묻기 쉽습니다.'],
+     ['x','안녕하세요, 지금 가장 좋은 보험 상품이 나와서 연락드렸어요.','문의한 고객에게 광고 전화처럼 들립니다.']],
+  real:'상품광고 체결 콜은 모두 “어디서 어떤 상품을 알아보셨는지”부터 확인했습니다.'},
+ {st:'intro',c:'네, 광고 보고 눌러봤어요.',g:'궁금했던 점 질문 → 기존 보장부터 확인하자고 제안',
+  o:[['b','{컨셉} 관련해서 상담드릴텐데, 보험료 외에 평소 많이 신경 쓰이셨거나 궁금하셨던 부분이 있으셨을까요? 그러시면 그 보장내용이 이미 가지고 계시거나 중복되어 있을 수 있거든요. 중복으로 보험료를 더 내실 필요는 없으시니까요, 제가 먼저 기존 보장부터 확인해드리고 말씀드리는 게 어떠세요?','센터 도입부의 마지막 두 문장입니다. 궁금한 점을 먼저 묻고, 중복 가입을 막는다는 이유로 기존 보장 확인을 제안했습니다.'],
+     ['a','네, 그럼 어떤 보험이 필요하세요? 원하시는 걸 말씀해 주세요.','필요한 보험을 바로 물으면 “가입시키려는구나”로 들립니다. 중복 확인이라는 이유를 먼저 말하세요.'],
+     ['x','저희가 제일 좋은 상품이 있어요. 바로 설계해 드릴게요.','기존 보장 확인 없이 설계부터 꺼냈습니다.']],
+  real:'상품광고 체결 콜은 모두 “기존 보장부터 확인해 드리겠다”는 말로 문을 열었습니다.'},
+ {st:'intro',c:'네, 그렇게 해 주세요.',g:'본인용 확인 + 생년·보험나이 + 관심 항목 확인',
+  o:[['b','네, 본인 걸로 알아보시는 거 맞으시죠? 그때 {생년}생으로 등록해 주셔서 보험 나이가 {보험나이}세이신데요, 관심 있어 하셨던 항목이 {핵심1} 위주셨거든요. 맞으실까요?','생년과 보험 나이, 그때 남긴 관심 항목을 확인 질문 하나로 묶었습니다.'],
+     ['a','어떤 게 궁금하세요?','열린 질문은 답하기 어렵습니다. 문의 때 남긴 내용을 확인하는 질문이 쉽습니다.'],
+     ['x','생년월일이랑 주민번호 뒷자리 전부 말씀해 주세요.','한꺼번에 많이 물으면 부담입니다. 확인 질문으로 하나씩 받으세요.']],
+  real:'상품광고는 통화 초반 1분 안에 생년(보험 나이)과 관심 항목을 확인했습니다.'},
+ {st:'talk',c:'{고객답}',g:'건강 조건 확인 후 “할인 많이 받으신다”로 받기 · 이때 묻는 질문: {건강질문}',
+  o:[['b','네, 약 드시는 건 문제 되지 않고요. 최근 입원이나 수술 이력이 없으시면 건강하지 않은 분에 비해서 보험료 할인을 굉장히 많이 받으실 수 있어요. 심사 전이라 확정은 아니지만요. 그러면 진단비나 지금 가입해 두신 {주제} 쪽 보험은 어느 정도 있으세요?','좋은 점을 말해 주고 확정은 아니라고 선을 그은 뒤 기존 보장을 한 가지 물었습니다.'],
+     ['a','네, 알겠습니다. 다음 질문입니다.','공감 없이 다음으로 넘어가면 심사받는 느낌을 줍니다.'],
+     ['x','그 정도면 전부 가입 가능하세요. 걱정 안 하셔도 돼요.','심사 전에 가입 가능하다고 단정하면 안 됩니다.']],
+  real:'건강 조건은 “할인을 많이 받으신다”는 말로 받아서 고객이 안심하고 이어 말하게 했습니다.'},
+ {st:'talk',c:'{주제} 쪽 보험이 하나 있긴 한데 얼마 나오는지는 잘 몰라요.',g:'기존 보험 한 질문 + 필요성 질문',
+  o:[['b','그럼 증권 보시고 금액이 얼마인지 한 번만 같이 확인해 드릴게요. 만약 {주제} 쪽으로 큰 비용이 생기면 지금 준비된 금액으로 충분하다고 느끼세요?','기존 보험은 한 가지만 묻고, 필요성은 질문으로 끌어냈습니다.'],
+     ['a','기존 보험은 다 말씀해 주세요. 보험사랑 금액이랑 가입 시기요.','한 번에 여러 개를 묻지 않습니다. 하나만 물으세요.'],
+     ['x','그 보험으로는 많이 부족해요. 새로 가입하셔야 해요.','확인 전에 부족하다고 단정하면 방어합니다.']],
+  real:'기존 보험은 “진단비가 얼마인지”처럼 한 가지만 확인하고 넘어갔습니다.'},
+ {st:'talk',c:'그래서 보험료가 얼마쯤 해요?',g:'가격을 일찍, 선택형 2안으로',
+  o:[['b','바로 말씀드릴게요. {월보험료 A안}과 {월보험료 B안} 두 가지로 보여드릴게요. 앞의 안은 {선택A}, 뒤의 안은 {선택B} 쪽이에요. 어느 쪽이 더 마음에 가세요?','가격을 피하지 않고 2안 선택형으로 보여줬습니다.'],
+     ['a','설계를 해봐야 알 수 있어요. 조금만 기다려 주세요.','가격을 미루면 신뢰가 떨어집니다. 대략적인 범위라도 먼저 말하세요.'],
+     ['x','보험료는 얼마 안 해요. 일단 가입부터 하세요.','근거 없는 말입니다. 구체적 금액을 말하세요.']],
+  real:'체결 콜은 모두 통화 초중반에 가격을 두 안으로 먼저 보여주었습니다.'},
+ {st:'talk',c:'지금 일하는 중이라 길게는 못 해요.',g:'카톡 제안서 발송 + 시간 확정',
+  o:[['b','그러시면 제가 제안서만 하나 먼저 카톡으로 보내드릴게요. 하시는 일은 어떻게 되세요? 일하시는 중간에 휴식 시간이 있으실 텐데, 오전이 편하세요, 오후가 편하세요?','제안서 발송 + 직업·휴식시간 질문 + 시간 선택형까지 한 번에 했습니다.'],
+     ['a','그럼 보시고 편할 때 연락 주세요.','시간이 정해지지 않으면 연락이 끊깁니다.'],
+     ['x','잠깐이면 돼요. 5분만 더 들어보세요.','일하는 고객을 붙잡으면 신뢰를 잃습니다.']],
+  real:'바쁘다는 고객에게는 제안서를 먼저 보내고, 쉬는 시간을 물어 재통화 시간을 정했습니다.'},
+ {st:'talk',c:'(재통화) 네, 카톡 봤어요.',g:'사전 심사 안내 (실제로 확인해 둔 경우에만)',
+  o:[['b','네 안녕하세요, 일전에 상담해 드렸던 {나}입니다. 통화 잠시 괜찮으세요? 말씀 주신 건강 내용으로 심사는 미리 받아서 승인된 걸 확인해 뒀어요. 건강 조건이 좋으셔서 할인을 많이 받으시고요. 그래서 오늘은 보내드린 제안서 내용만 같이 보시면 돼요.','결과가 있는 사실만 말해서 고객 부담을 줄였습니다.'],
+     ['a','제안서 어떠셨어요? 마음에 드는 부분 말씀해 주세요.','열린 질문은 좋지만, 심사 부담을 덜어주는 말이 먼저 필요합니다.'],
+     ['x','지난번에 말씀드린 대로 바로 가입 진행할게요.','내용 확인 없이 가입으로 가면 거절이 나옵니다.']],
+  real:'재통화는 “심사는 미리 확인해 뒀다”는 말로 시작해서 고객 부담을 낮추고 제안서로 바로 들어갔습니다.',
+  n:'사전 심사를 실제로 받아둔 경우에만 말합니다.'},
+ {st:'compare',c:'진단비 정도면 충분한 거 아니에요?',g:'비교 프레임 한 줄',
+  o:[['b','{프레임}','목적이 다른 두 가지를 짧게 구분해서 고객이 스스로 판단하게 했습니다.'],
+     ['a','아니에요, 훨씬 더 필요해요. 이 정도로는 부족해요.','반박하면 방어합니다. 구분을 설명하세요.'],
+     ['x','그렇게 생각하시면 나중에 후회하세요.','겁을 주는 말은 신뢰를 잃게 합니다.']],
+  real:'설명은 “처음 한 번 받는 돈과 이어서 쓰는 돈은 다르다” 같은 프레임 하나로 정리했습니다.'},
+ {st:'compare',c:'생각보다 비싸네요. 부담돼요.',g:'보험료 부담 → 대안 제시',
+  o:[['b','그럼 보장 내용은 두고 만기를 90세로 줄여서 보험료를 낮추는 안도 있어요. 보장 기간이 짧아지는 부분은 같이 보고 정하시면 돼요.','부담을 인정하고, 바뀌는 점까지 함께 말했습니다.'],
+     ['a','그럼 보장을 줄여 볼게요. 어떤 걸 뺄까요?','대안 안내 없이 고객에게 맡기면 판단이 어렵습니다. 안을 먼저 주세요.'],
+     ['x','다른 보험은 이보다 더 비싸요. 이게 제일 저렴해요.','비교 근거 없는 말입니다.']],
+  real:'보험료 부담이 나오면 만기나 구성을 조정한 대안을 바로 보여주었습니다.'},
+ {st:'compare',lv:'new',c:'다른 회사 거랑은 뭐가 달라요? 거기가 더 좋다던데요.',g:'타사 비교 요청: 한 가지 담보 가격만 비교',
+  o:[['b','네, 그 얘기 들으셨으면 비교해 보시는 게 맞아요. 한 가지 담보 가격만 먼저 나란히 놓고 볼게요. 그곳은 어떤 점이 좋다고 들으셨어요?','비교를 받아주고 범위를 한 가지로 좁히고 이유를 물었습니다.'],
+     ['a','저희가 더 좋고 가격도 더 쌉니다.','근거가 없으면 설득이 안 됩니다.'],
+     ['x','그 회사는 보험금 잘 안 줘요.','근거 없는 비방은 고객이 확인하면 신뢰를 잃습니다.']],
+  real:'타사 비교가 나오면 반박하지 않고 “한 가지 담보 가격만 비교”로 풀었습니다.'},
+ {st:'close',c:'{고객답2}',g:'확장은 “둘 다”가 아니라 “두 개 중 선택”',
+  o:[['b','네, {확장} 같이 볼 수 있어요. 다만 한 번에 다 하실 필요는 없고, 두 개 중에 먼저 하실 걸 고르세요. 나머지는 나중에 따로 하셔도 괜찮아요.','선택지를 두 개로 줄이고 나머지는 열어 뒀습니다.'],
+     ['a','네, 다 같이 하시면 더 좋아요.','범위가 커지면 부담으로 거절이 나옵니다.'],
+     ['x','그건 지금 안 하시면 안 돼요.','압박은 신뢰를 잃게 합니다.']],
+  real:'상품이 넓어지는 통화에서도 마지막은 “두 개 중 하나”였고, 나머지는 나중에 따로 하게 열어 두었습니다.'},
+ {st:'close',c:'나중에 보험금 청구하려면 어떻게 해요?',g:'청구 도움 약속',
+  o:[['b','청구는 서류 준비부터 접수까지 제가 옆에서 도와드릴게요. 혼자 하시기 어려울 때 연락 주시면 돼요. 서명이나 본인 인증은 {호칭}이 직접 하시고요.','도와줄 범위와 본인이 할 일을 분명히 했습니다.'],
+     ['a','청구는 보험사 앱에서 하시면 돼요.','틀린 말은 아니지만 안심이 부족합니다.'],
+     ['x','문제 생기면 제가 다 책임지겠습니다.','책임을 대신 지겠다는 말은 하지 않습니다.']],
+  real:'체결 직전 “청구는 제가 도와드려요”라는 말이 고객의 마지막 걱정을 풀었습니다.'},
+ {st:'close',c:'그럼 그걸로 할게요.',g:'결제 · 서명 · 녹취를 한 번에 안내',
+  o:[['b','감사합니다. 보험료는 {호칭} 본인 명의 계좌나 카드로 이체일 정하고, 문자로 가는 전자서명은 본인이 직접 해 주세요. 이어서 청약 확인 녹취가 한 번 있어요. 이체일은 월급일 직후가 편하세요, 지금 쓰시는 날짜가 편하세요?','결제·서명·녹취를 순서대로 알려서 중간에 막히지 않게 했습니다.'],
+     ['a','네, 문자 보내드릴 테니 서명해 주세요.','결제와 녹취 단계가 빠졌습니다. 미리 말하세요.'],
+     ['x','서명은 제가 도와드릴게요. 번호 알려주세요.','대리 서명은 안 됩니다.']],
+  real:'결제·전자서명·녹취는 모두 본인 직접 진행이었습니다.',
+  n:CLOSE_REAL_SIGN}
+ ]}
+],
+
+unclosed:[
+{id:'un1',title:'다시 전화 받은 고객 · 짧게 열고 이어가기',who:'미체결DB · 이전 상담이 끝까지 안 된 고객',
+ note:'미체결DB는 아직 실제 체결 통화 사례가 모이지 않았습니다. 현재 센터 스크립트의 흐름으로 만든 연습이며, 체결 사례가 모이면 교체합니다.',
+ flow:'이전 접촉 인정 → 새 가입이 아니라는 약속 → 지난번 불편했던 점 → 현황 두 가지 → 칭찬 먼저·빈 곳 → 하나만 선택 → 시간 확정',
+ turns:[
+ {st:'intro',c:'여보세요? 전에도 전화 왔었는데 또 전화예요?',g:'이전 접촉 인정 + 사과',
+  o:[['b','네, 앞서 저희 쪽에서 한 번 연락드린 걸로 확인돼요. 번거롭게 해드려 죄송합니다. 이번에는 필요한 것만 짧게 확인해 드릴게요. 지난번에는 어떤 점이 불편하셨어요?','이력을 인정하고 사과한 뒤 불편했던 점을 물었습니다.'],
+     ['a','네, 새로 담당이 바뀌어서 다시 연락드렸어요.','사과와 질문이 빠졌습니다.'],
+     ['x','아니에요, 처음 연락드리는 건데요.','이력이 있는데 부정하면 신뢰를 잃습니다.']],
+  real:'미체결 연락은 이전 접촉을 숨기지 않는 것이 첫 원칙입니다.'},
+ {st:'intro',c:'그때 다른 분이 다 얘기했는데요. 이미 끝난 거 아니에요?',g:'남은 부분만 이어서 한다',
+  o:[['b','네, 다른 분이 연락드렸을 수 있어요. 그때 상담이 끝까지 진행되지 않은 것으로 확인돼서, 안내받지 못한 부분만 이어서 확인해 드리려는 거예요. 새로 가입하시라는 전화는 아니에요.','지난 상담을 인정하고 “새 가입이 아니다”를 분명히 했습니다.'],
+     ['a','아, 그러셨군요. 그럼 이번에는 처음부터 다시 말씀드릴게요.','처음부터 반복하면 짜증이 커집니다.'],
+     ['x','그때 설명이 부족해서 다시 연락드렸어요.','전 담당자 탓처럼 들려서 반감이 생깁니다.']],
+  real:'미체결 도입은 짧게, 그리고 “새 가입 권유가 아니다”를 먼저 말했습니다.'},
+ {st:'talk',c:'그때 설명이 너무 어려워서 잘 모르겠더라고요.',g:'불편한 점을 풀고 두 가지만 묻기',
+  o:[['b','그러셨군요, 어렵게 설명드려서 죄송해요. 이번엔 쉽게 말씀드릴게요. 우선 지금 가입하신 보험사랑 월 보험료 두 가지만 알려주시겠어요?','공감 → 쉬운 약속 → 현황 두 가지만 질문했습니다.'],
+     ['a','쉽게 설명드릴게요. 가입하신 보험 내용 전부 알려주세요.','범위가 크면 부담입니다. 두 가지로 좁히세요.'],
+     ['x','제가 설명드리면 이해하실 거예요. 일단 들어보세요.','고객의 불편을 가볍게 넘기는 말입니다.']],
+  real:'지난번 불편이 풀리면 현황 질문에 훨씬 쉽게 답했습니다.'},
+ {st:'talk',c:'A보험사에 월 {월보험료} 정도 내요.',g:'칭찬 먼저 → 빈 곳 한 가지',
+  o:[['b','꾸준히 잘 유지하고 계세요. 하나만 더 여쭤볼게요. 이 보험에 진단비 쪽은 어느 정도로 되어 있는지 아세요? 비어 있는 부분이 있으면 하나만 짚어 드릴게요.','칭찬 먼저, 질문 하나, 빈 곳은 하나만 약속했습니다.'],
+     ['a','네, 알겠습니다. 다른 보험사는 없으세요?','다음 질문으로 넘어가기 전에 인정이 필요합니다.'],
+     ['x','그 보험은 보장이 약해서 바꾸셔야 해요.','근거 없이 바꾸라고 하면 방어합니다.']],
+  real:'미체결 고객도 “잘하고 계세요”를 먼저 말하면 현황을 열어 주었습니다.'},
+ {st:'compare',c:'그래서 제가 뭘 하면 돼요?',g:'하나만 제안 + 비교 약속',
+  o:[['b','지금 보험은 그대로 두시고, 비어 있는 부분 하나만 채우는 안을 보여드릴게요. 보험사 세 곳을 나란히 놓고 제가 추천하는 곳과 이유도 말씀드릴게요.','범위를 한 가지로 줄였습니다.'],
+     ['a','설계 보내드릴 테니 보시고 연락 주세요.','다음 약속이 없습니다.'],
+     ['x','이번에는 꼭 가입하셔야 합니다.','압박입니다. 선택은 고객이 합니다.']],
+  real:'제안은 “지금 것은 두고, 하나만”이라는 틀을 유지했습니다.'},
+ {st:'close',c:'한번 보내 보세요. 근데 지금 바빠요.',g:'발송 + 시간 확정',
+  o:[['b','정리된 내용은 카톡으로 바로 보내드릴게요. {시간선택} 그 시간에 다시 연락드려도 될까요?','발송과 시간 확정을 한 번에 했습니다.'],
+     ['a','네, 보내드릴게요. 보시고 연락 주세요.','시간이 없으면 연락이 끊깁니다.'],
+     ['x','그럼 지금 3분만 더 하시죠.','바쁜 고객을 붙잡으면 신뢰를 잃습니다.']],
+  real:'미체결 재통화는 시간 확정이 가장 중요했습니다.'}
+ ]}
+]
+};
+
+var PAT_STAGES={intro:'도입부',talk:'소통·질문',compare:'설계 후 비교·추천이유',close:'클로징'};
+/* ---------- 체결 콜 패턴 연습 ---------- */
+var PAT_PT={b:2,a:1,x:0};
+var PAT_LAB={b:'좋은 선택',a:'무난하지만 아쉬워요',x:'피하세요'};
+function patGroup(){var g=typeById(S.type).grp;return PAT[g]?g:'tv';}
+function patList(){return PAT[patGroup()];}
+function patScn(){var l=patList();for(var i=0;i<l.length;i++){if(l[i].id===S.pt.sid)return l[i];}return l[0];}
+function patTurns(sc){return sc.turns.filter(function(t){return !(S.level==='exp'&&t.lv==='new');});}
+function effSt(t){return (S.level==='exp'&&t.st==='compare')?'close':t.st;}
+function patNew(sid){S.pt={sid:sid,i:0,picks:[],order:[],view:'play',saved:false,mode:'read'};}
+function shuffle3(){var a=[0,1,2],i,j,t;for(i=2;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function patOrder(i){if(!S.pt.order[i])S.pt.order[i]=shuffle3();return S.pt.order[i];}
+function bestOf(t){for(var i=0;i<t.o.length;i++){if(t.o[i][0]==='b')return t.o[i];}return t.o[0];}
+function patPoints(turns){var p=0,i;for(i=0;i<turns.length;i++){var k=S.pt.picks[i];if(k!==undefined)p+=PAT_PT[turns[i].o[k][0]];}return p;}
+function patStats(){
+ var recs=store.pat||[],td=todayStr();
+ var today=recs.filter(function(r){return r.d===td;});
+ var avg=today.length?Math.round(today.reduce(function(a,r){return a+r.p/r.m*100;},0)/today.length):0;
+ var recent=recs.slice(-5).reverse().map(function(r){return '<li>'+esc(r.d)+' · '+esc(r.n)+' · '+Math.round(r.p/r.m*100)+'점</li>';}).join('');
+ return '<div class="stat"><div>오늘 연습 <b>'+today.length+'</b>회</div><div>오늘 평균 <b>'+(today.length?avg:'-')+'</b>점</div><div>누적 <b>'+recs.length+'</b>회</div></div>'+(recent?'<ul class="brief" style="margin-top:8px;font-size:13px;color:var(--muted)">'+recent+'</ul>':'');
+}
+function stageBar(cur,finished){
+ var steps=stepsFor(),ci=-1,i,h='<div class="flow">';
+ for(i=0;i<steps.length;i++){if(steps[i].k===cur)ci=i;}
+ for(i=0;i<steps.length;i++){
+  var cls=finished?'done':(i===ci?'on':(i<ci?'done':''));
+  h+='<button class="'+cls+'" tabindex="-1" style="cursor:default">'+(i+1)+'. '+esc(steps[i].n)+'</button>';
+ }
+ return h+'</div>';
+}
+function bestBox(t){
+ var b=bestOf(t),f=fill(b[1]);
+ return '<div class="line"><div class="b"><span class="lbl b3">모범 흐름</span><span class="ltxt">'+f.html+'</span></div>'+cpBtn(f.plain)+'</div>';
+}
+function flowHTML(sc,turns){
+ var steps=stepsFor(),h='<div class="qcard note"><div class="tag">이 통화의 흐름</div>'+esc(sc.flow)+'</div>';
+ steps.forEach(function(s){
+  var ts=turns.filter(function(t){return effSt(t)===s.k;});
+  if(!ts.length)return;
+  h+='<div class="ogrp" style="font-size:13.5px;color:var(--navy)">'+esc(s.n)+'</div>';
+  ts.forEach(function(t){
+   h+='<div class="qcard"><div class="tag">고객: '+fill(t.c).html+'</div><div class="cue" style="margin:2px 0 4px">목표 · '+fill(t.g).html+'</div>'+bestBox(t)+'<div class="cue" style="color:var(--mid)">실제 체결 콜에서는 · '+esc(t.real)+'</div></div>';
+  });
+ });
+ return h;
+}
+function renderPattern(){
+ var l=patList(),ok=false,i;
+ if(S.pt){for(i=0;i<l.length;i++){if(l[i].id===S.pt.sid)ok=true;}}
+ if(!ok)patNew(l[0].id);
+ var sc=patScn(),turns=patTurns(sc),p=S.pt,n=turns.length,fin=p.i>=n;
+ var cur=fin?null:effSt(turns[p.i]);
+ var h='<div class="card">';
+ if(l.length>1)h+='<div class="seg sub" style="margin-bottom:10px">'+l.map(function(x){return '<button class="'+(x.id===sc.id?'on':'')+'" data-act="scn" data-v="'+x.id+'">'+esc(x.title)+'</button>';}).join('')+'</div>';
+ else h+='<div class="note" style="margin:0 0 8px;font-size:14px">'+esc(sc.title)+'</div>';
+ if(sc.note)h+='<div class="qcard warn"><div class="tag">알아두기</div>'+esc(sc.note)+'</div>';
+ if(p.view==='flow'){
+  h+='<div class="nav" style="justify-content:flex-start;margin:0 0 10px"><button class="btn sec" data-act="pview">← 연습으로 돌아가기</button></div>'+flowHTML(sc,turns);
+ }else if(p.mode==='read'){
+  var rt=turns[p.i],rn=turns.length,rb=bestOf(rt),rf=fill(rb[1]);
+  h+='<div class="prog"><div class="tx">따라 읽기 · '+esc(PAT_STAGES[effSt(rt)])+' · '+(p.i+1)+' / '+rn+'</div><div class="bar"><i style="width:'+Math.round(p.i/rn*100)+'%"></i></div></div>';
+  h+='<div class="note" style="margin:12px 0 4px">고객이 이렇게 말합니다</div><div class="pbub">“'+fill(rt.c).html+'”</div>';
+  h+='<div class="note" style="margin:12px 0 4px">이렇게 대답합니다 (소리 내어 읽어 보세요)</div>';
+  h+='<div class="line"><div class="b"><span class="lbl b3">모범 대답</span><span class="ltxt">'+rf.html+'</span></div>'+cpBtn(rf.plain)+'</div>';
+  h+='<div class="qcard note"><div class="tag">이 말을 하는 이유</div>'+esc(rb[2])+'</div>';
+  if(rt.n)h+='<div class="cue w" style="margin-top:6px">'+esc(rt.n)+'</div>';
+  h+='<div class="qcard note"><div class="tag">실제 체결 콜에서는</div>'+esc(rt.real)+'</div>';
+  h+='<div class="nav"><button class="btn sec" data-act="rprev" '+(p.i===0?'disabled':'')+'>← 이전</button>'+(p.i+1<rn?'<button class="btn" data-act="rnext">다음 →</button>':'<button class="btn" data-act="rquiz">연습해 보기 →</button>')+'</div>';
+  if(p.i+1<rn)h+='<div class="nav" style="justify-content:flex-start;margin-top:4px"><button class="btn sec" data-act="rquiz">바로 연습해 보기</button></div>';
+ }else if(!fin){
+  var t=turns[p.i],picked=p.picks[p.i],ord=patOrder(p.i);
+  h+='<div class="prog"><div class="tx">'+esc(PAT_STAGES[cur])+' · '+(p.i+1)+' / '+n+'</div><div class="bar"><i style="width:'+Math.round(p.i/n*100)+'%"></i></div></div>';
+  h+='<div class="note" style="margin:12px 0 4px">고객이 이렇게 말합니다</div>';
+  h+='<div class="pbub">“'+fill(t.c).html+'”</div>';
+  h+='<div class="note" style="margin:12px 0 4px">어떤 말이 좋을까요? (하나를 눌러 보세요)</div>'+(p.i===0&&picked===undefined?'<div class="cue w" style="margin:0 0 6px">연습용이라 보기 중에는 일부러 <b>틀린 말</b>도 섞여 있습니다. 실제 통화 멘트가 아닙니다.</div>':'')+'<div class="popts">';
+  ord.forEach(function(oi,pos){
+   var o=t.o[oi],cls='popt';
+   if(picked!==undefined)cls+=(oi===picked?' sel':'')+' '+o[0];
+   h+='<button class="'+cls+'" data-act="pick" data-v="'+oi+'" '+(picked!==undefined?'disabled':'')+'><span class="pn">'+(pos+1)+'</span><span>'+fill(o[1]).html+'</span></button>';
+  });
+  h+='</div>';
+  if(picked!==undefined){
+   var po=t.o[picked];
+   h+='<div class="pfb '+po[0]+'" id="pfb"><b>'+esc(PAT_LAB[po[0]])+'</b> · '+esc(po[2])+'</div>';
+   if(po[0]!=='b')h+=bestBox(t);
+   if(t.n)h+='<div class="cue w" style="margin-top:6px">'+esc(t.n)+'</div>';
+   h+='<div class="qcard note"><div class="tag">실제 체결 콜에서는</div>'+esc(t.real)+'</div>';
+   h+='<div class="nav"><button class="btn sec" data-act="pview">흐름 보기</button><button class="btn" data-act="pnext">'+(p.i+1>=n?'결과 보기 →':'다음 →')+'</button></div>';
+  }else{
+   h+='<div class="nav"><button class="btn sec" data-act="pview">이 통화의 흐름 먼저 보기</button><span></span></div>';
+  }
+ }else{
+  var pts=patPoints(turns),mx=n*2,pct=Math.round(pts/mx*100);
+  var good=turns.filter(function(tt,ix){return tt.o[p.picks[ix]][0]==='b';}).length;
+  h+='<div class="pbub" style="text-align:center"><div style="font-size:.9rem;color:var(--muted)">이번 연습</div><div style="font-size:2.4rem;font-weight:800;color:var(--navy)">'+pct+'점</div><div style="font-size:1rem">'+n+'번 중 좋은 선택 '+good+'번</div></div>';
+  var weak=turns.filter(function(tt,ix){return tt.o[p.picks[ix]][0]!=='b';});
+  if(weak.length){
+   h+='<div class="lab" style="margin-top:14px">다시 보면 좋은 순간</div>';
+   weak.forEach(function(tt){h+='<div class="qcard"><div class="tag">고객: '+fill(tt.c).html+'</div>'+bestBox(tt)+'</div>';});
+  }
+  h+='<div class="nav"><button class="btn sec" data-act="pview">흐름 보기</button><button class="btn" data-act="pagain">다시 하기</button></div>';
+ }
+ h+='</div>';
+ $('main').innerHTML=h;
+ if(p.view!=='flow'&&!fin&&p.picks[p.i]!==undefined){var fb=$('pfb');if(fb&&fb.scrollIntoView)fb.scrollIntoView({block:'nearest'});}
+}
+
+/* ---------- 화면 ---------- */
+function curName(){var t=typeById(S.type);return t.grp==='ad'?t.name:t.name;}
+function topbar(){
+ var h='';
+ if(S.screen!=='home')h+='<button class="tb" data-act="back">← 뒤로</button><button class="tb" data-act="home">처음으로</button>';
+ if(S.screen!=='home'&&S.screen!=='product')h+='<span class="chip">'+esc(curName())+'</span>';
+ h+='<span class="sp"></span>';
+ if(S.screen==='call')h+='<button class="tb '+(S.level==='exp'?'on':'')+'" data-act="lvl">요약만 보기</button>';
+ h+='<button class="tb '+(S.big?'on':'')+'" data-act="big">글씨 크게</button>';
+ $('topbar').innerHTML=h;
+ document.body.classList.toggle('big',S.big);
+ $('infobox').classList.toggle('hide',['call','pattern','objp'].indexOf(S.screen)<0);
+}
+function bigCards(list,act){
+ return '<div class="bigcards">'+list.map(function(x){return '<button class="bc" data-act="'+act+'" data-v="'+x[0]+'"><b>'+esc(x[1])+'</b><span>'+esc(x[2])+'</span></button>';}).join('')+'</div>';
+}
+function renderScreen(){
+ var h='',sc=S.screen,t=typeById(S.type);
+ if(sc==='home'){
+  h='<div class="hq">어떤 고객과 통화하시나요?</div><div class="hs">고객이 들어온 경로를 하나 눌러 주세요.</div>'+bigCards(HOME,'type');
+ }else if(sc==='product'){
+  h='<div class="hq">어떤 상품 문의인가요?</div><div class="hs">상품만 다르고 통화 흐름은 같습니다.</div>'+bigCards(AD_SUB,'type');
+ }else if(sc==='mode'){
+  h='<div class="hq">무엇을 하시겠어요?</div><div class="trait" style="margin-bottom:12px">'+t.trait+'</div><div class="bigcards"><button class="bc dark" data-act="go" data-v="call"><b>📞 통화하기</b><span>지금 할 말을 순서대로 보면서 통화합니다</span></button><button class="bc" data-act="go" data-v="pmenu"><b>🎯 연습하기</b><span>체결된 통화의 흐름을 따라가며 연습합니다</span></button></div>';
+ }else if(sc==='pmenu'){
+  h='<div class="hq">어떤 연습을 할까요?</div><div class="hs">처음이시면 왼쪽부터 해 보세요.</div><div class="bigcards"><button class="bc dark" data-act="go" data-v="pattern"><b>체결 통화 따라가기</b><span>먼저 모범 대화를 읽고, 이어서 어떤 말이 좋은지 골라 보는 연습을 합니다</span></button><button class="bc" data-act="go" data-v="objp"><b>반론 연습</b><span>“필요 없어요” 같은 거절에 대답하는 연습을 합니다</span></button></div>';
+ }
+ if(h){$('main').innerHTML=h;return;}
+ if(sc==='call')renderCall();
+ else if(sc==='pattern')renderPattern();
+ else renderPractice();
+}
+function renderCall(){
+ var t=typeById(S.type),steps=stepsFor();
+ if(S.step>=steps.length)S.step=steps.length-1;
+ var st=steps[S.step],h='<div class="card"><div class="callhead"><div class="prog"><div class="tx">'+(S.step+1)+'. '+esc(st.n)+' <span style="font-weight:400;color:var(--muted)">('+(S.step+1)+' / '+steps.length+')</span></div><div class="bar"><i style="width:'+Math.round((S.step+1)/steps.length*100)+'%"></i></div></div></div>';
+ h+=stepBody(t,st);
+ h+='<div class="nav"><button class="btn sec" data-act="prev" '+(S.step===0?'disabled':'')+'>← 이전</button><button class="btn" data-act="next" '+(S.step===steps.length-1?'disabled':'')+'>다음 →</button></div></div>';
+ h+='<button class="btn objbtn" data-act="sheet">💬 고객이 이렇게 말하면?</button>';
+ if(S.sheet)h+='<div class="sheetbg" data-act="sheetclose"></div><div class="sheet"><div class="sheethead"><b style="font-size:1.1rem;color:var(--navy)">고객이 이렇게 말하면</b><button class="btn sec" style="padding:8px 14px" data-act="sheetclose">닫기</button></div>'+objPanel(t)+'</div>';
+ $('main').innerHTML=h;
+}
+/* ---------- 렌더 & 이벤트 ---------- */
+function render(){topbar();renderScreen();}
+function setStore(){lsSet(store);}
+function goBack(){
+ var sc=S.screen,t=typeById(S.type);
+ if(sc==='pattern'||sc==='objp')S.screen='pmenu';
+ else if(sc==='call'||sc==='pmenu')S.screen='mode';
+ else if(sc==='mode')S.screen=(t.grp==='ad')?'product':'home';
+ else S.screen='home';
+ S.sheet=false;S.obj=null;
+}
+document.addEventListener('click',function(ev){
+ var el=ev.target;
+ while(el&&el!==document&&!(el.getAttribute&&el.getAttribute('data-act')))el=el.parentNode;
+ if(!el||el===document)return;
+ var act=el.getAttribute('data-act'),v=el.getAttribute('data-v');
+ if(act==='type'){
+  if(v==='ad'){S.type=lastAd;S.screen='product';}
+  else{S.type=v;if(typeById(v).grp==='ad')lastAd=v;S.screen='mode';}
+  S.step=0;S.obj=null;S.pr.obj=null;S.pt=null;S.sheet=false;render();
+ }
+ else if(act==='go'){
+  S.screen=v;S.step=0;S.obj=null;S.sheet=false;S.pt=null;S.pr.obj=null;
+  if(v==='pattern')S.level='new';
+  render();
+ }
+ else if(act==='back'){goBack();render();}
+ else if(act==='home'){S.screen='home';S.sheet=false;S.obj=null;render();}
+ else if(act==='lvl'){S.level=(S.level==='exp')?'new':'exp';S.step=0;render();}
+ else if(act==='big'){S.big=!S.big;render();}
+ else if(act==='prev'){if(S.step>0){S.step--;renderCall();window.scrollTo(0,0);}}
+ else if(act==='next'){if(S.step<stepsFor().length-1){S.step++;renderCall();window.scrollTo(0,0);}}
+ else if(act==='sheet'){S.sheet=true;renderCall();}
+ else if(act==='sheetclose'){S.sheet=false;S.obj=null;renderCall();}
+ else if(act==='obj'){
+  S.obj=(S.obj===v)?null:v;
+  var old=document.querySelector('.sheet'),top=old?old.scrollTop:0;
+  renderCall();
+  var nw=document.querySelector('.sheet');
+  if(nw){nw.scrollTop=top;var d=nw.querySelector('.odet');if(d&&S.obj&&d.scrollIntoView)d.scrollIntoView({block:'nearest',behavior:'smooth'});}
+ }
+ else if(act==='copy'){
+  var txt=COPY[parseInt(el.getAttribute('data-i'),10)]||'';
+  var done=function(){el.classList.add('done');el.textContent='복사됨';setTimeout(function(){el.classList.remove('done');el.textContent='복사';},1200);};
+  try{
+   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done,function(){fallbackCopy(txt,done);});}
+   else fallbackCopy(txt,done);
+  }catch(e){fallbackCopy(txt,done);}
+ }
+ else if(act==='savemine'){
+  var ta=$('mine_'+v);if(ta){var val=ta.value.trim();if(val)store.mine[v]=val;else delete store.mine[v];setStore();el.textContent='저장됨 ✓';setTimeout(function(){el.textContent='저장';},1200);}
+ }
+ else if(act==='newq'){newQuestion();renderPractice();}
+ else if(act==='reveal'){var a=$('pr_ans');if(a)S.pr.answer=a.value;S.pr.revealed=true;renderPractice();}
+ else if(act==='chk'){S.pr.checks[parseInt(v,10)]=el.checked;renderPractice();}
+ else if(act==='follow'){var a2=$('pr_ans');if(a2)S.pr.answer=a2.value;S.pr.follow=true;renderPractice();}
+ else if(act==='savemy'){var a3=$('pr_ans');if(a3)S.pr.answer=a3.value;if(S.pr.answer.trim()){store.mine[S.pr.obj]=S.pr.answer.trim();setStore();S.pr.saved=true;renderPractice();}}
+ else if(act==='done'){
+  var a4=$('pr_ans');if(a4)S.pr.answer=a4.value;
+  var sc=S.pr.checks.filter(function(x){return x;}).length;
+  store.recs.push({d:todayStr(),t:S.type,o:S.pr.obj,s:sc});
+  if(store.recs.length>300)store.recs=store.recs.slice(-300);
+  setStore();newQuestion();renderPractice();
+ }
+ else if(act==='resetrec'){store.recs=[];setStore();renderPractice();}
+ else if(act==='scn'){patNew(v);renderPattern();}
+ else if(act==='pview'){if(S.pt){S.pt.view=(S.pt.view==='flow')?'play':'flow';renderPattern();}}
+ else if(act==='pagain'){if(S.pt){patNew(S.pt.sid);S.pt.mode='quiz';renderPattern();}}
+ else if(act==='pick'){var pi=S.pt.i;if(S.pt.picks[pi]===undefined){S.pt.picks[pi]=parseInt(v,10);renderPattern();}}
+ else if(act==='rnext'){if(S.pt){S.pt.i++;renderPattern();window.scrollTo(0,0);}}
+ else if(act==='rprev'){if(S.pt&&S.pt.i>0){S.pt.i--;renderPattern();window.scrollTo(0,0);}}
+ else if(act==='rquiz'){if(S.pt){S.pt.mode='quiz';S.pt.i=0;S.pt.picks=[];S.pt.order=[];S.pt.saved=false;renderPattern();window.scrollTo(0,0);}}
+ else if(act==='pnext'){
+  var sc2=patScn(),tr2=patTurns(sc2);
+  S.pt.i++;
+  if(S.pt.i>=tr2.length&&!S.pt.saved){
+   store.pat.push({d:todayStr(),n:typeById(S.type).name+' · '+sc2.title,p:patPoints(tr2),m:tr2.length*2});
+   if(store.pat.length>200)store.pat=store.pat.slice(-200);
+   S.pt.saved=true;setStore();
+  }
+  renderPattern();window.scrollTo(0,0);
+ }
+});
+function fallbackCopy(txt,done){
+ try{var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done();}catch(e){}
+}
+function refresh(){
+ if(S.screen==='call')renderCall();
+ else if(S.screen==='pattern')renderPattern();
+ else if(S.screen==='objp'&&S.pr.revealed)renderPractice();
+}
+function bindInput(id,key,persist){
+ var el=$(id);if(!el)return;
+ el.addEventListener('input',function(){
+  S[key]=el.value;
+  if(persist){store[persist]=el.value;setStore();}
+  refresh();
+ });
+}
+$('in_honor').value=S.honor;
+$('in_me').value=S.me;
+bindInput('in_cust','cust');
+bindInput('in_me','me','me');
+bindInput('in_prem','prem');
+bindInput('in_birth','birth');
+$('in_honor').addEventListener('change',function(){S.honor=$('in_honor').value;store.honor=S.honor;setStore();refresh();});
+
+render();
+})();
+</script>
+</body>
+</html>
