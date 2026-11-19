@@ -896,7 +896,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   <div class="sg" data-group="edu">
     <button class="sg-head" onclick="toggleSideGroup('edu')"><span>🎓 교육·콜</span><span class="arr">▼</span></button>
     <div class="sg-items">
-      <button class="tabbtn" data-tab="rebuttal" data-members="rebuttal,practice,unclosed" onclick="switchTab('rebuttal')">💬 스크립트</button>
+      <button class="tabbtn" data-tab="callhelper" data-members="callhelper" onclick="switchTab('callhelper')">💬 스크립트</button>
       <button class="tabbtn" data-tab="rapport" onclick="switchTab('rapport')">🤝 라포 브리핑</button>
     </div>
   </div>
@@ -2228,6 +2228,13 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   </div>
 </div>
 
+<!-- ===== 통화 도우미 (💬 스크립트, call-helper.html 을 화면 안에 끼워 넣음. 예전 '나는 이렇게 반론했어요'·'반론대처 연습'·'미체결DB스크립트' 화면은 아래에 코드만 남겨 두고 메뉴에서는 뺌) ===== -->
+<div class="panel" id="panel-callhelper">
+  <div class="card" style="padding:0;overflow:hidden;">
+    <iframe id="callhelperFrame" title="통화 도우미" style="width:100%;height:calc(100vh - 100px);min-height:720px;border:none;display:block;background:#F2F4F7;"></iframe>
+  </div>
+</div>
+
 <!-- ===== 미체결DB스크립트 (스크립트 묶음, unclosed-db-script.html 을 화면 안에 끼워 넣음) ===== -->
 <div class="panel" id="panel-unclosed">
   <div class="card" style="padding:0;overflow:hidden;">
@@ -2567,6 +2574,10 @@ function pdfeditSync(name){
   var f = document.getElementById('pdfeditFrame');
   if (f && name === 'pdfedit' && f.dataset.on !== '1') { f.src = 'pdf-editor.html'; f.dataset.on = '1'; }
 }
+function callhelperSync(name){
+  var f = document.getElementById('callhelperFrame');
+  if (f && name === 'callhelper' && f.dataset.on !== '1') { f.src = 'call-helper.html'; f.dataset.on = '1'; }
+}
 function unclosedSync(name){
   var f = document.getElementById('unclosedFrame');
   if (f && name === 'unclosed' && f.dataset.on !== '1') { f.src = 'unclosed-db-script.html'; f.dataset.on = '1'; }
@@ -2666,7 +2677,6 @@ function toggleSideMenu(force) {
 const TAB_GROUPS = [
   [['underwriting', '🔍 인수기준 검색'], ['kcd', '🩺 질병분류코드 검색'], ['surgery', '🏥 수술등급 검색']],
   [['cancertl', '💸 암치료비 타임라인'], ['hospmap', '🗺️ 전국 종합병원 지도']],
-  [['rebuttal', '💬 나는 이렇게 반론했어요'], ['practice', '🎯 반론대처 연습'], ['unclosed', '📞 미체결DB스크립트']],
   [['issues', '📌 이슈/마감일정'], ['newsscrap', '📰 기사 스크랩']]
 ];
 function renderSubTabs(name) {
@@ -2696,6 +2706,7 @@ function switchTab(name) {
   pdfeditSync(name);
   onboardSync(name);
   unclosedSync(name);
+  callhelperSync(name);
   if (name === 'underwriting' && window.uxiSync) window.uxiSync();
   if (name === 'underwriting') {
     const gv = document.getElementById('uwmode-guide');
