@@ -877,7 +877,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="tabbtn" data-tab="performance" onclick="switchTab('performance')">📊 실적현황표</button>
       <button class="tabbtn" data-tab="race" onclick="switchTab('race')">🏁 목표달성 레이스</button>
       <button class="tabbtn" data-tab="dbmgmt" onclick="switchTab('dbmgmt')">🗃️ DB관리</button>
-      <button class="tabbtn" data-tab="claimform" onclick="switchTab('claimform')">📎 보험사메뉴얼</button>
+      <button class="tabbtn" data-tab="claimform" onclick="switchTab('claimform')">📎 보험사메뉴얼(청구서류포함)</button>
     </div>
   </div>
   <div class="sg" data-group="tools">
@@ -1097,7 +1097,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 <!-- ===== 보험사연락처 ===== -->
 <div class="panel" id="panel-insurer">
   <div class="card">
-    <div class="sub"><b>📞 보험사 비상연락망</b> — 보험사별 담당자 연락처 · 수정하면 팀장님들 모두 최신 내용을 보게 됩니다. (고객센터·완전판매 인콜 번호는 <b>📎 보험사메뉴얼</b> 탭의 보험사 카드에 있어요.)</div>
+    <div class="sub"><b>📞 보험사 비상연락망</b> — 보험사별 담당자 연락처 · 수정하면 팀장님들 모두 최신 내용을 보게 됩니다. (고객센터·완전판매 인콜 번호는 <b>📎 보험사메뉴얼(청구서류포함)</b> 탭의 보험사 카드에 있어요.)</div>
     <div class="row">
       <div><label>보험사명</label><input type="text" id="i_name" placeholder="예: 흥국화재"></div>
       <div><label>담당업무</label><input type="text" id="i_role" placeholder="예: 청약/보전/보상"></div>
@@ -2249,7 +2249,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 <!-- ===== 보험사메뉴얼 (예전 이름 보험금청구서류: 보험사별 연락처·결제 방법·청구서 양식) ===== -->
 <div class="panel" id="panel-claimform">
   <div class="card" style="padding:14px 18px;">
-    <b style="font-size:16px;">📎 보험사메뉴얼</b>
+    <b style="font-size:16px;">📎 보험사메뉴얼(청구서류포함)</b>
     <span class="sub" style="margin:0 0 0 8px;">보험사 카드에서 고객센터·완전판매 인콜 번호, 결제 방법, PC접속(설계사)을 바로 볼 수 있고, 카드를 누르면 청구서 양식이 나와요. 올리기·삭제·정보 입력은 마스터만 할 수 있어요.</span>
   </div>
   <div id="cf_setup"></div>
