@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>신입교육 진도</title>
+<style>
+  :root{--navy:#16233F;--paper:#F3F1EC;--line:#D9D5CA;--ink:#1B1B1B;--muted:#6B6558;--green:#3C6E52;--green-bg:#E7EFE9;--amber:#B8863B;--amber-bg:#F5EBDA;--red:#A23B32;--red-bg:#F4E4E1;--card:#fff;--indigo:#4F46E5}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;font-size:14px}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+  h2{font-size:15px;margin:0 0 10px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  input[type=text],input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;font-family:inherit;background:#fff}
+  button{font-family:inherit;font-size:13px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--ink)}
+  button:hover{background:#F6F4EE}
+  button.pri{background:var(--navy);color:#fff;border-color:var(--navy)}
+  button.pri:hover{background:#22345D}
+  button.dng{color:var(--red);border-color:#E3BDB8}
+  .muted{color:var(--muted);font-size:12px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:13px}
+  .chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .chip .pc{font-size:11px;opacity:.8;margin-left:4px}
+  .bar{height:10px;background:#E8E4D8;border-radius:6px;overflow:hidden;min-width:70px}
+  .bar>i{display:block;height:100%;background:var(--green)}
+  .big{font-size:26px;font-weight:800}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .stat{flex:1;min-width:130px;background:#FBFAF6;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .stat .l{font-size:12px;color:var(--muted)}
+  table{border-collapse:collapse;width:100%}
+  th,td{border:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:middle;font-size:13px}
+  th{background:#F4F1E8;font-weight:700}
+  td.c,th.c{text-align:center}
+  .scroll{overflow-x:auto}
+  .day{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;overflow:hidden}
+  .day-h{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#F8F6EF;cursor:pointer;flex-wrap:wrap}
+  .day-h b{min-width:50px}
+  .day-h .bar{flex:1;max-width:220px}
+  .day-b{padding:4px 12px 10px;display:none}
+  .day.open .day-b{display:block}
+  .item{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}
+  .item:last-child{border-bottom:none}
+  .item .t{flex:1;line-height:1.4}
+  .seg{display:flex;gap:4px;flex-shrink:0}
+  .seg button{padding:6px 10px;font-size:12px}
+  .seg button.done.on{background:var(--green);color:#fff;border-color:var(--green)}
+  .seg button.more.on{background:var(--amber);color:#fff;border-color:var(--amber)}
+  .tag-more{background:var(--amber-bg);color:#7A5A1F;border-radius:4px;padding:1px 6px;font-size:12px}
+  .tag-done{background:var(--green-bg);color:var(--green);border-radius:4px;padding:1px 6px;font-size:12px}
+  .warn{background:var(--red-bg);border:1px solid #E3BDB8;color:var(--red);padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:13px;display:none}
+  textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:13px;resize:vertical}
+  ul.more{margin:6px 0 0;padding-left:18px}
+  ul.more li{margin:3px 0;line-height:1.4}
+  @media (max-width:640px){.item{flex-direction:column;align-items:flex-start}.wrap{padding:10px}}
+  @media print{.noprint{display:none!important}.day-b{display:block!important}body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="warn" id="storeWarn">이 브라우저에서는 저장이 되지 않아요(시크릿 모드 등). 기록이 사라질 수 있으니 일반 창에서 열어 주세요.</div>
+
+  <div class="card noprint">
+    <h2>👤 신입 등록</h2>
+    <div class="row">
+      <input type="text" id="newName" placeholder="신입 팀장 이름" maxlength="20" style="width:180px">
+      <input type="date" id="newStart" title="교육 시작일">
+      <button class="pri" id="btnAdd">등록</button>
+      <span class="muted">시작일은 비워 둬도 돼요.</span>
+    </div>
+    <div class="chips" id="chips" style="margin-top:10px"></div>
+  </div>
+
+  <div id="empty" class="card muted" style="display:none">아직 등록된 신입이 없어요. 위에서 이름을 등록해 주세요.</div>
+
+  <div id="main" style="display:none">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0" id="who"></h2>
+        <div class="row noprint">
+          <button id="btnRename">이름·시작일 수정</button>
+          <button class="dng" id="btnDel">삭제</button>
+        </div>
+      </div>
+      <div class="stats" style="margin-top:10px" id="stats"></div>
+      <div class="bar" style="height:14px"><i id="totBar" style="width:0"></i></div>
+    </div>
+
+    <div class="card">
+      <h2>📊 일차별 진도율</h2>
+      <div class="scroll"><table id="progTable"></table></div>
+    </div>
+
+    <div class="card">
+      <h2>🔁 더 연습해야 할 항목</h2>
+      <div id="moreList"></div>
+    </div>
+
+    <div class="card">
+      <div class="row noprint" style="justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">✅ 일차별 체크</h2>
+        <div class="row"><button id="btnOpenAll">모두 펼치기</button><button id="btnCloseAll">모두 접기</button></div>
+      </div>
+      <div class="muted" style="margin-bottom:8px">항목마다 <b>완료</b> 또는 <b>더 연습</b>을 누르세요. 같은 버튼을 다시 누르면 해제됩니다. 통과 기준은 센터가 정합니다.</div>
+      <div id="days"></div>
+    </div>
+
+    <div class="card">
+      <h2>📝 메모</h2>
+      <textarea id="memo" rows="3" placeholder="이 신입에 대한 메모 (예: 다음 면담 때 확인할 것)"></textarea>
+    </div>
+  </div>
+
+  <div class="card noprint">
+    <h2>💾 백업</h2>
+    <div class="muted" style="margin-bottom:8px">신입 이름과 체크 기록은 이 PC의 이 브라우저에만 저장되고 서버에는 올라가지 않아요. 가끔 백업 파일로 보관하고, 다른 PC로 옮길 때는 불러오기를 쓰세요.</div>
+    <div class="row">
+      <button id="btnExport">백업 파일 저장</button>
+      <button id="btnImport">백업 파일 불러오기</button>
+      <button id="btnPrint">🖨 인쇄</button>
+      <input type="file" id="fileIn" accept=".json,application/json" style="display:none">
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var KEY = 'afg_training_v1';
+  var DAYS = [
+    ['1일차','보험 기초 · 판매 규칙',['금소법 6대 판매원칙을 내 말로 설명할 수 있다','제재(과태료·위법계약해지·청약철회)를 설명할 수 있다','보험나이·지정대리청구인·갱신/비갱신을 1분씩 설명한다','면책·부책, 면책기간 vs 감액기간을 설명한다','실손 vs 정액, CI/GI/유니버셜 차이를 말한다']],
+    ['2일차','보험이 필요한 이유 ① 가족력·암',['가족력과 영향이 큰 질환을 책 기준으로 설명한다','건강검진 결과 읽기·보험금 과세·가족 범위를 안다','암보험이 필요한 이유를 3분 설명한다(생존율·치료비·신약)','"보험이 왜 필요한가요?" 3분 설명을 녹음 후 다시 했다']],
+    ['3일차','보험이 필요한 이유 ② 뇌·심·후유장해·치매간병',['심장·뇌혈관질환 특약 보장범위를 구분해 설명한다','후유장해·장해분류표를 설명할 수 있다','치매·간병(CDR·장기요양)을 설명할 수 있다','담보 지도를 한 장으로 그릴 수 있다','중간점검 ① 5분 설명 테스트를 통과했다']],
+    ['4일차','콜연습 ① 필요성 설명',['콜 기본 4단계를 순서대로 말할 수 있다','내 말투로 필요성 멘트 3가지(가족력·암·뇌심)를 만들었다','도입 10초 안에 회사·이름·목적을 말한다','"이미 있어요/필요 없어요/바빠요"에 응대한다','단정 표현(무조건·반드시) 없이 통화한다']],
+    ['5일차','보장분석 ① 결과지·실손',['결과지를 순서대로 읽을 수 있다','실손 1~4세대 차이를 한 문장으로 말한다','4세대 실손 핵심 5가지를 말한다','실손 전환 설명 시 불리한 점도 함께 말한다','보장분석 3분 설명을 했다']],
+    ['6일차','보장분석 ② 유병자·설명 콜',['간편심사 고지 질문 구조를 설명한다','병력을 고객 말 그대로 정확히 받아 적는다','보장분석 설명 콜 5단계로 통화한다','사례 A(보장 부족) 롤플레이를 했다','사례 B(병력 있음) 롤플레이를 했다 · 중간점검 ② 통과']],
+    ['7일차','DB유형별 콜 ① TV광고·퍼미션',['DB 유형(TV·퍼미션·상품광고)을 구분한다','도입 멘트 4칸 구조를 지켜 말한다','"어떻게 연락했어요?"에 침착하게 답한다','TV광고 DB 롤플레이를 했다','퍼미션 DB 롤플레이를 했다']],
+    ['8일차','DB유형별 콜 ② 상품광고·반론',['상품광고 DB 콜 흐름 5단계를 말한다','암·운전자·치매간병 설명 포인트를 말한다','상품별 특화 반론에 대응한다','거절·반론 대처 5원칙을 지킨다','상품광고 롤플레이(랜덤 플랜)를 했다']],
+    ['9일차','종합 롤플레이 · 어센틱 전산',['TM 판매절차 5단계를 설명한다','상담현황 필터·목록을 읽을 수 있다','고객 상세에서 상담상태·메모를 입력하고 저장한다','다음 약속을 상담예약일시에 입력한다','계약접수 항목을 연습용 데이터로 입력했다']],
+    ['10일차','보험사 전산 · 수수료·환수 · 수료',['메리츠 가입설계 순서 6단계를 말한다','사전조회 동의 → 설계 → 심사요청 → 서식출력을 실습했다','기본수수료·시책 구성을 설명한다','환수 규정(회차별 환수율)을 설명한다','수료 점검(설명·보장분석·모의콜·전산 입력)을 마쳤다']]
+  ];
+  var TOTAL = 0; DAYS.forEach(function(d){ TOTAL += d[2].length; });
+
+  var state = { trainees: [], sel: null, open: {} };
+  var storeOk = true;
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function uid(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function load(){
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var o = JSON.parse(raw);
+        if (o && Array.isArray(o.trainees)) { state.trainees = o.trainees.map(normalize); state.sel = o.sel || null; }
+      }
+    } catch (e) { storeOk = false; }
+    if (!state.trainees.some(function(t){ return t.id === state.sel; })) state.sel = state.trainees.length ? state.trainees[0].id : null;
+  }
+  function normalize(t){
+    return { id: String(t.id || uid()), name: String(t.name || ''), start: String(t.start || ''), memo: String(t.memo || ''), marks: (t.marks && typeof t.marks === 'object') ? t.marks : {} };
+  }
+  function save(){
+    try { localStorage.setItem(KEY, JSON.stringify({ trainees: state.trainees, sel: state.sel })); storeOk = true; }
+    catch (e) { storeOk = false; }
+    $('storeWarn').style.display = storeOk ? 'none' : 'block';
+  }
+  function cur(){ for (var i = 0; i < state.trainees.length; i++) if (state.trainees[i].id === state.sel) return state.trainees[i]; return null; }
+  function mk(di, ii){ return 'd' + (di + 1) + '_' + ii; }
+
+  function dayStat(t, di){
+    var n = DAYS[di][2].length, done = 0, more = 0;
+    for (var i = 0; i < n; i++) { var v = t.marks[mk(di, i)]; if (v === 'done') done++; else if (v === 'more') more++; }
+    return { n: n, done: done, more: more, pct: Math.round(done / n * 100) };
+  }
+  function totStat(t){
+    var done = 0, more = 0;
+    for (var d = 0; d < DAYS.length; d++) { var s = dayStat(t, d); done += s.done; more += s.more; }
+    return { done: done, more: more, left: TOTAL - done - more, pct: Math.round(done / TOTAL * 100) };
+  }
+
+  function renderChips(){
+    $('chips').innerHTML = state.trainees.map(function(t){
+      return '<span class="chip' + (t.id === state.sel ? ' on' : '') + '" data-sel="' + esc(t.id) + '">' + esc(t.name) + '<span class="pc">' + totStat(t).pct + '%</span></span>';
+    }).join('');
+  }
+  function render(){
+    renderChips();
+    var t = cur();
+    $('empty').style.display = t ? 'none' : (state.trainees.length ? 'none' : 'block');
+    $('main').style.display = t ? 'block' : 'none';
+    if (!t) return;
+    var ts = totStat(t);
+    $('who').textContent = '🎓 ' + t.name + (t.start ? ' · 시작 ' + t.start : '');
+    $('stats').innerHTML =
+      '<div class="stat"><div class="l">전체 진도율</div><div class="big">' + ts.pct + '%</div></div>' +
+      '<div class="stat"><div class="l">완료</div><div class="big" style="color:var(--green)">' + ts.done + '<span class="muted"> / ' + TOTAL + '</span></div></div>' +
+      '<div class="stat"><div class="l">더 연습</div><div class="big" style="color:var(--amber)">' + ts.more + '</div></div>' +
+      '<div class="stat"><div class="l">아직 체크 안 함</div><div class="big">' + ts.left + '</div></div>';
+    $('totBar').style.width = ts.pct + '%';
+
+    var h = '<tr><th>일차</th><th>주제</th><th class="c">완료</th><th class="c">더 연습</th><th class="c">미체크</th><th style="min-width:120px">진도율</th></tr>';
+    DAYS.forEach(function(d, di){
+      var s = dayStat(t, di);
+      h += '<tr><td>' + esc(d[0]) + '</td><td>' + esc(d[1]) + '</td><td class="c">' + s.done + '/' + s.n + '</td><td class="c">' + (s.more ? '<span class="tag-more">' + s.more + '</span>' : '-') + '</td><td class="c">' + (s.n - s.done - s.more) + '</td><td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:' + s.pct + '%"></i></div><span style="min-width:36px;text-align:right">' + s.pct + '%</span></div></td></tr>';
+    });
+    $('progTable').innerHTML = h;
+
+    var ml = '';
+    DAYS.forEach(function(d, di){
+      var li = '';
+      d[2].forEach(function(txt, ii){ if (t.marks[mk(di, ii)] === 'more') li += '<li>' + esc(txt) + '</li>'; });
+      if (li) ml += '<div style="margin-bottom:8px"><b>' + esc(d[0]) + ' · ' + esc(d[1]) + '</b><ul class="more">' + li + '</ul></div>';
+    });
+    $('moreList').innerHTML = ml || '<span class="muted">표시된 항목이 없어요.</span>';
+
+    var dh = '';
+    DAYS.forEach(function(d, di){
+      var s = dayStat(t, di);
+      var items = '';
+      d[2].forEach(function(txt, ii){
+        var v = t.marks[mk(di, ii)] || '';
+        items += '<div class="item"><div class="t">' + esc(txt) + '</div><div class="seg"><button type="button" class="done' + (v === 'done' ? ' on' : '') + '" data-di="' + di + '" data-ii="' + ii + '" data-v="done">완료</button><button type="button" class="more' + (v === 'more' ? ' on' : '') + '" data-di="' + di + '" data-ii="' + ii + '" data-v="more">더 연습</button></div></div>';
+      });
+      dh += '<div class="day' + (state.open[di] ? ' open' : '') + '" data-day="' + di + '"><div class="day-h" data-toggle="' + di + '"><b>' + esc(d[0]) + '</b><span>' + esc(d[1]) + '</span><div class="bar"><i style="width:' + s.pct + '%"></i></div><span class="muted">' + s.done + '/' + s.n + (s.more ? ' · 더 연습 ' + s.more : '') + '</span></div><div class="day-b">' + items + '</div></div>';
+    });
+    $('days').innerHTML = dh;
+    if (document.activeElement !== $('memo')) $('memo').value = t.memo;
+  }
+
+  /* ---- 이벤트 ---- */
+  $('btnAdd').onclick = function(){
+    var name = $('newName').value.replace(/^\s+|\s+$/g, '');
+    if (!name) { alert('이름을 입력해 주세요.'); return; }
+    var t = normalize({ id: uid(), name: name, start: $('newStart').value || '' });
+    state.trainees.push(t); state.sel = t.id; save();
+    $('newName').value = ''; $('newStart').value = '';
+    state.open = {}; render();
+  };
+  $('newName').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btnAdd').click(); });
+  $('chips').addEventListener('click', function(e){
+    var el = e.target.closest('[data-sel]'); if (!el) return;
+    state.sel = el.getAttribute('data-sel'); state.open = {}; save(); render();
+  });
+  $('days').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-v]');
+    if (b) {
+      var t = cur(); if (!t) return;
+      var k = mk(+b.getAttribute('data-di'), +b.getAttribute('data-ii')), v = b.getAttribute('data-v');
+      if (t.marks[k] === v) delete t.marks[k]; else t.marks[k] = v;
+      save(); render(); return;
+    }
+    var h = e.target.closest('[data-toggle]');
+    if (h) { var d = +h.getAttribute('data-toggle'); state.open[d] = !state.open[d]; render(); }
+  });
+  $('btnOpenAll').onclick = function(){ for (var i = 0; i < DAYS.length; i++) state.open[i] = true; render(); };
+  $('btnCloseAll').onclick = function(){ state.open = {}; render(); };
+  $('btnRename').onclick = function(){
+    var t = cur(); if (!t) return;
+    var n = prompt('이름', t.name); if (n === null) return;
+    n = n.replace(/^\s+|\s+$/g, ''); if (!n) { alert('이름은 비울 수 없어요.'); return; }
+    var s = prompt('교육 시작일 (예: 2026-11-23, 비워도 됨)', t.start);
+    t.name = n; if (s !== null) t.start = s.replace(/^\s+|\s+$/g, '');
+    save(); render();
+  };
+  $('btnDel').onclick = function(){
+    var t = cur(); if (!t) return;
+    if (!confirm('"' + t.name + '" 님의 기록을 모두 삭제할까요? 되돌릴 수 없어요.')) return;
+    state.trainees = state.trainees.filter(function(x){ return x.id !== t.id; });
+    state.sel = state.trainees.length ? state.trainees[0].id : null;
+    save(); render();
+  };
+  $('memo').addEventListener('input', function(){ var t = cur(); if (t) { t.memo = this.value; save(); } });
+  $('btnPrint').onclick = function(){ window.print(); };
+  $('btnExport').onclick = function(){
+    var blob = new Blob([JSON.stringify({ app: 'afg-training', v: 1, trainees: state.trainees }, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a'), d = new Date();
+    a.href = URL.createObjectURL(blob);
+    a.download = '신입교육진도_백업_' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  };
+  $('btnImport').onclick = function(){ $('fileIn').click(); };
+  $('fileIn').onchange = function(){
+    var f = this.files && this.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function(){
+      try {
+        var o = JSON.parse(r.result);
+        if (!o || !Array.isArray(o.trainees)) throw new Error('형식');
+        if (!confirm('백업 파일의 ' + o.trainees.length + '명으로 지금 기록을 바꿀까요? (지금 기록은 사라져요)')) return;
+        state.trainees = o.trainees.map(normalize);
+        state.sel = state.trainees.length ? state.trainees[0].id : null; state.open = {};
+        save(); render();
+      } catch (e) { alert('백업 파일을 읽지 못했어요. 이 도구에서 저장한 파일인지 확인해 주세요.'); }
+      $('fileIn').value = '';
+    };
+    r.readAsText(f);
+  };
+
+  load(); save(); render();
+})();
+</script>
+</body>
+</html>

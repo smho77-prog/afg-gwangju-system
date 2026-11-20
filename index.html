@@ -915,6 +915,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
       <button class="tabbtn" data-tab="salary" id="tabBtnSalary" onclick="switchTab('salary')">💰 급여계산기</button>
       <button class="tabbtn" data-tab="presence" onclick="switchTab('presence')">🟢 접속현황</button>
       <button class="tabbtn" data-tab="onboard" onclick="switchTab('onboard')">🧑‍💼 입사 프로세스</button>
+      <button class="tabbtn" data-tab="training" onclick="switchTab('training')">🎓 신입교육 진도</button>
     </div>
   </div>
   <div id="presWidget" style="display:none;">
@@ -2253,6 +2254,17 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
   </div>
 </div>
 
+<!-- ===== 신입교육 진도 (마스터 전용, training-progress.html 을 화면 안에 끼워 넣음) ===== -->
+<div class="panel" id="panel-training">
+  <div class="card" style="padding:10px 16px;margin-bottom:10px;">
+    <b>🎓 신입교육 진도</b>
+    <span class="sub" style="margin:0 0 0 8px;">신입 이름을 등록하고 10일 교육 항목을 완료/더 연습으로 체크합니다. (마스터 전용) 기록은 이 PC의 이 브라우저에만 저장되고 서버에는 올라가지 않아요. 가끔 아래 "백업 파일 저장"으로 보관해 두세요.</span>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <iframe id="trainingFrame" title="신입교육 진도" style="width:100%;height:calc(100vh - 150px);min-height:720px;border:none;display:block;background:#F3F1EC;"></iframe>
+  </div>
+</div>
+
 <!-- ===== 보험사메뉴얼 (예전 이름 보험금청구서류: 보험사별 연락처·결제 방법·청구서 양식) ===== -->
 <div class="panel" id="panel-claimform">
   <div class="card" style="padding:14px 18px;">
@@ -2587,6 +2599,10 @@ function onboardSync(name){
   var f = document.getElementById('onboardFrame');
   if (f && name === 'onboard' && onboardIsMaster() && f.dataset.on !== '1') { f.src = 'onboarding-tracker.html'; f.dataset.on = '1'; }
 }
+function trainingSync(name){
+  var f = document.getElementById('trainingFrame');
+  if (f && name === 'training' && onboardIsMaster() && f.dataset.on !== '1') { f.src = 'training-progress.html'; f.dataset.on = '1'; }
+}
 function raceOpenWindow(){ window.open('race-board.html', 'afg_race_board', 'noopener'); }
 /* 로그인한 상태 그대로 현황판만 화면 가득 보여준다(왼쪽 메뉴·위쪽 바 숨김). Esc로 돌아온다. 안 되는 브라우저는 새 창으로 대신 연다 */
 function raceFullscreen(){
@@ -2692,7 +2708,7 @@ function renderSubTabs(name) {
   panel.insertBefore(bar, panel.firstChild);
 }
 function switchTab(name) {
-  if (name === 'onboard' && !onboardIsMaster()) name = 'home'; /* 마스터 전용 탭: 다른 계정은 들어올 수 없음 */
+  if ((name === 'onboard' || name === 'training') && !onboardIsMaster()) name = 'home'; /* 마스터 전용 탭: 다른 계정은 들어올 수 없음 */
   document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab === name || (b.dataset.members || '').split(',').indexOf(name) >= 0));
   const ab = document.querySelector('#sideMenu .tabbtn.active');
   if (ab) { const g = ab.closest('.sg'); if (g) g.classList.remove('collapsed'); }
@@ -2705,6 +2721,7 @@ function switchTab(name) {
   greetSync(name);
   pdfeditSync(name);
   onboardSync(name);
+  trainingSync(name);
   unclosedSync(name);
   callhelperSync(name);
   if (name === 'underwriting' && window.uxiSync) window.uxiSync();
