@@ -2961,7 +2961,7 @@ function dbCopySql(){
    · 터치 유무·메모값 유무·터치횟수는 더 이상 입력하지 않음(예전 입력값은 DB에 그대로 남아 있고 화면에서만 숨김)
    · 콜시간·시도 횟수(선택)는 콜 모니터링 일일 입력과 같은 daily_activity(call_seconds, call_attempts)에 저장해 자동 연동
    · 아래 "배분 균형 확인"은 이번 달 누적 DB 비중 vs 활동(콜시간)·실적(계약 보험료) 비중 */
-const DB_DAILY_MGRS = ['김라희','박현주','배혜영','안세현','안지예','유명수','윤혜원','임채주','정인옥'];
+const DB_DAILY_MGRS = ['김라희','박현주','배혜영','안세현','안지예','윤혜원','임채주','정인옥'];
 const DBD_TYPES = ['상품광고3','상품광고2','상품광고1','퍼미션','TV광고','카카오','기타'];
 const DBD_SQL = `create table if not exists db_daily_checks (
   id bigint generated always as identity primary key,
