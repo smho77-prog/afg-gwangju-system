@@ -1352,9 +1352,10 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     <div id="pres_sql" style="display:none;"></div>
     <div id="pres_summary" style="margin:10px 0;font-weight:600;"></div>
     <div class="cm-tablewrap"><table class="cm-table">
-      <thead><tr><th>팀장</th><th>상태</th><th>마지막 접속</th><th>이번 접속 시작</th></tr></thead>
-      <tbody id="pres_body"><tr><td colspan="4" style="text-align:center;color:#888;">불러오는 중...</td></tr></tbody>
+      <thead><tr><th>팀장</th><th>상태</th><th>마지막 접속</th><th>이번 접속 시작</th><th>관리</th></tr></thead>
+      <tbody id="pres_body"><tr><td colspan="5" style="text-align:center;color:#888;">불러오는 중...</td></tr></tbody>
     </table></div>
+    <div id="pres_resigned" style="margin-top:14px;"></div>
     <div id="pres_hist" style="display:none;margin-top:14px;"></div>
     <button class="secondary small" style="margin-top:10px;" onclick="presLoad()">🔄 지금 새로고침</button>
   </div>
@@ -2961,6 +2962,22 @@ function dbCopySql(){
    · 터치 유무·메모값 유무·터치횟수는 더 이상 입력하지 않음(예전 입력값은 DB에 그대로 남아 있고 화면에서만 숨김)
    · 콜시간·시도 횟수(선택)는 콜 모니터링 일일 입력과 같은 daily_activity(call_seconds, call_attempts)에 저장해 자동 연동
    · 아래 "배분 균형 확인"은 이번 달 누적 DB 비중 vs 활동(콜시간)·실적(계약 보험료) 비중 */
+// 퇴사자: 콜 모니터링·일자별 배분 확인의 팀장 명단에서 걸러낸다(과거 계약·예약 기록은 그대로 둠).
+// 접속현황 탭에서 마스터가 "퇴사자로 변경"을 누르면 resigned_managers 표에 저장되고, 로그인할 때 읽어 온다(loadResigned).
+let RESIGNED_MGRS = [];
+const RESIGNED_SQL = `create table if not exists resigned_managers (
+  manager_name text primary key,
+  resigned_at date not null default current_date
+);
+alter table resigned_managers disable row level security;
+grant select, insert, update, delete on resigned_managers to anon, authenticated;`;
+async function loadResigned(){
+  try {
+    const { data, error } = await sb.from('resigned_managers').select('manager_name');
+    RESIGNED_MGRS = (!error && data) ? data.map(r => r.manager_name).filter(Boolean) : [];
+    return !error;
+  } catch (e) { RESIGNED_MGRS = []; return false; }
+}
 const DB_DAILY_MGRS = ['김라희','박현주','배혜영','안세현','안지예','윤혜원','임채주','정인옥'];
 const DBD_TYPES = ['상품광고3','상품광고2','상품광고1','퍼미션','TV광고','카카오','기타'];
 const DBD_SQL = `create table if not exists db_daily_checks (
@@ -3036,7 +3053,7 @@ async function dbdLoad(){
   dbdAct = dbdMonthAct.filter(a => String(a.activity_date).slice(0, 10) === day);
   const names = DB_DAILY_MGRS.slice();
   dbdMonthRows.concat(dbdMonthAct).forEach(r => { if (r.manager_name && names.indexOf(r.manager_name) < 0) names.push(r.manager_name); });
-  dbdNames = names;
+  dbdNames = names.filter(n => RESIGNED_MGRS.indexOf(n) < 0);
   const cols = DBD_TYPES.slice();
   dbdMonthRows.forEach(r => { if (r.db_type && cols.indexOf(r.db_type) < 0) cols.push(r.db_type); });
   dbdCols = cols;
@@ -3799,6 +3816,7 @@ function monAllManagers(){
   monRows.forEach(r => { if (r.manager_name) s.add(r.manager_name); });
   monDaily.forEach(d => { if (d.manager_name) s.add(d.manager_name); });
   s.delete(currentUser.manager_name);
+  RESIGNED_MGRS.forEach(n => s.delete(n));
   return Array.from(s).sort();
 }
 function monIncluded(){ return monAllManagers().filter(n => monExcl.indexOf(n) < 0); }
@@ -8521,7 +8539,7 @@ async function startApp(){
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
     presStart();
-    const loaders = [loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties(), loadIssues(), loadCallCenters(), loadCallCenterFiles(), loadIndustryLimits(), loadForeignUw(), loadUwFiles('industry_limit'), loadUwFiles('foreign'), loadDutiesNotice(), loadSurgeryGrades()];
+    const loaders = [loadResigned(), loadReservations(), loadContracts(), loadInsurers(), loadTargets(), loadDuties(), loadIssues(), loadCallCenters(), loadCallCenterFiles(), loadIndustryLimits(), loadForeignUw(), loadUwFiles('industry_limit'), loadUwFiles('foreign'), loadDutiesNotice(), loadSurgeryGrades()];
     if (currentUser.role === 'master') loaders.push(loadCommissionRates());
     await Promise.all(loaders);
     setupPerformanceTab();
@@ -9009,25 +9027,62 @@ async function presLoad(){
     sqlBox.innerHTML = '<div style="background:#FFF4E5;border:1px solid #F0C98A;border-radius:8px;padding:12px;margin:10px 0;">' +
       '<b>⚠ 먼저 아래 SQL을 Supabase SQL Editor에 붙여넣어 실행해 주세요.</b> (한 번만 하면 됩니다)' +
       '<pre style="white-space:pre-wrap;font-size:12px;margin:8px 0 0;">' + escapeHtml(PRES_SQL) + '</pre></div>';
-    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;">테이블이 아직 없습니다.</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">테이블이 아직 없습니다.</td></tr>';
     return;
   }
   sqlBox.style.display = 'none';
-  const rows = data || [];
-  presRows = rows;
+  await loadResigned();
+  const allRows = data || [];
+  const rows = allRows.filter(r => RESIGNED_MGRS.indexOf(r.manager_name) < 0);
+  presRows = allRows;
   const now = Date.now();
   const online = rows.filter(r => r.last_seen && now - new Date(r.last_seen).getTime() <= PRES_ONLINE_MS);
   document.getElementById('pres_summary').textContent = `🟢 지금 접속 중 ${online.length}명 / 접속 기록이 있는 사용자 ${rows.length}명`;
+  presRenderResigned();
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;">아직 접속 기록이 없습니다. 팀장님들이 다시 접속하면 쌓이기 시작합니다.</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">아직 접속 기록이 없습니다. 팀장님들이 다시 접속하면 쌓이기 시작합니다.</td></tr>';
     return;
   }
   body.innerHTML = rows.map(r => {
     const on = r.last_seen && now - new Date(r.last_seen).getTime() <= PRES_ONLINE_MS;
+    const canResign = r.manager_name && r.manager_name !== currentUser.manager_name;
     return `<tr onclick="presShowHistory('${escAttr(r.employee_no)}')"><td>${escapeHtml(r.manager_name || r.employee_no)} <span style="color:#4F46E5;font-size:11px;">이력 ▸</span></td>` +
       `<td>${on ? '<b style="color:#16A34A;">🟢 접속 중</b>' : '<span style="color:#888;">⚪ 오프라인</span>'}</td>` +
-      `<td>${presAgo(r.last_seen)}</td><td>${presAgo(r.last_login)}</td></tr>`;
+      `<td>${presAgo(r.last_seen)}</td><td>${presAgo(r.last_login)}</td>` +
+      `<td>${canResign ? `<button class="secondary small" onclick="event.stopPropagation();presResign('${escAttr(r.manager_name)}')">퇴사자로 변경</button>` : ''}</td></tr>`;
   }).join('');
+}
+/* 퇴사자 관리: 퇴사 처리하면 콜 모니터링·일자별 배분 확인·레이스 명단에서 빠진다(과거 계약·예약 기록은 그대로) */
+function presRenderResigned(){
+  const box = document.getElementById('pres_resigned');
+  if (!box) return;
+  const list = RESIGNED_MGRS.slice().sort((a, b) => a.localeCompare(b, 'ko'));
+  box.innerHTML = `<div style="font-weight:600;margin-bottom:6px;">👋 퇴사자 (${list.length}명) <span style="font-weight:400;color:#888;font-size:12px;">— 콜 모니터링·일자별 배분 확인·목표달성 레이스 명단에서 빠집니다. 과거 계약·예약 기록은 그대로 남아요.</span></div>` +
+    (list.length ? list.map(n => `<span style="display:inline-flex;align-items:center;gap:6px;background:#F1F5F9;border-radius:999px;padding:4px 10px;margin:0 6px 6px 0;font-size:13px;">${escapeHtml(n)} <button class="secondary small" onclick="presUnresign('${escAttr(n)}')">복귀</button></span>`).join('') : '<span style="color:#888;font-size:13px;">아직 없어요.</span>') +
+    `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><input type="text" id="pres_resign_name" placeholder="목록에 없는 이름을 직접 입력" style="width:220px;"><button class="secondary small" onclick="presResign(document.getElementById('pres_resign_name').value)">퇴사자로 변경</button></div>`;
+}
+function presResignSqlBox(){
+  const sqlBox = document.getElementById('pres_sql');
+  sqlBox.style.display = 'block';
+  sqlBox.innerHTML = '<div style="background:#FFF4E5;border:1px solid #F0C98A;border-radius:8px;padding:12px;margin:10px 0;">' +
+    '<b>⚠ 퇴사자 기능을 쓰려면 아래 SQL을 Supabase SQL Editor에 붙여넣어 먼저 실행해 주세요.</b> (한 번만 하면 됩니다)' +
+    '<pre style="white-space:pre-wrap;font-size:12px;margin:8px 0 0;">' + escapeHtml(RESIGNED_SQL) + '</pre></div>';
+}
+async function presResign(name){
+  name = String(name || '').trim();
+  if (!currentUser || currentUser.role !== 'master' || !name) return;
+  if (name === currentUser.manager_name) { alert('본인 계정은 퇴사 처리할 수 없어요.'); return; }
+  if (!confirm(`${name} 님을 퇴사자로 변경할까요?\n콜 모니터링·일자별 배분 확인·목표달성 레이스 명단에서 빠집니다.\n(과거 계약·예약 기록은 그대로 남고, 언제든 "복귀"로 되돌릴 수 있어요.)`)) return;
+  const { error } = await sb.from('resigned_managers').upsert({ manager_name: name }, { onConflict: 'manager_name' });
+  if (error) { presResignSqlBox(); return; }
+  presLoad();
+}
+async function presUnresign(name){
+  if (!currentUser || currentUser.role !== 'master') return;
+  if (!confirm(`${name} 님을 퇴사자 목록에서 빼고 명단에 다시 넣을까요?`)) return;
+  const { error } = await sb.from('resigned_managers').delete().eq('manager_name', name);
+  if (error) { alert('복귀 처리 중 오류가 났어요: ' + error.message); return; }
+  presLoad();
 }
 async function presShowHistory(no){
   const box = document.getElementById('pres_hist');
