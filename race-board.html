@@ -146,7 +146,9 @@ body.t-election .nm .rank{border-radius:.6vh}
 /* ---------- 축하 배너 / 색종이 ---------- */
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
 #banner{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%) scale(.6);opacity:0;z-index:60;pointer-events:none;text-align:center;padding:3vh 5vw;border-radius:2vh;background:linear-gradient(135deg,#f59e0b,#ef4444);border:.6vh solid #fff;box-shadow:0 0 6vh rgba(255,200,0,.8);font-size:7vh;font-weight:900;line-height:1.25;text-shadow:0 .4vh 1vh rgba(0,0,0,.45);transition:all .5s cubic-bezier(.3,1.5,.5,1)}
-#banner.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#banner.on{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
+#banner .bn-ok{display:block;margin:2.2vh auto 0;padding:1.2vh 4vw;font-size:3.2vh;font-weight:800;color:#b45309;background:#fff;border:0;border-radius:99px;cursor:pointer;box-shadow:0 .6vh 1.6vh rgba(0,0,0,.25)}
+#banner .bn-ok:hover{background:#fef3c7}
 #banner small{display:block;font-size:3.2vh;font-weight:700;margin-top:1vh}
 
 /* ---------- 컨트롤 / 설정 ---------- */
@@ -652,8 +654,24 @@ function nextBanner(){
   var h=bannerQ.shift();
   if(!h){bannerBusy=false;return;}
   bannerBusy=true;
-  var b=$('#banner');b.innerHTML=h;b.classList.add('on');burst();
-  setTimeout(function(){b.classList.remove('on');setTimeout(nextBanner,600);},6500);
+  var b=$('#banner');b.classList.add('on');burst();
+  var done=false;
+  function close(){
+    if(done)return;done=true;
+    document.removeEventListener('keydown',onKey,true);
+    b.classList.remove('on');setTimeout(nextBanner,600);
+  }
+  function onKey(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();close();}}
+  if(demo){
+    /* 데모 모드는 예전처럼 6.5초 뒤 자동으로 사라진다 */
+    b.innerHTML=h;
+    setTimeout(close,6500);
+  }else{
+    /* 실제 달성 축하는 "확인"을 누를 때까지 계속 떠 있다(버튼·Enter·스페이스) */
+    b.innerHTML=h+'<button type="button" class="bn-ok">확인</button>';
+    b.querySelector('.bn-ok').onclick=close;
+    document.addEventListener('keydown',onKey,true);
+  }
 }
 /* 색종이 */
 var cv=$('#confetti'),cx=cv.getContext('2d'),parts=[],raf=0;
