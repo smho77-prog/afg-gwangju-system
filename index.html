@@ -2961,6 +2961,8 @@ function dbCopySql(){
    · 터치 유무·메모값 유무·터치횟수는 더 이상 입력하지 않음(예전 입력값은 DB에 그대로 남아 있고 화면에서만 숨김)
    · 콜시간·시도 횟수(선택)는 콜 모니터링 일일 입력과 같은 daily_activity(call_seconds, call_attempts)에 저장해 자동 연동
    · 아래 "배분 균형 확인"은 이번 달 누적 DB 비중 vs 활동(콜시간)·실적(계약 보험료) 비중 */
+// 퇴사자: 콜 모니터링·일자별 배분 확인의 팀장 명단에서 걸러낸다(과거 계약·예약 기록은 그대로 둠). 퇴사자가 생기면 여기에 이름만 추가.
+const RESIGNED_MGRS = ['유명수'];
 const DB_DAILY_MGRS = ['김라희','박현주','배혜영','안세현','안지예','윤혜원','임채주','정인옥'];
 const DBD_TYPES = ['상품광고3','상품광고2','상품광고1','퍼미션','TV광고','카카오','기타'];
 const DBD_SQL = `create table if not exists db_daily_checks (
@@ -3036,7 +3038,7 @@ async function dbdLoad(){
   dbdAct = dbdMonthAct.filter(a => String(a.activity_date).slice(0, 10) === day);
   const names = DB_DAILY_MGRS.slice();
   dbdMonthRows.concat(dbdMonthAct).forEach(r => { if (r.manager_name && names.indexOf(r.manager_name) < 0) names.push(r.manager_name); });
-  dbdNames = names;
+  dbdNames = names.filter(n => RESIGNED_MGRS.indexOf(n) < 0);
   const cols = DBD_TYPES.slice();
   dbdMonthRows.forEach(r => { if (r.db_type && cols.indexOf(r.db_type) < 0) cols.push(r.db_type); });
   dbdCols = cols;
@@ -3799,6 +3801,7 @@ function monAllManagers(){
   monRows.forEach(r => { if (r.manager_name) s.add(r.manager_name); });
   monDaily.forEach(d => { if (d.manager_name) s.add(d.manager_name); });
   s.delete(currentUser.manager_name);
+  RESIGNED_MGRS.forEach(n => s.delete(n));
   return Array.from(s).sort();
 }
 function monIncluded(){ return monAllManagers().filter(n => monExcl.indexOf(n) < 0); }
