@@ -274,6 +274,19 @@ function sharedState(){
   if(info.shared==='err')return '⚠️ 공유 설정 연결 실패: '+(info.sharedErr||'')+' (이 PC 저장값으로 계산 중)';
   return '공유 설정: 확인 전';
 }
+/* ===== 퇴사자 (통합전산 접속현황 탭에서 "퇴사자로 변경"한 사람은 명단에서 뺀다) ===== */
+var resignedNames=[];
+function activeRoster(){return cfg.roster.filter(function(n){return resignedNames.indexOf(n.replace(/\s+/g,''))<0&&resignedNames.indexOf(n)<0;});}
+function pullResigned(){
+  if(demo)return Promise.resolve(false);
+  return fetch(SB_URL+'/rest/v1/resigned_managers?select=manager_name',{headers:{apikey:SB_KEY}}).then(function(r){
+    if(!r.ok)return false;
+    return r.json().then(function(rows){
+      var nx=(Array.isArray(rows)?rows:[]).map(function(x){return String(x.manager_name||'').replace(/\s+/g,'');}).filter(Boolean);
+      var ch=JSON.stringify(nx)!==JSON.stringify(resignedNames);resignedNames=nx;return ch;
+    });
+  }).catch(function(){return false;});
+}
 function pullShared(){
   if(demo)return Promise.resolve(false);
   return fetch(SB_URL+'/rest/v1/race_settings?key=eq.main&select=value',{headers:{apikey:SB_KEY}}).then(function(r){
@@ -385,11 +398,11 @@ function detectCol(rows){
 function sumRows(rows){
   var col=detectCol(rows);
   var sums={},unk={},raw=0,adj=0,okN=0,chk={},bad={},badL={},exl={};
-  cfg.roster.forEach(function(n){sums[n]=0;});
+  activeRoster().forEach(function(n){sums[n]=0;});
   rows.forEach(function(r){
     var n=String(r.manager_name||'').replace(/\s+/g,'');
     var hit=null;
-    cfg.roster.forEach(function(x){if(x.replace(/\s+/g,'')===n)hit=x;});
+    activeRoster().forEach(function(x){if(x.replace(/\s+/g,'')===n)hit=x;});
     if(hit){
       var v=col?num(r[col]):0,a=v;
       if(cfg.useRate){
@@ -420,7 +433,7 @@ function fetchLive(){
 /* ===== 보드 계산 ===== */
 function buildBoard(sums){
   var goalWon=cfg.goal*10000;
-  var arr=cfg.roster.map(function(n,i){var v=sums[n]||0;return {name:n,idx:i,v:v,p:goalWon>0?v/goalWon*100:0};});
+  var arr=activeRoster().map(function(n,i){var v=sums[n]||0;return {name:n,idx:i,v:v,p:goalWon>0?v/goalWon*100:0};});
   arr.sort(function(a,b){return b.v-a.v||a.idx-b.idx;});
   arr.forEach(function(x,i){x.rank=i+1;});
   return arr;
@@ -553,7 +566,7 @@ function makeLane(name,idx){
   return L;
 }
 function syncLanes(){
-  var names=cfg.roster;
+  var names=activeRoster();
   Object.keys(lanes).forEach(function(n){if(names.indexOf(n)<0){lanes[n].el.remove();delete lanes[n];}});
   names.forEach(function(n,i){
     if(!lanes[n])lanes[n]=makeLane(n,i);
@@ -565,7 +578,7 @@ function syncLanes(){
 }
 var curLh=70;
 function layout(){
-  var n=Math.max(1,cfg.roster.length);
+  var n=Math.max(1,activeRoster().length);
   var h=$('#lanes').clientHeight||600;
   var lh=Math.min(h/n,window.innerHeight*0.14);
   curLh=lh;
@@ -678,7 +691,7 @@ function setStatus(kind,txt){
 }
 function pollOnce(){
   if(demo)return Promise.resolve();
-  return pullShared().then(function(ch){if(ch){syncLanes();titles();prevBoard=null;lastSums=null;}return fetchLive();}).then(function(sums){
+  return Promise.all([pullShared(),pullResigned()]).then(function(r){var ch=r[0]||r[1];if(ch){syncLanes();titles();prevBoard=null;lastSums=null;}return fetchLive();}).then(function(sums){
     info.err='';info.at=new Date();
     applySums(sums);
     var d=info.at;
@@ -698,7 +711,7 @@ function startPoll(){
 /* 데모 */
 function initDemo(){
   var g=cfg.goal*10000;demoSums={};
-  cfg.roster.forEach(function(n){demoSums[n]=Math.round((0.1+Math.random()*0.7)*g/10000)*10000;});
+  activeRoster().forEach(function(n){demoSums[n]=Math.round((0.1+Math.random()*0.7)*g/10000)*10000;});
 }
 function startDemo(){
   demo=true;clearInterval(pollTimer);clearInterval(demoTimer);
@@ -706,8 +719,8 @@ function startDemo(){
   setStatus('demo','DEMO 모드 (가짜 데이터)');
   $('#b-demo').classList.add('on');
   demoTimer=setInterval(function(){
-    if(!cfg.roster.length)return;
-    var n=cfg.roster[Math.floor(Math.random()*cfg.roster.length)];
+    if(!activeRoster().length)return;
+    var n=activeRoster()[Math.floor(Math.random()*activeRoster().length)];
     demoSums[n]+=(3+Math.floor(Math.random()*10))*10000;
     var o={};for(var k in demoSums)o[k]=demoSums[k];
     applySums(o);
