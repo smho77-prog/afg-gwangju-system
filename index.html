@@ -2644,6 +2644,15 @@ async function doLogin() {
       return;
     }
     const row = data[0];
+    /* 퇴사 처리된 팀장은 로그인 차단(마스터는 예외, 퇴사자 표를 못 읽으면 막지 않음) */
+    if ((row.role || 'member') !== 'master') {
+      const rs = await sbTemp.from('resigned_managers').select('manager_name').eq('manager_name', row.manager_name);
+      if (!rs.error && rs.data && rs.data.length) {
+        errEl.textContent = '퇴사 처리된 계정이라 로그인할 수 없습니다. 관리자(쏭님)에게 문의하세요.';
+        errEl.style.display = 'block';
+        return;
+      }
+    }
     currentUser = { employee_no: row.employee_no, manager_name: row.manager_name, role: row.role || 'member' };
     localStorage.setItem('afg_gwangju_user', JSON.stringify(currentUser));
     startApp();
@@ -8536,6 +8545,14 @@ async function startApp(){
       return fetch(url, Object.assign({}, options, { cache: 'no-store', headers: mergedHeaders }));
     };
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { global: { fetch: noCacheFetch } });
+    /* 이미 로그인 상태가 저장돼 있던 퇴사자도 여기서 내보낸다(마스터는 예외) */
+    await loadResigned();
+    if (currentUser.role !== 'master' && RESIGNED_MGRS.indexOf(currentUser.manager_name) >= 0) {
+      localStorage.removeItem('afg_gwangju_user');
+      alert('퇴사 처리된 계정이라 사용할 수 없습니다. 관리자(쏭님)에게 문의하세요.');
+      location.reload();
+      return;
+    }
     if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
     updateNotifBtn();
     presStart();
