@@ -912,6 +912,7 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
     <button class="sg-head" onclick="toggleSideGroup('master')"><span>🔐 마스터 전용</span><span class="arr">▼</span></button>
     <div class="sg-items">
       <button class="tabbtn" data-tab="callmon" onclick="switchTab('callmon')">📈 콜 모니터링</button>
+      <button class="tabbtn" data-tab="actperf" onclick="switchTab('actperf')">📊 활동량·계약</button>
       <button class="tabbtn" data-tab="salary" id="tabBtnSalary" onclick="switchTab('salary')">💰 급여계산기</button>
       <button class="tabbtn" data-tab="presence" onclick="switchTab('presence')">🟢 접속현황</button>
       <button class="tabbtn" data-tab="onboard" onclick="switchTab('onboard')">🧑‍💼 입사 프로세스</button>
@@ -1343,6 +1344,25 @@ button.secondary { background:var(--ui-slate-100); } button.secondary:hover { ba
 
   <!-- 탭 3: 면담 보고서 -->
   <div id="mon_viewReport" style="display:none;"></div>
+</div>
+
+<!-- ===== 활동량·계약 (마스터 전용) ===== -->
+<div class="panel" id="panel-actperf">
+  <div class="card">
+    <div style="font-weight:700;font-size:16px;">📊 활동량과 계약 <span style="font-weight:400;font-size:12px;color:var(--muted);">(마스터 전용)</span></div>
+    <div class="sub" style="margin:4px 0 10px;">팀장님들과 같이 보면서 "어디를 먼저 이야기할지" 정하는 화면이에요. 점수나 순위가 아니라 이야기를 시작하는 단서입니다. 이름은 성만 보여줘요.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+      <div><label>시작 월</label><input type="month" id="act_from" onchange="actSetMonths()"></div>
+      <div><label>끝 월</label><input type="month" id="act_to" onchange="actSetMonths()"></div>
+      <button class="secondary small" onclick="actQuick(0)">이번 달</button>
+      <button class="secondary small" onclick="actQuick(1)">지난 달~이번 달</button>
+      <button class="secondary small" onclick="actQuick(3)">최근 4개월</button>
+      <label style="display:inline-flex;align-items:center;gap:5px;margin:0 0 6px 6px;font-size:12.5px;"><input type="checkbox" id="act_split" style="width:auto;" onchange="actRender()">월별로도 나눠 보기</label>
+      <button class="secondary small" onclick="actOpenTab()">🔄 다시 불러오기</button>
+    </div>
+    <div id="act_info" class="sub" style="margin:8px 0 0;"></div>
+  </div>
+  <div id="act_body"></div>
 </div>
 
 <!-- ===== 접속현황 (마스터 전용) ===== -->
@@ -2718,7 +2738,7 @@ function renderSubTabs(name) {
   panel.insertBefore(bar, panel.firstChild);
 }
 function switchTab(name) {
-  if ((name === 'onboard' || name === 'training') && !onboardIsMaster()) name = 'home'; /* 마스터 전용 탭: 다른 계정은 들어올 수 없음 */
+  if ((name === 'onboard' || name === 'training' || name === 'actperf') && !onboardIsMaster()) name = 'home'; /* 마스터 전용 탭: 다른 계정은 들어올 수 없음 */
   document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.tab === name || (b.dataset.members || '').split(',').indexOf(name) >= 0));
   const ab = document.querySelector('#sideMenu .tabbtn.active');
   if (ab) { const g = ab.closest('.sg'); if (g) g.classList.remove('collapsed'); }
@@ -2743,6 +2763,7 @@ function switchTab(name) {
   if (name === 'dbmgmt') dbOpenTab();
   if (name === 'proposal') propOpenTab();
   if (name === 'callmon') monOpenTab();
+  if (name === 'actperf') actOpenTab();
   if (name === 'presence') presOpenTab();
   if (name === 'salary') setupSalaryAutoCalc();
   if (name === 'kcd') renderKcdResults();
@@ -15243,6 +15264,156 @@ function hyRuleHtml() {
     if (fsEl()) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { /* 무시 */ } }
   };
 })();
+</script>
+<script id="act_perf">
+/* 활동량·계약 (마스터 전용, 접두어 act): 콜 모니터링 DB(mon_customers)·일일 입력(daily_activity)·계약(contracts)을 읽어 월 범위별로 보여준다. 새 테이블·SQL 없음, Claude API 호출 없음. */
+let actFrom = '', actTo = '';
+function actMonthOf(ymd){ return String(ymd || '').slice(0, 7); }
+function actLastDay(ym){ const p = ym.split('-'); return new Date(Number(p[0]), Number(p[1]), 0).getDate(); }
+function actAddMonth(ym, n){ const p = ym.split('-'); const d = new Date(Number(p[0]), Number(p[1]) - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function actInitMonths(){
+  if (actFrom && actTo) return;
+  const cur = actMonthOf(monToday());
+  actTo = cur; actFrom = actAddMonth(cur, -1);
+}
+function actSetMonths(){
+  let f = document.getElementById('act_from').value, t = document.getElementById('act_to').value;
+  if (!f || !t) return;
+  if (f > t) { const x = f; f = t; t = x; }
+  actFrom = f; actTo = t;
+  actRender();
+}
+function actQuick(back){
+  const cur = actMonthOf(monToday());
+  actTo = cur; actFrom = actAddMonth(cur, -back);
+  actRender();
+}
+async function actOpenTab(){
+  if (!currentUser || currentUser.role !== 'master') return;
+  if (monExcl === null) monExcl = monExclLoad();
+  actInitMonths();
+  document.getElementById('act_info').textContent = '불러오는 중...';
+  try { await monLoadCustomers(); await monLoadExtra(); } catch (e) { console.error(e); }
+  if (!allContracts || !allContracts.length) { try { await loadContracts(); } catch (e) { console.error(e); } }
+  actRender();
+}
+/* 성만 표시: 같은 성이 둘 이상이면 A, B로 구분 */
+function actLabels(names){
+  const cnt = {}; names.forEach(n => { const f = String(n || '').charAt(0); cnt[f] = (cnt[f] || 0) + 1; });
+  const seen = {}, mark = ['A', 'B', 'C', 'D', 'E'], out = {};
+  names.forEach(n => { const f = String(n || '').charAt(0); let l = f; if (cnt[f] > 1) { seen[f] = seen[f] || 0; l = f + mark[seen[f]]; seen[f]++; } out[n] = l; });
+  return out;
+}
+/* 한 기간(from~to, YYYY-MM-DD)의 팀장별 숫자 */
+function actCompute(from, to){
+  const inc = monIncluded();
+  const inSet = new Set(inc);
+  const dbBy = {}, touchBy = {};
+  monRows.forEach(r => {
+    if (!dbTracked(r) || !inSet.has(r.manager_name)) return;
+    const d = dbTs(r.distributed_at); if (!d) return;
+    const k = monYmd(d); if (k < from || k > to) return;
+    dbBy[r.manager_name] = (dbBy[r.manager_name] || 0) + 1;
+    touchBy[r.manager_name] = (touchBy[r.manager_name] || 0) + (Number(r.touch_count) || 0);
+  });
+  const secBy = {}, secDays = {}, attBy = {}, attDays = {};
+  monDaily.forEach(d => {
+    if (!inSet.has(d.manager_name) || !d.activity_date) return;
+    const k = String(d.activity_date).slice(0, 10); if (k < from || k > to) return;
+    const sc = monSecOf(d), at = monAttOf(d);
+    if (sc !== null) { secBy[d.manager_name] = (secBy[d.manager_name] || 0) + sc; secDays[d.manager_name] = (secDays[d.manager_name] || 0) + 1; }
+    if (at !== null) { attBy[d.manager_name] = (attBy[d.manager_name] || 0) + at; attDays[d.manager_name] = (attDays[d.manager_name] || 0) + 1; }
+  });
+  const conBy = {};
+  (allContracts || []).forEach(c => {
+    if (!inSet.has(c.manager_name) || !c.contract_date) return;
+    const k = String(c.contract_date).slice(0, 10); if (k < from || k > to) return;
+    conBy[c.manager_name] = (conBy[c.manager_name] || 0) + 1;
+  });
+  return inc.filter(n => dbBy[n] || secDays[n] || attDays[n] || conBy[n]).map(n => ({
+    n: n, db: dbBy[n] || 0, touchRate: dbBy[n] ? touchBy[n] / dbBy[n] : null,
+    sec: secDays[n] ? secBy[n] / secDays[n] : null, att: attDays[n] ? attBy[n] / attDays[n] : null,
+    attDays: attDays[n] || 0, con: conBy[n] || 0, rate: dbBy[n] ? (conBy[n] || 0) / dbBy[n] * 100 : null
+  }));
+}
+function actDir(v, avg){ if (!avg) return 0; const p = (v / avg - 1) * 100; return p >= 10 ? 1 : p <= -10 ? -1 : 0; }
+function actClass(r, avgAtt, avgCon){
+  const a = actDir(r.att, avgAtt), c = actDir(r.con, avgCon);
+  if (a === 1 && c === 1) return { color: '#15803D', txt: '많이 걸었고 계약도 평균보다 많아요 → 잘하는 방식을 나눠 볼 만해요' };
+  if (a === 1 && c === -1) return { color: '#E11D48', txt: '많이 걸었는데 계약은 평균보다 적어요 → 콜스킬·콜 내용을 같이 들어볼 단서' };
+  if (a === -1 && c === -1) return { color: '#C2610C', txt: '시도도 계약도 평균보다 적어요 → 활동량부터 이야기하고, 콜 내용도 함께 점검' };
+  if (a === -1 && c === 1) return { color: '#2563EB', txt: '적게 걸었는데 계약은 평균보다 많아요 → 통화 방식에 배울 점이 있을 수 있어요' };
+  return { color: '#6B7280', txt: '시도와 계약이 팀 평균과 비슷하거나 한쪽만 다르게 보여요' };
+}
+function actTableHtml(rows, labels, title){
+  if (!rows.length) return `<div class="card"><div style="font-weight:700;margin-bottom:4px;">${escapeHtml(title)}</div><div class="sub" style="margin:0;">이 기간에 해당하는 자료가 없어요.</div></div>`;
+  const sorted = rows.slice().sort((a, b) => (b.att || 0) - (a.att || 0));
+  const f1 = v => v === null ? '-' : v.toFixed(1);
+  const body = sorted.map(r => `<tr><td><b>${escapeHtml(labels[r.n] || r.n)}</b>${r.attDays && r.attDays < 5 ? ' ' + monTag('참고용', 'gray') : ''}</td><td>${r.db}개</td><td>${r.touchRate === null ? '-' : r.touchRate.toFixed(1) + '회'}</td><td>${r.sec === null ? '-' : monFmtDur(r.sec)}</td><td>${r.att === null ? '-' : r.att.toFixed(0) + '통'}</td><td>${r.con}건</td><td>${r.rate === null ? '-' : r.rate.toFixed(1) + '%'}</td></tr>`).join('');
+  const totDb = rows.reduce((s, r) => s + r.db, 0), totCon = rows.reduce((s, r) => s + r.con, 0), totTouch = rows.reduce((s, r) => s + (r.touchRate === null ? 0 : r.touchRate * r.db), 0);
+  const secs = rows.filter(r => r.sec !== null).map(r => r.sec), atts = rows.filter(r => r.att !== null).map(r => r.att);
+  const foot = `<tr style="background:var(--th,#F4F0E4);font-weight:700;"><td>팀 평균</td><td>${rows.length ? Math.round(totDb / rows.length) : 0}개</td><td>${totDb ? (totTouch / totDb).toFixed(1) + '회' : '-'}</td><td>${secs.length ? monFmtDur(monAvg(secs)) : '-'}</td><td>${atts.length ? monAvg(atts).toFixed(0) + '통' : '-'}</td><td>${f1(totCon / rows.length)}건</td><td>${totDb ? (totCon / totDb * 100).toFixed(1) + '%' : '-'}</td></tr>`;
+  return `<div class="card"><div style="font-weight:700;margin-bottom:4px;">${escapeHtml(title)}</div>
+    <div class="sub" style="margin:0 0 8px;">터치율 = 받은 DB 1개당 평균 터치 횟수 · 체결율 = 계약 건수 ÷ 받은 DB 수 · 평균 콜량·시도는 일일 입력이 있는 날의 하루 평균</div>
+    <div style="overflow-x:auto;"><table style="min-width:640px;"><thead><tr><th>팀장</th><th>받은 DB</th><th>터치율<br>(DB당 횟수)</th><th>평균 콜량<br>(하루, 시:분:초)</th><th>평균 시도<br>(하루, 통)</th><th>계약</th><th>체결율</th></tr></thead><tbody>${body}${foot}</tbody></table></div></div>`;
+}
+function actScatter(pts, avgAtt, avgCon){
+  const W = 720, H = 420, L = 56, R = 20, T = 16, B = 48;
+  const mx = Math.max(1, ...pts.map(p => p.att)) * 1.12, my = Math.max(1, ...pts.map(p => p.con)) * 1.2;
+  const X = v => L + (W - L - R) * v / mx, Y = v => T + (H - T - B) * (1 - v / my);
+  const ax = X(avgAtt), ay = Y(avgCon);
+  let g = `<rect x="${L}" y="${T}" width="${ax - L}" height="${ay - T}" fill="#FEE2E2" opacity=".7"/><rect x="${ax}" y="${T}" width="${W - R - ax}" height="${ay - T}" fill="#DCFCE7" opacity=".8"/><rect x="${L}" y="${ay}" width="${ax - L}" height="${H - B - ay}" fill="#FEF3C7" opacity=".8"/><rect x="${ax}" y="${ay}" width="${W - R - ax}" height="${H - B - ay}" fill="#DBEAFE" opacity=".8"/>`;
+  for (let i = 0; i <= 4; i++) { const yv = my * i / 4, xv = mx * i / 4; g += `<text x="${L - 8}" y="${Y(yv) + 4}" font-size="11" text-anchor="end" fill="#6B7280">${Math.round(yv)}</text><text x="${X(xv)}" y="${H - B + 16}" font-size="11" text-anchor="middle" fill="#6B7280">${Math.round(xv)}</text>`; }
+  g += `<line x1="${ax}" x2="${ax}" y1="${T}" y2="${H - B}" stroke="#1B2433" stroke-dasharray="5 4"/><line x1="${L}" x2="${W - R}" y1="${ay}" y2="${ay}" stroke="#1B2433" stroke-dasharray="5 4"/>`;
+  g += `<text x="${ax + 4}" y="${T + 12}" font-size="11" fill="#1B2433">시도 평균 ${avgAtt.toFixed(0)}통</text><text x="${L + 4}" y="${ay - 5}" font-size="11" text-anchor="start" fill="#1B2433">계약 평균 ${avgCon.toFixed(1)}건</text>`;
+  g += pts.map(p => `<circle cx="${X(p.att)}" cy="${Y(p.con)}" r="10" fill="${p.cls.color}" stroke="#fff" stroke-width="2"><title>${escapeHtml(p.label)}: 하루 시도 ${p.att.toFixed(0)}통 · 계약 ${p.con}건${p.rate === null ? '' : ' · 체결율 ' + p.rate.toFixed(1) + '%'}</title></circle><text x="${X(p.att)}" y="${Y(p.con) + 4}" font-size="11" font-weight="700" text-anchor="middle" fill="#fff" pointer-events="none">${escapeHtml(p.label)}</text>`).join('');
+  g += `<text x="${(L + W - R) / 2}" y="${H - 8}" font-size="12" text-anchor="middle" fill="#374151">하루 평균 시도 횟수 (통) →</text><text x="14" y="${(T + H - B) / 2}" font-size="12" text-anchor="middle" fill="#374151" transform="rotate(-90 14 ${(T + H - B) / 2})">계약 건수 →</text>`;
+  return `<div style="overflow-x:auto;"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:520px;" role="img" aria-label="하루 평균 시도 횟수와 계약 건수">${g}</svg></div>`;
+}
+function actRender(){
+  const body = document.getElementById('act_body');
+  if (!body || !currentUser || currentUser.role !== 'master') return;
+  actInitMonths();
+  document.getElementById('act_from').value = actFrom;
+  document.getElementById('act_to').value = actTo;
+  const from = actFrom + '-01', to = actTo + '-' + String(actLastDay(actTo)).padStart(2, '0');
+  const warn = [];
+  if (monLoadError) warn.push('콜 모니터링 DB를 불러오지 못했어요: ' + monLoadError);
+  monMissing.forEach(m => warn.push(m));
+  document.getElementById('act_info').innerHTML = `${actFrom.replace('-', '년 ')}월 ~ ${actTo.replace('-', '년 ')}월 · 콜 모니터링 DB ${monRows.length.toLocaleString('ko-KR')}건 · 포함 팀장은 콜 모니터링 탭의 체크박스를 따라요` + (warn.length ? '<br><span style="color:var(--red);">' + warn.map(escapeHtml).join('<br>') + '</span>' : '');
+  const rows = actCompute(from, to);
+  const labels = actLabels(monIncluded());
+  let h = actTableHtml(rows, labels, `팀장별 정리표 (${actFrom} ~ ${actTo})`);
+  /* 그래프 */
+  const pts = rows.filter(r => r.att !== null).map(r => ({ label: labels[r.n] || r.n, att: r.att, con: r.con, rate: r.rate, days: r.attDays }));
+  if (pts.length < 3) {
+    h += `<div class="card"><div style="font-weight:700;margin-bottom:4px;">하루 평균 시도 횟수와 계약 건수</div><div class="sub" style="margin:0;">시도 횟수가 입력된 팀장님이 3명 이상이어야 그래프를 그릴 수 있어요. (지금 ${pts.length}명) 콜 모니터링의 "일일 입력"에서 시도 횟수를 넣어주세요.</div></div>`;
+  } else {
+    const avgAtt = monAvg(pts.map(p => p.att)), avgCon = monAvg(pts.map(p => p.con));
+    pts.forEach(p => { p.cls = actClass(p, avgAtt, avgCon); });
+    const tag = (c, t) => `<span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block;"></span>${t}</span>`;
+    const q = (bg, t, d) => `<div style="background:${bg};border-radius:8px;padding:8px 10px;font-size:12.5px;"><b>${t}</b><br>${d}</div>`;
+    h += `<div class="card"><div style="font-weight:700;margin-bottom:2px;">하루 평균 시도 횟수와 계약 건수</div>
+      <div class="sub" style="margin:0 0 6px;">점 하나가 팀장님 한 명이에요. 점선은 팀 평균이고, 점에 마우스를 올리면 숫자가 보여요. 평균과 ±10% 안이면 "비슷"으로 보고 회색 점으로 표시해요.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px;margin-bottom:6px;">${tag('#15803D', '시도 많음·계약 많음')}${tag('#E11D48', '시도 많음·계약 적음')}${tag('#C2610C', '시도 적음·계약 적음')}${tag('#2563EB', '시도 적음·계약 많음')}${tag('#6B7280', '평균과 비슷')}</div>
+      ${actScatter(pts, avgAtt, avgCon)}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;margin-top:8px;">
+        ${q('#FEE2E2', '↖ 시도 많음 · 계약 적음', '많이 걸고 있어요. 콜스킬·콜 내용을 같이 들어볼 단서.')}
+        ${q('#DCFCE7', '↗ 시도 많음 · 계약 많음', '활동량과 결과가 맞아요. 잘하는 방식을 공유.')}
+        ${q('#FEF3C7', '↙ 시도 적음 · 계약 적음', '활동량부터 이야기하고, 콜 내용도 함께 점검.')}
+        ${q('#DBEAFE', '↘ 시도 적음 · 계약 많음', '효율이 좋아요. 통화 방식에 배울 점이 있을 수 있어요.')}
+      </div></div>
+      <div class="card"><div style="font-weight:700;margin-bottom:4px;">이야기 단서</div>${pts.slice().sort((a, b) => b.att - a.att).map(p => `<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line);"><span style="width:10px;height:10px;border-radius:50%;background:${p.cls.color};margin-top:7px;flex:none;"></span><div><b>${escapeHtml(p.label)}</b> · 시도 ${p.att.toFixed(0)}통 · 계약 ${p.con}건 — ${p.cls.txt}${p.days < 5 ? ' ' + monTag('입력 5일 미만, 참고용', 'gray') : ''}</div></div>`).join('')}
+      <div class="sub" style="margin:8px 0 0;">계약은 시도한 시점과 어긋날 수 있고, 팀장님마다 받은 DB 종류가 달라 단정은 어려워요. 체결율의 계약 건수는 계약관리 탭 기준이고, 받은 DB는 콜 모니터링에 올린 엑셀(분배일 기준, 신규·카카오페이 제외)이에요. 콜 내용은 점검 콜 코딩·면담 보고서와 함께 보세요.</div></div>`;
+  }
+  /* 월별로 나눠 보기 */
+  if (document.getElementById('act_split').checked && actFrom !== actTo) {
+    for (let m = actFrom; m <= actTo; m = actAddMonth(m, 1)) {
+      h += actTableHtml(actCompute(m + '-01', m + '-' + String(actLastDay(m)).padStart(2, '0')), labels, `${m.replace('-', '년 ')}월`);
+    }
+  }
+  body.innerHTML = h;
+}
 </script>
 </body>
 </html>
